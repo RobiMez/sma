@@ -16,6 +16,7 @@
 		"test:unit": "vitest"
 	},
 	"devDependencies": {
+		"@openpgp/web-stream-tools": "0.0.11-patch-0",
 		"@playwright/test": "^1.28.1",
 		"@sveltejs/adapter-auto": "^2.0.0",
 		"@sveltejs/kit": "^1.20.4",
@@ -37,7 +38,9 @@
 	"type": "module",
 	"dependencies": {
 		"autoprefixer": "^10.4.15",
+		"dotenv": "^16.4.5",
 		"mongoose": "^8.2.0",
+		"openpgp": "^5.11.1",
 		"postcss": "^8.4.29",
 		"tailwindcss": "^3.3.3"
 	}
