@@ -133,7 +133,7 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each decryptedMessages as msg}
+			{#each  [...decryptedMessages].reverse() as msg}
 				<div transition:slide class=" relative w-full border border-black p-2 font-light">
 					{msg.msg}
 					<span class="absolute -top-4 left-1 bg-stone-100 p-1 px-2 text-xs border">{msg.r}</span>

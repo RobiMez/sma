@@ -4,8 +4,10 @@ import Listener from "../../../models/listener.schema";
 export async function GET({ url }) {
 
   const rid = url.searchParams.get('r') ?? '';
+  const lim = parseInt(url.searchParams.get('lim') ?? '100');
 
-  const user = await Listener.findOne({ rid });
+
+  const user = await Listener.findOne({ rid }, { messages: { $slice: -lim } });
 
   if (user) {
     return json({ status: 200, body: user });
