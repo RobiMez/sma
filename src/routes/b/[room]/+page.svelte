@@ -149,11 +149,8 @@
 		}
 	});
 
-
-
 	onMount(async () => {
 		// Check if the user has a PGP identity
-		
 	});
 </script>
 
@@ -167,12 +164,14 @@
 			</span>
 		</h1>
 	</div>
-	<span class="flex h-full w-full flex-row gap-2 py-8">
+	<span class="w-full pt-2 text-left text-sm font-light">{message.length}/1000</span>
+	<span class="flex h-full w-full flex-row gap-2 pb-4 pt-2">
 		<input
 			bind:value={message}
 			type="text"
 			placeholder="Message content"
 			class="h-full w-full border border-black p-8"
+			maxlength="1000"
 		/>
 		<button
 			class="border border-black p-8 transition-all {postable
