@@ -2,7 +2,10 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import { slide } from 'svelte/transition';
+	import colors from '$lib/utils/colors.json';
+
 	import * as openpgp from 'openpgp';
+	console.log(colors);
 
 	let rid = $page.params.room;
 	let unlocked = false;
@@ -38,6 +41,26 @@
 		return unlockable;
 	};
 
+	function stringToHex(str: string) {
+		let hex = '';
+		for (let i = 0; i < str.length; i++) {
+			hex += str.charCodeAt(i).toString(16);
+		}
+		return hex.substring(0, 6);
+	}
+	function generateConsistentIndices(input: string) {
+		let hash = 0;
+		for (let i = 0; i < input.length; i++) {
+			hash = (hash << 5) - hash + input.charCodeAt(i);
+			hash |= 0; // Convert to 32bit integer
+		}
+
+		let index1 = Math.abs(hash % 992);
+		let index2 = Math.abs(hash % 5);
+
+		return colors[index1][index2];
+	}
+
 	const unpack = async () => {
 		if (unlocked) {
 			unpacking = true;
@@ -53,11 +76,9 @@
 			if (resp.error) {
 				console.log(resp.message);
 			} else {
-				console.log(resp.body.messages);
 				encryptedMessages = resp.body.messages;
 
 				for (const encryptedMessage of encryptedMessages) {
-					console.log('Decrypting message', encryptedMessage);
 					const readMsg = await openpgp.readMessage({
 						armoredMessage: encryptedMessage.message
 					});
@@ -76,7 +97,6 @@
 						decryptedMessages.push(msgObj);
 					}
 					decryptedMessages = [...decryptedMessages];
-					console.log('Decrypted message', decryptedMessages);
 				}
 			}
 			unpacking = false;
@@ -91,6 +111,15 @@
 		setTimeout(() => (copied = false), 2000); // Reset after 2 seconds
 	}
 
+	let pollingInterval = 10;
+	let intervalId: any;
+
+	$: {
+		if (pollingInterval > 3 && unlocked) {
+			clearInterval(intervalId);
+			intervalId = setInterval(unpack, pollingInterval * 1000);
+		}
+	}
 	onMount(async () => {
 		// Check if the user has a PGP identity
 		if (rid) {
@@ -100,7 +129,8 @@
 		// add a constant loop that calls unpack
 		unpack();
 		if (unlocked) {
-			setInterval(unpack, 10000);
+			if (intervalId) clearInterval(intervalId);
+			intervalId = setInterval(unpack, pollingInterval * 1000);
 		}
 	});
 </script>
@@ -122,9 +152,16 @@
 			{#if unpacking}
 				<span
 					class="absolute -bottom-2 left-1 rounded-sm border border-black bg-stone-200 p-1 px-2 text-xs font-normal text-stone-800"
-					>Loading ...</span
-				>
+					>Loading ...
+				</span>
 			{/if}
+			<span
+				class="absolute -bottom-2 right-1 rounded-sm border border-black bg-stone-200 p-1 px-2 text-xs font-normal text-stone-800"
+				>Fetch messages every
+
+				<input bind:value={pollingInterval} class="w-12" type="number" min="3" />
+				seconds
+			</span>
 		</h1>
 		<button class="btn bg-stone-50 transition-all" on:click={copyLink}>
 			{copied ? 'Link copied!' : 'Share your link'}
@@ -133,10 +170,20 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each  [...decryptedMessages].reverse() as msg}
+			{#each [...decryptedMessages].reverse() as msg}
+				{@const color = generateConsistentIndices(msg.r)}
 				<div transition:slide class=" relative w-full border border-black p-2 font-light">
 					{msg.msg}
-					<span class="absolute -top-4 left-1 bg-stone-100 p-1 px-2 text-xs border">{msg.r}</span>
+
+					<span
+						class="absolute -left-2 -top-4 aspect-square border border-black p-1 px-2 text-xs"
+						style="background: {color};"
+					>
+						&nbsp;
+					</span>
+					<span class="absolute -top-4 left-1 border border-black bg-stone-100 p-1 px-2 text-xs">
+						{msg.r}
+					</span>
 				</div>
 			{/each}
 			{#if !decryptedMessages.length}
