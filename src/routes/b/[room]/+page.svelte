@@ -188,11 +188,11 @@
 		</button>
 	</span>
 	<div class="flex flex-col gap-4">
-		<div class="relative border border-black bg-stone-200 p-2">
+		<div class="relative border border-black bg-stone-300 p-2">
 			<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200"
 				>{prKey ? 'Signing with Private key :' : ''}</small
 			>
-			<h1 class=" text-xs">{prKey ?? ''}</h1>
+			<h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
 		</div>
 		<div class="relative border border-black bg-stone-200 p-2">
 			<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200"

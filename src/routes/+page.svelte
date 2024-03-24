@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as openpgp from 'openpgp';
 	import { onMount } from 'svelte';
+	import { slide } from 'svelte/transition';
 
 	let prKey: string;
 	let pbKey: string;
@@ -69,7 +70,12 @@
 			// Create a unique string based on the keys
 		})();
 	};
-
+	interface Stats {
+		activeUsers: number;
+		identities: number;
+		totalMessages: number;
+	}
+	let stats: Stats;
 	onMount(async () => {
 		// Check if the user has a PGP identity
 		if (!prKey || !pbKey || !RC || !uniqueString) {
@@ -79,6 +85,23 @@
 			console.log('No Pgp Identity found , creating one now');
 			ResetPgpIdentity();
 		}
+
+		const response = await fetch(`/api/stats`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		const resp = await response.json();
+		console.log('response:', resp.body);
+		if (resp.error) {
+			stats = { activeUsers: -1, identities: -1, totalMessages: -1 };
+			console.log(resp.message);
+		} else {
+			stats = resp.body;
+			console.log(resp.message);
+		}
 	});
 </script>
 
@@ -86,8 +109,15 @@
 	class="container mx-auto flex min-h-screen max-w-4xl flex-grow flex-col items-center justify-center gap-8 p-8"
 >
 	<span class="flex flex-col items-center justify-center gap-2">
-		<h1 class="text-4xl font-black text-stone-700">Welcome to S.M.A</h1>
+		<h1 class="text-5xl font-black text-stone-700">Welcome to S.M.A</h1>
 		<h6 class="text-lg font-extralight">Send Messages Anon</h6>
+		{#if stats}
+			<small transition:slide class="text-xs font-light text-stone-700">
+				<b>{stats.activeUsers ?? ''}</b> Active users ,
+				<b>{stats.identities}</b> Identities ,
+				<b>{stats.totalMessages}</b> Messages and counting...
+			</small>
+		{/if}
 	</span>
 
 	<div class="flex flex-row items-center justify-center gap-4">
@@ -102,10 +132,10 @@
 	<div class="flex flex-col items-center justify-center gap-4 pt-2">
 		<div class="flex flex-row gap-4">
 			<div class="relative border border-black bg-stone-200 p-2">
-				<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200"
+				<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200 "
 					>{prKey ? 'Private Key ( Super secret , dont share )' : ''}</small
 				>
-				<h1 class=" text-xs">{prKey ?? ''}</h1>
+				<h1 class=" text-xs blur-sm hover:blur-none transition-all duration-1000">{prKey ?? ''}</h1>
 			</div>
 
 			<div class="relative border border-black bg-stone-50 p-2">
@@ -116,4 +146,5 @@
 			</div>
 		</div>
 	</div>
+	<span class="text-sm font-extralight">A <a class="underline" href="https://robi.work">robi.work</a> site </span>
 </div>
