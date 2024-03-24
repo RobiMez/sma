@@ -172,6 +172,9 @@
 			placeholder="Message content"
 			class="h-full w-full border border-black p-8"
 			maxlength="1000"
+			on:keydown={(e) => {
+				if (e.key === 'Enter') SignMessage();
+			}}
 		/>
 		<button
 			class="border border-black p-8 transition-all {postable
