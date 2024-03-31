@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { slide } from 'svelte/transition';
 
 	export let msg: any;
 	export let color: any;
@@ -9,7 +8,7 @@
 
 <div class=" relative w-full border border-black p-2 font-light">
 	{#if !msg.hidden}
-		<span>
+		<span class="overflow-hidden">
 			{msg.msg}
 		</span>
 	{/if}
