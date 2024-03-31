@@ -1,14 +1,12 @@
 <script lang="ts">
-
 	export let msg: any;
 	export let color: any;
-
-	$: msg.hidden = false;
+	let hidden = false;
 </script>
 
 <div class=" relative w-full border border-black p-2 font-light">
-	{#if !msg.hidden}
-		<span class="overflow-hidden">
+	{#if !hidden}
+		<span class="w-full overflow-hidden">
 			{msg.msg}
 		</span>
 	{/if}
@@ -18,7 +16,7 @@
 	<span
 		class="absolute -left-2 -top-4 aspect-square border border-black p-1 px-2 text-xs"
 		style="background: {color};"
-		on:click={() => (msg.hidden = !msg.hidden)}
+		on:click={() => (hidden = !hidden)}
 	>
 		&nbsp;
 	</span>
