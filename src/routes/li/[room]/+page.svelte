@@ -171,7 +171,7 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each [...decryptedMessages].reverse() as msg, i (msg.r + i)}
+			{#each [...decryptedMessages].reverse() as msg }
 				{@const color = generateConsistentIndices(msg.r)}
 				<Message {msg} {color} />
 			{/each}
