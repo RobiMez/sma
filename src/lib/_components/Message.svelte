@@ -7,7 +7,7 @@
 	$: msg.hidden = false;
 </script>
 
-<div transition:slide class=" relative w-full border border-black p-2 font-light">
+<div class=" relative w-full border border-black p-2 font-light">
 	{#if !msg.hidden}
 		<span>
 			{msg.msg}
