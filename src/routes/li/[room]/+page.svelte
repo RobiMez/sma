@@ -5,6 +5,7 @@
 	import colors from '$lib/utils/colors.json';
 
 	import * as openpgp from 'openpgp';
+	import Message from '$lib/_components/Message.svelte';
 	console.log(colors);
 
 	let rid = $page.params.room;
@@ -170,21 +171,9 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each [...decryptedMessages].reverse() as msg}
+			{#each [...decryptedMessages].reverse() as msg, i (msg.r + i)}
 				{@const color = generateConsistentIndices(msg.r)}
-				<div transition:slide class=" relative w-full border border-black p-2 font-light">
-					{msg.msg}
-
-					<span
-						class="absolute -left-2 -top-4 aspect-square border border-black p-1 px-2 text-xs"
-						style="background: {color};"
-					>
-						&nbsp;
-					</span>
-					<span class="absolute -top-4 left-1 border border-black bg-stone-100 p-1 px-2 text-xs">
-						{msg.r}
-					</span>
-				</div>
+				<Message {msg} {color} />
 			{/each}
 			{#if !decryptedMessages.length}
 				<span class="p-12"> No messages sent to your inbox yet </span>
