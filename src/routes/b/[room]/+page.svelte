@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import * as openpgp from 'openpgp';
 	import { slide } from 'svelte/transition';
+	import checkProfanity from '$lib/profanityFilter';
 
 	let prKey: string;
 	let pbKey: string;
@@ -24,6 +25,8 @@
 		pbKey = localStorage.getItem('pbKey')!;
 		RC = localStorage.getItem('RC')!;
 		uniqueString = localStorage.getItem('uniqueString')!;
+		console.log('Getting Pgp Identity from localStorage');
+
 		return { prKey, pbKey, RC, uniqueString };
 	};
 
@@ -32,6 +35,7 @@
 	let message = '';
 	let cleartextMessage = '';
 	let sent = false;
+	let profanityWarning = false;
 
 	$: postable = !!message;
 
@@ -50,6 +54,17 @@
 			privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
 			passphrase
 		});
+
+		const profanityCheck = await checkProfanity(message);
+		if (profanityCheck.isProfanity) {
+			console.log('This message has profanity');
+			profanityWarning = true;
+			setTimeout(() => {
+				profanityWarning = false;
+				message = '';
+			}, 6000);
+			return;
+		}
 
 		cleartextMessage = await openpgp.encrypt({
 			message: await openpgp.createMessage({ text: message }),
@@ -192,6 +207,8 @@
 
 	{#if sent}
 		<span class="text-xl font-light">✨ Sent your message </span>
+	{:else if profanityWarning}
+		<span style="color: #c95050;">⚠️ Message has not been sent because it has profanity words</span>
 	{/if}
 
 	<button
@@ -208,13 +225,13 @@
 		<div transition:slide class="flex flex-col gap-4 py-4">
 			<div class="bg-base-100 relative border border-black p-2">
 				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
-					>{prKey ? 'Signing with Private key :' : ''}
+				>{prKey ? 'Signing with Private key :' : ''}
 				</small>
 				<h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
 			</div>
 			<div class="bg-base-100 relative border border-black p-2">
 				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
-					>Encrypted Message :
+				>Encrypted Message :
 				</small>
 				<h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
 			</div>
