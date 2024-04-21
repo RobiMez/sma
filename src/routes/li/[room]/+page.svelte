@@ -1,18 +1,17 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
 	import colors from '$lib/utils/colors.json';
 
 	import * as openpgp from 'openpgp';
 	import Message from '$lib/_components/Message.svelte';
-	console.log(colors);
 
 	let rid = $page.params.room;
 	let unlocked = false;
 	let unpacking = false;
 	let unlockKey = '';
 	let prKey: string;
+
 	let encryptedMessages: any[] = [];
 	let decryptedMessages: any[] = [];
 	let passphrase = 'super long and hard to guess secret';
@@ -34,21 +33,12 @@
 		prKey = localStorage.getItem('prKey')!;
 		const pbKey = localStorage.getItem('pbKey')!;
 		const uniqueString = localStorage.getItem('uniqueString')!;
-		console.log('Getting Pgp Identity from localStorage');
 
 		const hash = await createShortHash(prKey + pbKey, 12);
 		const unlockable = hash === rid && uniqueString === rid;
-		console.log('Unlockable:', unlockable);
 		return unlockable;
 	};
 
-	function stringToHex(str: string) {
-		let hex = '';
-		for (let i = 0; i < str.length; i++) {
-			hex += str.charCodeAt(i).toString(16);
-		}
-		return hex.substring(0, 6);
-	}
 	function generateConsistentIndices(input: string) {
 		let hash = 0;
 		for (let i = 0; i < input.length; i++) {
@@ -97,8 +87,8 @@
 					if (!decryptedMessages.some((obj) => obj.msg === msgObj.msg && obj.r === msgObj.r)) {
 						decryptedMessages.push(msgObj);
 					}
-					decryptedMessages = [...decryptedMessages];
 				}
+				decryptedMessages = decryptedMessages;
 			}
 			unpacking = false;
 		}
@@ -107,7 +97,7 @@
 	let copied = false;
 
 	async function copyLink() {
-		await navigator.clipboard.writeText('https://sma.robi.work/b/' + rid);
+		await navigator.clipboard.writeText($page.url.origin + '/b/' + rid);
 		copied = true;
 		setTimeout(() => (copied = false), 2000); // Reset after 2 seconds
 	}
@@ -124,7 +114,6 @@
 	onMount(async () => {
 		// Check if the user has a PGP identity
 		if (rid) {
-			console.log('Checking if unlockable');
 			unlocked = await CheckIfUnlockable();
 		}
 		// add a constant loop that calls unpack
@@ -139,39 +128,52 @@
 <div
 	class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-8"
 >
-	<div class="flex w-full flex-row gap-2 p-1">
-		<h1 class=" relative w-full bg-stone-200 p-4 text-left text-4xl font-semibold text-stone-600">
-			Room <span class="rounded-sm bg-stone-300 p-1 font-extralight">
+	<div class="flex w-full flex-row gap-2 p-1 pb-4">
+		<h1
+			class=" bg-base-200 relative w-full p-4 text-left text-primary/90
+		text-xl font-semibold md:text-3xl lg:text-4xl"
+		>
+			Room
+			<span class="text-base-content bg-base-300 rounded-sm p-1 font-extralight">
 				{rid}
 			</span>
 			{#if unlocked}
 				<span
-					class="absolute -top-2 left-1 rounded-sm bg-stone-700 p-1 px-2 text-sm font-light text-stone-50"
-					>Your</span
-				>
+					class="bg-primary text-primary-content absolute -top-2 left-1 rounded-sm px-2 py-1 text-xs font-light"
+					>Your
+				</span>
 			{/if}
 			{#if unpacking}
 				<span
-					class="absolute -bottom-2 left-1 rounded-sm border border-black bg-stone-200 p-1 px-2 text-xs font-normal text-stone-800"
+					class="bg-base-300 text-base-content absolute -bottom-3 left-1 rounded-sm border border-black p-1 px-2 text-xs font-normal"
 					>Loading ...
 				</span>
 			{/if}
 			<span
-				class="absolute -bottom-2 right-1 rounded-sm border border-black bg-stone-200 p-1 px-2 text-xs font-normal text-stone-800"
-				>Fetch messages every
+				class="bg-base-200 absolute -bottom-2 right-1 rounded-sm border border-black p-1 px-2 text-xs font-normal"
+			>
+				Fetch every
 
-				<input bind:value={pollingInterval} class="w-12" type="number" min="3" />
-				seconds
+				<input
+					bind:value={pollingInterval}
+					class=" input input-outline input-base-200 input-xs w-8 appearance-none"
+					type="number"
+					min="3"
+					max="99"
+				/>
+				s
 			</span>
 		</h1>
-		<button class="btn bg-stone-50 transition-all" on:click={copyLink}>
-			{copied ? 'Link copied!' : 'Share your link'}
+		<button class="btn btn-primary py-auto btn-square h-full w-fit" on:click={copyLink}>
+			<span class="whitespace-nowrap px-4 py-6">
+				{copied ? 'Link copied!' : 'Copy your link'}
+			</span>
 		</button>
 	</div>
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each [...decryptedMessages].reverse() as msg }
+			{#each [...decryptedMessages].reverse() as msg}
 				{@const color = generateConsistentIndices(msg.r)}
 				<Message {msg} {color} />
 			{/each}
@@ -181,3 +183,17 @@
 		{/if}
 	</div>
 </div>
+
+<style>
+	/* Hide the up and down arrows in a number input field */
+	input[type='number']::-webkit-inner-spin-button,
+	input[type='number']::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	/* Firefox */
+	input[type='number'] {
+		-moz-appearance: textfield;
+		appearance: textfield;
+	}
+</style>

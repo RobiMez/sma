@@ -3,12 +3,3 @@
 @tailwind components;
 @tailwind utilities;
 
-.btn {
-	border: 1px solid #000;
-  transition: all 0.1s ease 0s;
-	padding: 1rem;
-}
-.btn:hover {
-  background-color: #000;
-  color: #fff;
-}

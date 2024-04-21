@@ -4,7 +4,7 @@
 	let hidden = false;
 </script>
 
-<div class=" relative w-full border border-black p-2 font-light">
+<div class=" bg-base-100 relative w-full border border-black p-2 font-light">
 	{#if !hidden}
 		<span class="w-full overflow-hidden">
 			{msg.msg}
@@ -20,7 +20,7 @@
 	>
 		&nbsp;
 	</span>
-	<span class="absolute -top-4 left-1 border border-black bg-stone-100 p-1 px-2 text-xs">
+	<span class="bg-base-100 absolute -top-4 left-1 border border-black p-1 px-2 text-xs">
 		{msg.r}
 	</span>
 </div>

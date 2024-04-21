@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as openpgp from 'openpgp';
 	import { onMount } from 'svelte';
-	import { slide } from 'svelte/transition';
+	import { fade, slide } from 'svelte/transition';
 
 	let prKey: string;
 	let pbKey: string;
@@ -76,6 +76,7 @@
 		totalMessages: number;
 	}
 	let stats: Stats;
+	let powerUser: boolean = false;
 	onMount(async () => {
 		// Check if the user has a PGP identity
 		if (!prKey || !pbKey || !RC || !uniqueString) {
@@ -109,42 +110,74 @@
 	class="container mx-auto flex min-h-screen max-w-4xl flex-grow flex-col items-center justify-center gap-8 p-8"
 >
 	<span class="flex flex-col items-center justify-center gap-2">
-		<h1 class="text-5xl font-black text-stone-700">Welcome to S.M.A</h1>
-		<h6 class="text-lg font-extralight">Send Messages Anon</h6>
+		<h1
+			class="
+			text-primary/80 text-4xl font-extralight
+			transition-all md:text-5xl lg:text-6xl"
+		>
+			Welcome to S.M.A
+		</h1>
+		<h6 class="text-md font-extralight md:text-lg lg:text-xl">Send Messages Anon</h6>
 		{#if stats}
-			<small transition:slide class="text-xs font-light text-stone-700">
+			<small in:fade class="text-primary/80 text-xs font-normal">
 				<b>{stats.activeUsers ?? ''}</b> Active users ,
 				<b>{stats.identities}</b> Identities ,
-				<b>{stats.totalMessages}</b> Messages and counting...
+				<b>{stats.totalMessages}</b> Msgs and counting...
 			</small>
+		{:else}
+			<small class="text-primary text-xs font-light"> Loading Stats... </small>
 		{/if}
 	</span>
 
 	<div class="flex flex-row items-center justify-center gap-4">
-		<a href="#0" class="btn" on:click={ResetPgpIdentity}> Reset Identity </a>
+		<a href="#0" class="btn btn-primary btn-outline" on:click={ResetPgpIdentity}>
+			Reset Identity
+		</a>
 		<div class="relative">
-			<a class="btn" href="/li/{uniqueString}"> Your Messages </a>
-			<h1 class="absolute -bottom-8 -right-1 border border-black bg-stone-300 p-1 text-xs">
+			<a class="btn btn-primary" href="/li/{uniqueString}"> Your Messages </a>
+			<h1
+				class="border-primary text-primary bg-base-100 absolute -bottom-4 -right-1 border p-1 text-xs"
+			>
 				{uniqueString ?? ''}
 			</h1>
 		</div>
 	</div>
 	<div class="flex flex-col items-center justify-center gap-4 pt-2">
-		<div class="flex flex-row gap-4">
-			<div class="relative border border-black bg-stone-200 p-2">
-				<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200 "
-					>{prKey ? 'Private Key ( Super secret , dont share )' : ''}</small
-				>
-				<h1 class=" text-xs blur-sm hover:blur-none transition-all duration-1000">{prKey ?? ''}</h1>
-			</div>
+		<button
+			class="btn btn-sm"
+			on:click={() => {
+				powerUser = !powerUser;
+			}}
+		>
+			{powerUser ? 'Hide' : 'Show'}
+			PGP tools</button
+		>
+		{#if powerUser}
+			<div class="flex max-w-[80vw] flex-col gap-4 lg:flex-row py-4" transition:slide>
+				<div class="relative border border-black p-2">
+					<small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
+						>{prKey ? 'Private Key ( Super secret , dont share )' : ''}</small
+					>
+					<h1 class=" break-all text-xs blur-sm transition-all duration-1000 hover:blur-none">
+						{prKey ?? ''}
+					</h1>
+				</div>
 
-			<div class="relative border border-black bg-stone-50 p-2">
-				<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200"
-					>{pbKey ? 'Public Key ( Share as you like ) ' : ''}</small
-				>
-				<h1 class=" text-xs">{pbKey ?? ''}</h1>
+				<div class="relative border border-black p-2">
+					<small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
+						>{pbKey ? 'Public Key ( Share as you like ) ' : ''}</small
+					>
+					<h1 class=" break-all text-xs">{pbKey ?? ''}</h1>
+				</div>
 			</div>
-		</div>
+		{/if}
 	</div>
-	<span class="text-sm font-extralight">A <a class="underline" href="https://robi.work">robi.work</a> site </span>
+
+	<footer class="
+	text-primary fixed bottom-0 flex w-full items-center 
+	bg-base-100 justify-center z-50">
+		<span class="p-1 text-sm font-extralight"
+			>A <a class="underline" href="https://robi.work">robi.work</a> site
+		</span>
+	</footer>
 </div>
