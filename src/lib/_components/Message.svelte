@@ -5,7 +5,6 @@
 	import { onMount } from 'svelte';
 
 	let hidden = false;
-	console.log('msg', msg);
 	let time = '';
 
 	// Function to refresh the time

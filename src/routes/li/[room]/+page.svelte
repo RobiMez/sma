@@ -76,7 +76,6 @@
 			} else {
 				// Otherwise, set 'encryptedMessages' to the messages from the response
 				encryptedMessages = resp.body.messages;
-				console.log('encryptedMessages', encryptedMessages);
 
 				// Loop over each encrypted message
 				for (const encryptedMessage of encryptedMessages) {
@@ -207,6 +206,8 @@
 			{#if !decryptedMessages.length}
 				<span class="p-12"> No messages sent to your inbox yet </span>
 			{/if}
+
+			<!-- else if content here -->
 		{/if}
 	</div>
 </div>
