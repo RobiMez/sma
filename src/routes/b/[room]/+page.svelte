@@ -58,10 +58,10 @@
 		const profanityCheck = await checkProfanity(message);
 		if (profanityCheck.isProfanity) {
 			console.log('This message has profanity');
+			message = '';
 			profanityWarning = true;
 			setTimeout(() => {
 				profanityWarning = false;
-				message = '';
 			}, 6000);
 			return;
 		}
@@ -91,10 +91,10 @@
 			console.log(resp.message);
 		} else {
 			console.log(resp.message);
+			message = '';
 			sent = true;
 			setTimeout(() => {
 				sent = false;
-				message = '';
 			}, 3000);
 		}
 	};
