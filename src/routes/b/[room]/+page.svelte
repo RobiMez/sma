@@ -208,9 +208,8 @@
 	{#if sent}
 		<span class="text-xl font-light">✨ Sent your message </span>
 	{:else if profanityWarning}
-		<span style="color: #c95050;">⚠️ Message has not been sent because it has profanity words</span>
+		<span class="text-error"> ⚠️ Message has not been sent because it contains profanity </span>
 	{/if}
-
 	<button
 		class="btn btn-sm my-4"
 		on:click={() => {
@@ -225,13 +224,13 @@
 		<div transition:slide class="flex flex-col gap-4 py-4">
 			<div class="bg-base-100 relative border border-black p-2">
 				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
-				>{prKey ? 'Signing with Private key :' : ''}
+					>{prKey ? 'Signing with Private key :' : ''}
 				</small>
 				<h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
 			</div>
 			<div class="bg-base-100 relative border border-black p-2">
 				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
-				>Encrypted Message :
+					>Encrypted Message :
 				</small>
 				<h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
 			</div>
