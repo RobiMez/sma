@@ -41,9 +41,11 @@
 	const SignMessage = async () => {
 		prKey = localStorage.getItem('prKey')!;
 		console.log('Signing message');
+
 		const passphrase = 'super long and hard to guess secret';
 		const uniqueString = localStorage.getItem('uniqueString')!;
 		const publicKey = await openpgp.readKey({ armoredKey: api_pbKey });
+
 		const privateKey = await openpgp.decryptKey({
 			privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
 			passphrase
@@ -62,6 +64,7 @@
 			},
 			body: JSON.stringify({
 				message: cleartextMessage,
+				timestamp: new Date().toISOString(),
 				r: uniqueString,
 				p: params
 			})

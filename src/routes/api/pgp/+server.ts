@@ -1,6 +1,11 @@
 import { json } from "@sveltejs/kit";
 import Listener from "../../../models/listener.schema";
 
+interface Listener {
+  pbKey: string;
+  rid: string;
+}
+
 export async function GET({ url }) {
 
   const rid = url.searchParams.get('r') ?? '';
@@ -18,14 +23,13 @@ export async function GET({ url }) {
 
 export async function PATCH({ request }) {
   const body = await request.json();
-  const { message, r, p } = body;
-
+  const { message, r, p, timestamp } = body;
 
   try {
 
     const user = await Listener.findOneAndUpdate(
       { rid: p },
-      { $push: { messages: { message, r } } },
+      { $push: { messages: { message, r, timestamp } } },
       { new: true }
     );
 
@@ -39,12 +43,6 @@ export async function PATCH({ request }) {
     return json({ status: 500, body: 'Error updating user' });
   }
 }
-
-interface Listener {
-  pbKey: string;
-  rid: string;
-}
-
 
 export async function POST({ request }) {
   const body = await request.json();
