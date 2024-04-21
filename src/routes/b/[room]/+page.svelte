@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import * as openpgp from 'openpgp';
 	import { slide } from 'svelte/transition';
+	import checkProfanity from '$lib/profanityFilter';
 
 	let prKey: string;
 	let pbKey: string;
@@ -24,6 +25,8 @@
 		pbKey = localStorage.getItem('pbKey')!;
 		RC = localStorage.getItem('RC')!;
 		uniqueString = localStorage.getItem('uniqueString')!;
+		console.log('Getting Pgp Identity from localStorage');
+
 		return { prKey, pbKey, RC, uniqueString };
 	};
 
@@ -32,6 +35,7 @@
 	let message = '';
 	let cleartextMessage = '';
 	let sent = false;
+	let profanityWarning = false;
 
 	$: postable = !!message;
 
@@ -50,6 +54,17 @@
 			privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
 			passphrase
 		});
+
+		const profanityCheck = await checkProfanity(message);
+		if (profanityCheck.isProfanity) {
+			console.log('This message has profanity');
+			profanityWarning = true;
+			setTimeout(() => {
+				profanityWarning = false;
+				message = '';
+			}, 6000);
+			return;
+		}
 
 		cleartextMessage = await openpgp.encrypt({
 			message: await openpgp.createMessage({ text: message }),
@@ -192,8 +207,9 @@
 
 	{#if sent}
 		<span class="text-xl font-light">✨ Sent your message </span>
+	{:else if profanityWarning}
+		<span class="text-error"> ⚠️ Message has not been sent because it contains profanity </span>
 	{/if}
-
 	<button
 		class="btn btn-sm my-4"
 		on:click={() => {
