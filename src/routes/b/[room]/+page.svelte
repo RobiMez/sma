@@ -55,15 +55,19 @@
 			passphrase
 		});
 
-		const profanityCheck = await checkProfanity(message);
-		if (profanityCheck.isProfanity) {
-			console.log('This message has profanity');
-			message = '';
-			profanityWarning = true;
-			setTimeout(() => {
-				profanityWarning = false;
-			}, 6000);
-			return;
+		const profanityFilterEnabled = localStorage.getItem('profanityFilterEnabled') === 'true';
+		console.log('Profanity filter enabled:', profanityFilterEnabled);
+		if (profanityFilterEnabled) {
+			const profanityCheck = await checkProfanity(message);
+			if (profanityCheck.isProfanity) {
+				console.log('This message has profanity');
+				message = '';
+				profanityWarning = true;
+				setTimeout(() => {
+					profanityWarning = false;
+				}, 6000);
+				return;
+			}
 		}
 
 		cleartextMessage = await openpgp.encrypt({
@@ -208,7 +212,7 @@
 	{#if sent}
 		<span class="text-xl font-light">✨ Sent your message </span>
 	{:else if profanityWarning}
-		<span class="text-error"> ⚠️ Message has not been sent because it contains profanity </span>
+		<span style="color: #c95050;">⚠️ Message has not been sent because it has profanity words</span>
 	{/if}
 	<button
 		class="btn btn-sm my-4"

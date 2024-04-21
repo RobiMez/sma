@@ -11,6 +11,7 @@
 	let unpacking = false;
 	let unlockKey = '';
 	let prKey: string;
+	let profanityFilterEnabled = false;
 
 	let encryptedMessages: any[] = [];
 	let decryptedMessages: any[] = [];
@@ -35,8 +36,7 @@
 		const uniqueString = localStorage.getItem('uniqueString')!;
 
 		const hash = await createShortHash(prKey + pbKey, 12);
-		const unlockable = hash === rid && uniqueString === rid;
-		return unlockable;
+		return hash === rid && uniqueString === rid;
 	};
 
 	function generateConsistentIndices(input: string) {
@@ -148,8 +148,19 @@
 			if (intervalId) clearInterval(intervalId);
 			intervalId = setInterval(unpack, pollingInterval * 1000);
 		}
+		// Set profanityFilterEnabled to false when the room starts
+		profanityFilterEnabled = false;
+		localStorage.setItem('profanityFilterEnabled', 'false');
 		return clearInterval(intervalId);
 	});
+
+	// Add a function to toggle the profanity filter
+	function toggleProfanityFilter() {
+		profanityFilterEnabled = !profanityFilterEnabled;
+		console.log('Toggled profanity filter:', profanityFilterEnabled); // Add this line
+		localStorage.setItem('profanityFilterEnabled', profanityFilterEnabled ? 'true' : 'false');
+	}
+
 </script>
 
 <div
@@ -196,6 +207,12 @@
 				{copied ? 'Link copied!' : 'Copy your link'}
 			</span>
 		</button>
+	</div>
+	<div>
+		<span class="p-12">Profanity Filter :</span>
+		<button class="btn btn-sm my-4 px-8" on:click={toggleProfanityFilter}>
+		{profanityFilterEnabled ? 'On' : 'Off'}
+	</button>
 	</div>
 
 	<div class="flex w-full flex-col gap-3 p-4">
