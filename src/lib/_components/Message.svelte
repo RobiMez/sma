@@ -10,13 +10,13 @@
 	// Function to refresh the time
 	const refresh = () => {
 		const now = new Date();
-		const diff = now.getTime() - new Date(msg.timestamp).getTime();
+		const diff = now.getTime() - new Date(msg.timestamp ?? 0).getTime();
 		time = prettyMilliseconds(diff, { compact: true });
 	};
 	const refreshInterval = setInterval(refresh, 10000);
 
 	onMount(() => {
-		const timestamp = new Date(msg.timestamp);
+		const timestamp = new Date(msg.timestamp ?? 0);
 		const now = new Date();
 		const diff = now.getTime() - timestamp.getTime();
 		time = prettyMilliseconds(diff, { compact: true });

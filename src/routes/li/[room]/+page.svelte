@@ -100,7 +100,7 @@
 					const msgObj = {
 						msg: String(decrypted),
 						r: encryptedMessage.r,
-						timestamp: encryptedMessage.timestamp
+						timestamp: encryptedMessage.timestamp ?? new Date(0).toISOString()
 					};
 
 					// If 'decryptedMessages' doesn't already contain this message, add it
@@ -125,7 +125,7 @@
 	async function copyLink() {
 		await navigator.clipboard.writeText($page.url.origin + '/b/' + rid);
 		copied = true;
-		setTimeout(() => (copied = false), 2000); // Reset after 2 seconds
+		setTimeout(() => (copied = false), 2000);
 	}
 
 	let pollingInterval = 10;
@@ -148,6 +148,7 @@
 			if (intervalId) clearInterval(intervalId);
 			intervalId = setInterval(unpack, pollingInterval * 1000);
 		}
+		return clearInterval(intervalId);
 	});
 </script>
 
@@ -199,15 +200,15 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each [...decryptedMessages].reverse() as msg (msg.timestamp)}
+			{#each [...decryptedMessages].reverse() as msg (msg)}
 				{@const color = generateConsistentIndices(msg.r)}
+
 				<Message {msg} {color} />
 			{/each}
+
 			{#if !decryptedMessages.length}
 				<span class="p-12"> No messages sent to your inbox yet </span>
 			{/if}
-
-			<!-- else if content here -->
 		{/if}
 	</div>
 </div>
