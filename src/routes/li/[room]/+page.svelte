@@ -52,9 +52,14 @@
 		return colors[index1][index2];
 	}
 
+	// Define an asynchronous function named 'unpack'
 	const unpack = async () => {
+		// Check if 'unlocked' is true
 		if (unlocked) {
+			// Set 'unpacking' to true
 			unpacking = true;
+
+			// Fetch the encrypted messages from the server
 			const response = await fetch(`/api/pgp?r=${rid}`, {
 				method: 'GET',
 				headers: {
@@ -62,38 +67,60 @@
 				}
 			});
 
+			// Parse the JSON response
 			const resp = await response.json();
 
+			// If there's an error in the response, log the message
 			if (resp.error) {
 				console.log(resp.message);
 			} else {
+				// Otherwise, set 'encryptedMessages' to the messages from the response
 				encryptedMessages = resp.body.messages;
+				console.log('encryptedMessages', encryptedMessages);
 
+				// Loop over each encrypted message
 				for (const encryptedMessage of encryptedMessages) {
+					// Read the encrypted message
 					const readMsg = await openpgp.readMessage({
 						armoredMessage: encryptedMessage.message
 					});
+
+					// Decrypt the private key
 					const privateKey = await openpgp.decryptKey({
 						privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
 						passphrase
 					});
 
+					// Decrypt the message with the private key
 					const { data: decrypted } = await openpgp.decrypt({
 						message: readMsg,
 						decryptionKeys: privateKey
 					});
-					const msgObj = { msg: String(decrypted), r: encryptedMessage.r };
 
-					if (!decryptedMessages.some((obj) => obj.msg === msgObj.msg && obj.r === msgObj.r)) {
+					// Create an object with the decrypted message and its 'r' property
+					const msgObj = {
+						msg: String(decrypted),
+						r: encryptedMessage.r,
+						timestamp: encryptedMessage.timestamp
+					};
+
+					// If 'decryptedMessages' doesn't already contain this message, add it
+					if (
+						!decryptedMessages.some(
+							(obj) =>
+								obj.msg === msgObj.msg && obj.r === msgObj.r && obj.timestamp === msgObj.timestamp
+						)
+					) {
 						decryptedMessages.push(msgObj);
 					}
 				}
+				// Update 'decryptedMessages' to trigger reactivity in Svelte
 				decryptedMessages = decryptedMessages;
 			}
+			// Set 'unpacking' to false
 			unpacking = false;
 		}
 	};
-
 	let copied = false;
 
 	async function copyLink() {
@@ -130,7 +157,7 @@
 >
 	<div class="flex w-full flex-row gap-2 p-1 pb-4">
 		<h1
-			class=" bg-base-200 relative w-full p-4 text-left text-primary/90
+			class=" bg-base-200 text-primary/90 relative w-full p-4 text-left
 		text-xl font-semibold md:text-3xl lg:text-4xl"
 		>
 			Room
@@ -173,7 +200,7 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each [...decryptedMessages].reverse() as msg}
+			{#each [...decryptedMessages].reverse() as msg (msg.timestamp)}
 				{@const color = generateConsistentIndices(msg.r)}
 				<Message {msg} {color} />
 			{/each}
