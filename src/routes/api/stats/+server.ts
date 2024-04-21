@@ -13,7 +13,8 @@ export async function GET({ url }) {
 
   return json({
     status: 200, body: {
-      activeUsers: activeUsers.length, totalMessages: totalmessages ,
+      activeUsers: activeUsers.length,
+      totalMessages: totalmessages,
       identities: identities.length
     }
   });

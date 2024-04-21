@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';
 	import * as openpgp from 'openpgp';
+	import { slide } from 'svelte/transition';
 
 	let prKey: string;
 	let pbKey: string;
@@ -23,8 +24,6 @@
 		pbKey = localStorage.getItem('pbKey')!;
 		RC = localStorage.getItem('RC')!;
 		uniqueString = localStorage.getItem('uniqueString')!;
-		console.log('Getting Pgp Identity from localStorage');
-
 		return { prKey, pbKey, RC, uniqueString };
 	};
 
@@ -149,17 +148,17 @@
 		}
 	});
 
-	onMount(async () => {
-		// Check if the user has a PGP identity
-	});
+	let powerUser = false;
 </script>
 
 <div
-	class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-8"
+	class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-2 pt-8"
 >
 	<div class="flex w-full flex-row">
-		<h1 class=" relative w-full bg-stone-200 p-4 text-left text-4xl font-semibold text-stone-600">
-			Send to <span class="rounded-sm bg-stone-300 p-1 font-extralight">
+		<h1
+			class=" text-primary bg-base-200 relative w-full p-4 text-left text-xl font-semibold transition-all md:text-2xl lg:text-4xl"
+		>
+			Send to <span class="text-primary bg-base-300 rounded-sm p-1 font-extralight">
 				{params}
 			</span>
 		</h1>
@@ -169,39 +168,53 @@
 		<input
 			bind:value={message}
 			type="text"
-			placeholder="Message content"
-			class="h-full w-full border border-black p-8"
+			placeholder="Enter your message here "
+			class="bg-base-200/40 placeholder-base-content/70 h-full w-full border border-black p-8"
 			maxlength="1000"
 			on:keydown={(e) => {
 				if (e.key === 'Enter') SignMessage();
 			}}
 		/>
+
 		<button
-			class="border border-black p-8 transition-all {postable
-				? 'hover:bg-stone-700 hover:text-stone-300'
-				: ''}"
-			class:bg-stone-200={!postable}
+			class=" text-primary border border-black p-8
+			transition-all
+			{postable ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
 			disabled={!postable}
 			on:click={SignMessage}
 		>
 			Send
 		</button>
 	</span>
-	<div class="flex flex-col gap-4">
-		<div class="relative border border-black bg-stone-300 p-2">
-			<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200"
-				>{prKey ? 'Signing with Private key :' : ''}</small
-			>
-			<h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
+
+	{#if sent}
+		<span class="text-xl font-light">✨ Sent your message </span>
+	{/if}
+
+	<button
+		class="btn btn-sm my-4"
+		on:click={() => {
+			powerUser = !powerUser;
+		}}
+	>
+		{powerUser ? 'Hide' : 'Show'}
+		PGP tools</button
+	>
+
+	{#if powerUser}
+		<div transition:slide class="flex flex-col gap-4 py-4">
+			<div class="bg-base-100 relative border border-black p-2">
+				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
+					>{prKey ? 'Signing with Private key :' : ''}
+				</small>
+				<h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
+			</div>
+			<div class="bg-base-100 relative border border-black p-2">
+				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
+					>Encrypted Message :
+				</small>
+				<h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
+			</div>
 		</div>
-		<div class="relative border border-black bg-stone-200 p-2">
-			<small class="absolute -top-3 rounded-sm bg-stone-800 px-1 text-stone-200"
-				>Encrypted Message :</small
-			>
-			<h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
-		</div>
-		{#if sent}
-			<span>Sent your message </span>
-		{/if}
-	</div>
+	{/if}
 </div>
