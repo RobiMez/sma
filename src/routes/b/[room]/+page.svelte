@@ -44,7 +44,6 @@
 	// get the private key of myself from localstorage
 	const SignMessage = async () => {
 		prKey = localStorage.getItem('prKey')!;
-		console.log('Signing message');
 
 		const passphrase = 'super long and hard to guess secret';
 		const uniqueString = localStorage.getItem('uniqueString')!;
@@ -54,16 +53,37 @@
 			privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
 			passphrase
 		});
+		let profanityFilterEnabled = false;
 
-		const profanityCheck = await checkProfanity(message);
-		if (profanityCheck.isProfanity) {
-			console.log('This message has profanity');
-			message = '';
-			profanityWarning = true;
-			setTimeout(() => {
-				profanityWarning = false;
-			}, 6000);
-			return;
+		const respn = await fetch('/api/prof', {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				pbKey: pbKey
+			})
+		});
+
+		const re = await respn.json();
+
+		if (re.error) {
+			console.log(re.message);
+		} else {
+			profanityFilterEnabled = re.body.profanityEnabled;
+			console.log(re);
+		}
+
+		if (profanityFilterEnabled) {
+			const profanityCheck = await checkProfanity(message);
+			if (profanityCheck.isProfanity) {
+				message = '';
+				profanityWarning = true;
+				setTimeout(() => {
+					profanityWarning = false;
+				}, 6000);
+				return;
+			}
 		}
 
 		cleartextMessage = await openpgp.encrypt({
@@ -174,9 +194,9 @@
 >
 	<div class="flex w-full flex-row">
 		<h1
-			class=" text-primary bg-base-200 relative w-full p-4 text-left text-xl font-semibold transition-all md:text-2xl lg:text-4xl"
+			class=" relative w-full bg-base-200 p-4 text-left text-xl font-semibold text-primary transition-all md:text-2xl lg:text-4xl"
 		>
-			Send to <span class="text-primary bg-base-300 rounded-sm p-1 font-extralight">
+			Send to <span class="rounded-sm bg-base-300 p-1 font-extralight text-primary">
 				{params}
 			</span>
 		</h1>
@@ -187,7 +207,7 @@
 			bind:value={message}
 			type="text"
 			placeholder="Enter your message here "
-			class="bg-base-200/40 placeholder-base-content/70 h-full w-full border border-black p-8"
+			class="h-full w-full border border-black bg-base-200/40 p-8 placeholder-base-content/70"
 			maxlength="1000"
 			on:keydown={(e) => {
 				if (e.key === 'Enter') SignMessage();
@@ -195,7 +215,7 @@
 		/>
 
 		<button
-			class=" text-primary border border-black p-8
+			class=" border border-black p-8 text-primary
 			transition-all
 			{postable ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
 			disabled={!postable}
@@ -208,7 +228,9 @@
 	{#if sent}
 		<span class="text-xl font-light">✨ Sent your message </span>
 	{:else if profanityWarning}
-		<span class="text-error"> ⚠️ Message has not been sent because it contains profanity </span>
+		<span class="text-error"
+			>⚠️ Message has not been sent because the room host doesn't allow profanity.</span
+		>
 	{/if}
 	<button
 		class="btn btn-sm my-4"
@@ -222,14 +244,14 @@
 
 	{#if powerUser}
 		<div transition:slide class="flex flex-col gap-4 py-4">
-			<div class="bg-base-100 relative border border-black p-2">
-				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
+			<div class="relative border border-black bg-base-100 p-2">
+				<small class="absolute -top-3 rounded-sm bg-primary-content px-1 text-primary"
 					>{prKey ? 'Signing with Private key :' : ''}
 				</small>
 				<h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
 			</div>
-			<div class="bg-base-100 relative border border-black p-2">
-				<small class="text-primary bg-primary-content absolute -top-3 rounded-sm px-1"
+			<div class="relative border border-black bg-base-100 p-2">
+				<small class="absolute -top-3 rounded-sm bg-primary-content px-1 text-primary"
 					>Encrypted Message :
 				</small>
 				<h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
