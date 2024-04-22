@@ -157,7 +157,7 @@
 	// Add a function to toggle the profanity filter
 	function toggleProfanityFilter() {
 		profanityFilterEnabled = !profanityFilterEnabled;
-		console.log('Toggled profanity filter:', profanityFilterEnabled); // Add this line
+		console.log('Toggled profanity filter:', profanityFilterEnabled);
 		localStorage.setItem('profanityFilterEnabled', profanityFilterEnabled ? 'true' : 'false');
 	}
 
@@ -209,7 +209,7 @@
 		</button>
 	</div>
 	<div>
-		<span class="p-12">Profanity Filter :</span>
+		<span class="p-4">Profanity Filter :</span>
 		<button class="btn btn-sm my-4 px-8" on:click={toggleProfanityFilter}>
 		{profanityFilterEnabled ? 'On' : 'Off'}
 	</button>
