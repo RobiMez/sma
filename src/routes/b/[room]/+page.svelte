@@ -212,7 +212,7 @@
 	{#if sent}
 		<span class="text-xl font-light">✨ Sent your message </span>
 	{:else if profanityWarning}
-		<span style="color: #c95050;">⚠️ Message has not been sent because it has profanity words</span>
+		<span class="text-error">⚠️ Message has not been sent because the room host doesn't allow profanity words</span>
 	{/if}
 	<button
 		class="btn btn-sm my-4"
