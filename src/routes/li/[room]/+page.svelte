@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
+
 	import colors from '$lib/utils/colors.json';
 
 	import * as openpgp from 'openpgp';
@@ -11,6 +13,7 @@
 	let unpacking = false;
 	let unlockKey = '';
 	let prKey: string;
+	let pbKey: string;
 	let profanityFilterEnabled = false;
 
 	let encryptedMessages: any[] = [];
@@ -32,7 +35,7 @@
 
 	const CheckIfUnlockable = async () => {
 		prKey = localStorage.getItem('prKey')!;
-		const pbKey = localStorage.getItem('pbKey')!;
+		pbKey = localStorage.getItem('pbKey')!;
 		const uniqueString = localStorage.getItem('uniqueString')!;
 
 		const hash = await createShortHash(prKey + pbKey, 12);
@@ -120,6 +123,7 @@
 			unpacking = false;
 		}
 	};
+
 	let copied = false;
 
 	async function copyLink() {
@@ -148,53 +152,86 @@
 			if (intervalId) clearInterval(intervalId);
 			intervalId = setInterval(unpack, pollingInterval * 1000);
 		}
-		// Set profanityFilterEnabled to false when the room starts
+
+		// if none set , default to false
 		profanityFilterEnabled = false;
-		localStorage.setItem('profanityFilterEnabled', 'false');
+
+		const response = await fetch('/api/prof', {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ pbKey: pbKey })
+		});
+
+		const resp = await response.json();
+
+		if (resp.error) {
+			console.log(resp.message);
+		} else {
+			console.log(resp);
+
+			profanityFilterEnabled = resp.body.profanityEnabled;
+		}
+
 		return clearInterval(intervalId);
 	});
 
-	// Add a function to toggle the profanity filter
-	function toggleProfanityFilter() {
-		profanityFilterEnabled = !profanityFilterEnabled;
-		console.log('Toggled profanity filter:', profanityFilterEnabled);
-		localStorage.setItem('profanityFilterEnabled', profanityFilterEnabled ? 'true' : 'false');
-	}
+	const updateProf = async (e: any) => {
+		const response = await fetch('/api/prof', {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				pbKey: pbKey,
+				profanityEnabled: e.target.checked ?? false
+			})
+		});
 
+		const resp = await response.json();
+
+		if (resp.error) {
+			console.log(resp.message);
+		} else {
+			profanityFilterEnabled = resp.body.profanityEnabled;
+			console.log(resp.body.profanityEnabled);
+		}
+	};
 </script>
 
 <div
 	class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-8"
 >
-	<div class="flex w-full flex-row gap-2 p-1 pb-4">
+	<div class="flex w-full flex-row gap-2 p-1 pb-1">
 		<h1
-			class=" bg-base-200 text-primary/90 relative w-full p-4 text-left
-		text-xl font-semibold md:text-3xl lg:text-4xl"
+			class=" relative w-full bg-base-200 p-4 text-left text-xl
+		font-semibold text-primary/90 md:text-3xl lg:text-4xl"
 		>
 			Room
-			<span class="text-base-content bg-base-300 rounded-sm p-1 font-extralight">
+			<span class="rounded-sm bg-base-300 p-1 font-extralight text-base-content">
 				{rid}
 			</span>
 			{#if unlocked}
 				<span
-					class="bg-primary text-primary-content absolute -top-2 left-1 rounded-sm px-2 py-1 text-xs font-light"
+					class="absolute -top-2 left-1 rounded-sm bg-primary px-2 py-1 text-xs font-light text-primary-content"
 					>Your
 				</span>
 			{/if}
 			{#if unpacking}
 				<span
-					class="bg-base-300 text-base-content absolute -bottom-3 left-1 rounded-sm border border-black p-1 px-2 text-xs font-normal"
+					class="absolute -bottom-3 left-1 rounded-sm border border-black bg-base-300 p-1 px-2 text-xs font-normal text-base-content"
 					>Loading ...
 				</span>
 			{/if}
 			<span
-				class="bg-base-200 absolute -bottom-2 right-1 rounded-sm border border-black p-1 px-2 text-xs font-normal"
+				class="absolute -bottom-2 right-1 rounded-sm border border-black bg-base-200 p-1 px-2 text-xs font-normal"
 			>
 				Fetch every
 
 				<input
 					bind:value={pollingInterval}
-					class=" input input-outline input-base-200 input-xs w-8 appearance-none"
+					class=" input-outline input-base-200 input input-xs w-8 appearance-none"
 					type="number"
 					min="3"
 					max="99"
@@ -202,24 +239,27 @@
 				s
 			</span>
 		</h1>
-		<button class="btn btn-primary py-auto btn-square h-full w-fit" on:click={copyLink}>
+		<button class="py-auto btn btn-square btn-primary h-full w-fit" on:click={copyLink}>
 			<span class="whitespace-nowrap px-4 py-6">
 				{copied ? 'Link copied!' : 'Copy your link'}
 			</span>
 		</button>
 	</div>
-	<div>
-		<span class="p-4">Profanity Filter :</span>
-		<button class="btn btn-sm my-4 px-8" on:click={toggleProfanityFilter}>
-		{profanityFilterEnabled ? 'On' : 'Off'}
-	</button>
+
+	<div class="flex flex-row items-center justify-center">
+		<span class="p-2 text-sm">{profanityFilterEnabled ? 'Unblock' : 'Block'} Profanity :</span>
+		<input
+			type="checkbox"
+			class="toggle toggle-sm"
+			on:change={(e) => updateProf(e)}
+			checked={profanityFilterEnabled}
+		/>
 	</div>
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
 			{#each [...decryptedMessages].reverse() as msg (msg)}
 				{@const color = generateConsistentIndices(msg.r)}
-
 				<Message {msg} {color} />
 			{/each}
 
