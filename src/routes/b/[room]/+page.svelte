@@ -20,12 +20,13 @@
 		const base64url = hashString.replace('+', '-').replace('/', '_').replace(/=+$/, '');
 		return base64url.substring(0, length);
 	}
+
 	const GetPgpIdentity = async () => {
+		console.log('Getting Pgp Identity from localStorage');
 		prKey = localStorage.getItem('prKey')!;
 		pbKey = localStorage.getItem('pbKey')!;
 		RC = localStorage.getItem('RC')!;
 		uniqueString = localStorage.getItem('uniqueString')!;
-		console.log('Getting Pgp Identity from localStorage');
 
 		return { prKey, pbKey, RC, uniqueString };
 	};
@@ -53,6 +54,8 @@
 			privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
 			passphrase
 		});
+
+		// TODO: get the profanity status on page load
 		let profanityFilterEnabled = false;
 
 		const respn = await fetch('/api/prof', {
@@ -61,7 +64,8 @@
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				pbKey: pbKey
+				pbKey: pbKey,
+				rid: params,
 			})
 		});
 
@@ -91,6 +95,7 @@
 			encryptionKeys: publicKey,
 			signingKeys: privateKey
 		});
+
 
 		const response = await fetch('/api/pgp', {
 			method: 'PATCH',
@@ -226,12 +231,13 @@
 	</span>
 
 	{#if sent}
-		<span class="text-xl font-light">✨ Sent your message </span>
+		<span class="text-xl font-light">✨ Message delivered </span>
 	{:else if profanityWarning}
 		<span class="text-error"
 			>⚠️ Message has not been sent because the room host doesn't allow profanity.</span
 		>
 	{/if}
+
 	<button
 		class="btn btn-sm my-4"
 		on:click={() => {
