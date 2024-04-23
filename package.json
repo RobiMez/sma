@@ -39,7 +39,6 @@
 	"dependencies": {
 		"autoprefixer": "^10.4.15",
 		"daisyui": "^4.10.2",
-		"dotenv": "^16.4.5",
 		"mongoose": "^8.2.0",
 		"openpgp": "^5.11.1",
 		"phosphor-svelte": "^2.0.1",
