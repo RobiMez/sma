@@ -11,9 +11,6 @@ dependencies:
   daisyui:
     specifier: ^4.10.2
     version: 4.10.2(postcss@8.4.29)
-  dotenv:
-    specifier: ^16.4.5
-    version: 16.4.5
   mongoose:
     specifier: ^8.2.0
     version: 8.2.0
@@ -1096,11 +1093,6 @@ packages:
     dependencies:
       esutils: 2.0.3
     dev: true
-
-  /dotenv@16.4.5:
-    resolution: {integrity: sha512-ZmdL2rui+eB2YwhsWzjInR8LldtZHGDoQ1ugH85ppHKwpUHL7j7rN0Ti9NCnGiQbhaZ11FpR+7ao1dNsmduNUg==}
-    engines: {node: '>=12'}
-    dev: false
 
   /electron-to-chromium@1.4.508:
     resolution: {integrity: sha512-FFa8QKjQK/A5QuFr2167myhMesGrhlOBD+3cYNxO9/S4XzHEXesyTD/1/xF644gC8buFPz3ca6G1LOQD0tZrrg==}

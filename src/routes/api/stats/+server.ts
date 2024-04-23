@@ -18,5 +18,4 @@ export async function GET({ url }) {
       identities: identities.length
     }
   });
-
 }
