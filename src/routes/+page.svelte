@@ -174,7 +174,7 @@
 	</div>
 
 	<footer class="
-	text-primary fixed bottom-0 flex w-full items-center 
+	text-primary fixed bottom-0 flex w-full items-center
 	bg-base-100 justify-center z-50">
 		<span class="p-1 text-sm font-extralight"
 			>A <a class="underline" href="https://robi.work">robi.work</a> site

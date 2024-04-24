@@ -37,6 +37,7 @@
 	let cleartextMessage = '';
 	let sent = false;
 	let profanityWarning = false;
+	let roomTitle = '';
 
 	$: postable = !!message;
 
@@ -181,6 +182,8 @@
 			console.log('Fetching public key');
 			await fetchKeys();
 		}
+		await fetchRoomTitle();
+
 		// Check if the user has a PGP identity
 		if (!prKey || !pbKey || !RC || !uniqueString) {
 			({ prKey, pbKey, RC, uniqueString } = await GetPgpIdentity());
@@ -190,6 +193,23 @@
 			ResetPgpIdentity();
 		}
 	});
+
+	async function fetchRoomTitle() {
+		const responseTitle = await fetch(`/api/titl?rid=${params}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		const respTitle = await responseTitle.json();
+
+		if (respTitle.error) {
+			console.log(respTitle.message);
+		} else {
+			roomTitle = respTitle.body.title;
+		}
+	}
 
 	let powerUser = false;
 </script>
@@ -202,7 +222,7 @@
 			class=" relative w-full bg-base-200 p-4 text-left text-xl font-semibold text-primary transition-all md:text-2xl lg:text-4xl"
 		>
 			Send to <span class="rounded-sm bg-base-300 p-1 font-extralight text-primary">
-				{params}
+				{roomTitle}
 			</span>
 		</h1>
 	</div>

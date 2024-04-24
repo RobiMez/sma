@@ -1,14 +1,9 @@
 import { json } from "@sveltejs/kit";
 import Listener from "../../../models/listener.schema";
 
-interface Listener {
-  pbKey: string;
-  rid: string;
-}
-
 export async function PATCH({ request }) {
   const body = await request.json();
-  const { pbKey, rid } = body;
+  const { pbKey } = body;
   const profanityEnabledStatus = body.profanityEnabled;
   console.log('PATCH /api/prof/:pbKey called with body:', body);
   try {
@@ -16,7 +11,7 @@ export async function PATCH({ request }) {
 
     if (profanityEnabledStatus === undefined) {
       // If profanityEnabled is not in the body, find the room and return its state
-      room = await Listener.findOne({ rid: rid }, { profanityEnabled: 1, _id: 0 });
+      room = await Listener.findOne({ pbKey: pbKey }, { profanityEnabled: 1, _id: 0 });
     } else {
       // If profanityEnabled is in the body, update the room with that state
       console.log("!!profanityEnabledStatus ", !!profanityEnabledStatus);
