@@ -4,6 +4,8 @@
 	import * as openpgp from 'openpgp';
 	import { slide } from 'svelte/transition';
 	import checkProfanity from '$lib/profanityFilter';
+	import { ImageSquare } from 'phosphor-svelte';
+	import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
 
 	let prKey: string;
 	let pbKey: string;
@@ -34,6 +36,7 @@
 	let params = $page.params.room;
 	let postable = false;
 	let message = '';
+	let imageBase64 = '';
 	let cleartextMessage = '';
 	let sent = false;
 	let profanityWarning = false;
@@ -55,7 +58,6 @@
 			passphrase
 		});
 
-		// TODO: get the profanity status on page load
 		let profanityFilterEnabled = false;
 
 		const respn = await fetch('/api/prof', {
@@ -104,6 +106,7 @@
 			},
 			body: JSON.stringify({
 				message: cleartextMessage,
+				imageBase64: imageBase64,
 				timestamp: new Date().toISOString(),
 				r: uniqueString,
 				p: params
@@ -117,6 +120,7 @@
 		} else {
 			console.log(resp.message);
 			message = '';
+			imageBase64 = '';
 			sent = true;
 			setTimeout(() => {
 				sent = false;
@@ -176,6 +180,23 @@
 		})();
 	};
 
+	// On file change generate the base64 and load preview
+	function handleFileInput(event: any) {
+		const file = event.target.files[0];
+
+		if (file) {
+		// Create a FileReader object to read the selected file
+		const reader = new FileReader();
+
+		reader.onload = function(e) {
+			imageBase64 = (e.target?.result ?? '') as string;
+		};
+
+		// Read the selected file as a data URL
+		reader.readAsDataURL(file);
+		}
+  	}
+
 	onMount(async () => {
 		if (params) {
 			console.log('Fetching public key');
@@ -207,28 +228,55 @@
 		</h1>
 	</div>
 	<span class="w-full pt-2 text-left text-sm font-light">{message.length}/1000</span>
-	<span class="flex h-full w-full flex-row gap-2 pb-4 pt-2">
-		<input
-			bind:value={message}
-			type="text"
-			placeholder="Enter your message here "
-			class="h-full w-full border border-black bg-base-200/40 p-8 placeholder-base-content/70"
-			maxlength="1000"
-			on:keydown={(e) => {
-				if (e.key === 'Enter') SignMessage();
-			}}
-		/>
+	<div class="w-full mb-2">
+		<span class="flex h-full w-full flex-row gap-2 pb-4 pt-2 mb-2 relative">
+			<input
+				bind:value={message}
+				type="text"
+				placeholder="Enter your message here "
+				class="h-full w-full border border-black bg-base-200/40 p-8 placeholder-base-content/70"
+				maxlength="1000"
+				on:keydown={(e) => {
+					if (e.key === 'Enter') SignMessage();
+				}}
+			/>
 
-		<button
-			class=" border border-black p-8 text-primary
-			transition-all
-			{postable ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
-			disabled={!postable}
-			on:click={SignMessage}
-		>
-			Send
-		</button>
-	</span>
+			<span class="absolute bottom-0 left-3 bg-zinc-800 rounded-sm">
+				<label for="image-input" class="cursor-pointer">
+				  <ImageSquare size="34" weight="duotone" />
+				</label>
+				  <input
+				  	id="image-input"
+					type="file"
+					class="hidden"
+					accept="image/*"
+					on:change={handleFileInput}
+				  />
+			</span>
+	
+			<button
+				class=" border border-black p-7 text-primary
+				transition-all
+				{postable ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
+				disabled={!postable}
+				on:click={SignMessage}
+			>
+				Send
+			</button>
+		</span>
+		
+		<span class="border border-black flex h-full w-full flex-row gap-2 p-3 text-zinc-400/50">
+			{#if imageBase64}
+				<!-- <img src={imageBase64} alt="Image to send..." /> -->
+				<ImageThumbnail {imageBase64} />
+			{:else}
+				<p>
+					No images
+				</p>
+			{/if}
+
+		</span>
+	</div>
 
 	{#if sent}
 		<span class="text-xl font-light">✨ Message delivered </span>

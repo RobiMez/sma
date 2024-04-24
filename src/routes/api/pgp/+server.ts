@@ -7,7 +7,6 @@ interface Listener {
 }
 
 export async function GET({ url }) {
-
   const rid = url.searchParams.get('r') ?? '';
   const lim = parseInt(url.searchParams.get('lim') ?? '100');
 
@@ -23,18 +22,19 @@ export async function GET({ url }) {
 
 export async function PATCH({ request }) {
   const body = await request.json();
-  const { message, r, p, timestamp } = body;
+  const { message, imageBase64, r, p, timestamp } = body;
 
   try {
 
     const user = await Listener.findOneAndUpdate(
       { rid: p },
-      { $push: { messages: { message, r, timestamp } } },
+      { $push: { messages: { message, imageBase64, r, timestamp } } },
       { new: true }
     );
 
     if (user) {
       return json({ status: 200, body: user });
+      
     } else {
       return json({ status: 404, body: 'User not found' });
     }
