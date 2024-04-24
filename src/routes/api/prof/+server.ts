@@ -3,7 +3,7 @@ import Listener from "../../../models/listener.schema";
 
 export async function PATCH({ request }) {
   const body = await request.json();
-  const { pbKey } = body;
+  const { rid, pbKey } = body;
   const profanityEnabledStatus = body.profanityEnabled;
   console.log('PATCH /api/prof/:pbKey called with body:', body);
   try {
@@ -11,7 +11,7 @@ export async function PATCH({ request }) {
 
     if (profanityEnabledStatus === undefined) {
       // If profanityEnabled is not in the body, find the room and return its state
-      room = await Listener.findOne({ pbKey: pbKey }, { profanityEnabled: 1, _id: 0 });
+      room = await Listener.findOne({ rid: rid }, { profanityEnabled: 1, _id: 0 });
     } else {
       // If profanityEnabled is in the body, update the room with that state
       console.log("!!profanityEnabledStatus ", !!profanityEnabledStatus);
@@ -19,7 +19,7 @@ export async function PATCH({ request }) {
       room = await Listener.findOneAndUpdate(
         { pbKey: pbKey },
         { $set: { profanityEnabled: !!profanityEnabledStatus } },
-        { new: true, fields: { profanityEnabled: 1, _id: 0 }}
+        { new: true, fields: { profanityEnabled: 1, _id: 0 } }
       );
 
       console.log('Updated room:', room);

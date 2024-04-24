@@ -167,7 +167,7 @@
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ pbKey: pbKey })
+			body: JSON.stringify({ rid: rid })
 		});
 
 		const resp = await response.json();
