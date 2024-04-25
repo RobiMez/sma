@@ -9,6 +9,7 @@
 	import Message from '$lib/_components/Message.svelte';
 	import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
 	import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
+	import X from 'phosphor-svelte/lib/X';
 
 	let rid = $page.params.room;
 	let unlocked = false;
@@ -255,34 +256,45 @@
 >
 	<div class="flex w-full flex-row gap-2 p-1 pb-1">
 		<h1
-			class=" relative w-full bg-base-200 p-4 text-left text-xl
-		font-semibold text-primary/90 md:text-3xl lg:text-4xl"
+			class=" relative flex w-full flex-row items-center justify-start
+		gap-2 bg-base-200 p-4 text-left text-xl font-semibold text-primary/90 md:text-3xl lg:text-4xl"
 		>
 			Room
 			{#if isEditingTitle}
 				<input
 					bind:value={roomTitle}
 					type="text"
-					class="rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content"
+					class="min-h-8 rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content focus:bg-base-100 focus:outline-none"
 					size={roomTitle.length > 5 ? roomTitle.length : 5}
 					style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
 				/>
 				<button
 					on:click={() => {
+						if (roomTitle.length <= 0) return;
 						updateRoomTitle();
 						toggleEditTitle();
 					}}
-					class="btn btn-sm my-4"><FloppyDisk size="24" weight="duotone" /></button
+					class="btn btn-square btn-sm"
 				>
+					<FloppyDisk size="24" weight="duotone" />
+				</button>
+				<button
+					on:click={() => {
+						toggleEditTitle();
+					}}
+					class="btn btn-square btn-sm"
+				>
+					<X size="24" weight="duotone" />
+				</button>
 			{:else}
 				<span
 					class="pointer-events-none rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content"
 				>
 					{roomTitle}
 				</span>
-				<button on:click={toggleEditTitle} class="btn btn-sm my-4"
-					><PencilSimpleLine size="24" weight="duotone" /></button
-				>
+				<button on:click={toggleEditTitle} class="btn btn-sm my-4">
+					<PencilSimpleLine size="24" weight="duotone" />
+				</button>
 			{/if}
 			{#if unlocked}
 				<span
