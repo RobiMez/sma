@@ -9,11 +9,11 @@ interface Listener {
 
 export async function GET(request) {
 	const rid = request.url.searchParams.get('rid');
-
+	console.log('GET /api/title/:rid called with rid:', rid, typeof rid);
 	try {
 		const room = await Listener.findOne(
 			{ rid: rid },
-			{ title: 1, _id: 0 }
+			{ title: 1, rid: 1}
 		);
 
 		if (room) {
@@ -36,8 +36,6 @@ export async function PATCH({ request }) {
 			{ $set: { title: title } },
 			{ new: true, fields: { title: 1, _id: 0 } }
 		);
-
-
 		if (room) {
 			return json({ status: 200, body: room });
 		} else {

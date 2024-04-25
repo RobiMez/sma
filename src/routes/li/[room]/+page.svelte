@@ -17,7 +17,7 @@
 	let prKey: string;
 	let pbKey: string;
 	let profanityFilterEnabled = false;
-	let roomTitle = '';
+	let roomTitle = rid;
 	let isEditingTitle = false;
 
 	let encryptedMessages: any[] = [];
@@ -145,6 +145,7 @@
 			intervalId = setInterval(unpack, pollingInterval * 1000);
 		}
 	}
+
 	onMount(async () => {
 		// Check if the user has a PGP identity
 		if (rid) {
@@ -152,6 +153,7 @@
 		}
 		// add a constant loop that calls unpack
 		unpack();
+
 		if (unlocked) {
 			if (intervalId) clearInterval(intervalId);
 			intervalId = setInterval(unpack, pollingInterval * 1000);
@@ -205,26 +207,23 @@
 			console.log(respUpdateTitle.message);
 		} else {
 			roomTitle = respUpdateTitle.body.title;
-			console.log(`Title changed to "${respUpdateTitle.body.title}"`);
 		}
 	}
 
 	async function fetchRoomTitle() {
-
 		const responseTitle = await fetch(`/api/titl?rid=${rid}`, {
 			method: 'GET',
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
-
 		const respTitle = await responseTitle.json();
-
+		console.log('resp', respTitle);
 
 		if (respTitle.error) {
 			console.log(respTitle.message);
 		} else {
-			roomTitle = respTitle.body.title;
+			roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
 		}
 	}
 
@@ -241,7 +240,6 @@
 		});
 
 		const resp = await response.json();
-
 
 		if (resp.error) {
 			console.log(resp.message);
@@ -265,16 +263,26 @@
 				<input
 					bind:value={roomTitle}
 					type="text"
-					class="rounded-sm bg-base-300 p-1 font-extralight text-base-content border-none"
+					class="rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content"
 					size={roomTitle.length > 5 ? roomTitle.length : 5}
 					style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
+				/>
+				<button
+					on:click={() => {
+						updateRoomTitle();
+						toggleEditTitle();
+					}}
+					class="btn btn-sm my-4"><FloppyDisk size="24" weight="duotone" /></button
 				>
-				<button on:click={() => {updateRoomTitle(); toggleEditTitle();}} class="btn btn-sm my-4"><FloppyDisk size="24" weight="duotone"/></button>
 			{:else}
-  <span class="pointer-events-none rounded-sm bg-base-300 p-1 font-extralight text-base-content border-none">
-    {roomTitle}
-  </span>
-				<button on:click={toggleEditTitle} class="btn btn-sm my-4"><PencilSimpleLine size="24" weight="duotone"/></button>
+				<span
+					class="pointer-events-none rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content"
+				>
+					{roomTitle}
+				</span>
+				<button on:click={toggleEditTitle} class="btn btn-sm my-4"
+					><PencilSimpleLine size="24" weight="duotone" /></button
+				>
 			{/if}
 			{#if unlocked}
 				<span
