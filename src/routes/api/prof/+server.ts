@@ -1,14 +1,9 @@
 import { json } from "@sveltejs/kit";
 import Listener from "../../../models/listener.schema";
 
-interface Listener {
-  pbKey: string;
-  rid: string;
-}
-
 export async function PATCH({ request }) {
   const body = await request.json();
-  const { pbKey, rid } = body;
+  const { rid, pbKey } = body;
   const profanityEnabledStatus = body.profanityEnabled;
   console.log('PATCH /api/prof/:pbKey called with body:', body);
   try {
@@ -24,7 +19,7 @@ export async function PATCH({ request }) {
       room = await Listener.findOneAndUpdate(
         { pbKey: pbKey },
         { $set: { profanityEnabled: !!profanityEnabledStatus } },
-        { new: true, fields: { profanityEnabled: 1, _id: 0 }}
+        { new: true, fields: { profanityEnabled: 1, _id: 0 } }
       );
 
       console.log('Updated room:', room);

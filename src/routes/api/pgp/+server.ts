@@ -50,6 +50,7 @@ export async function POST({ request }) {
   const newListener = new Listener({
     pbKey,
     rid,
+    title: rid,
     messages: []
   });
 

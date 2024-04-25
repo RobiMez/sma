@@ -7,6 +7,9 @@
 
 	import * as openpgp from 'openpgp';
 	import Message from '$lib/_components/Message.svelte';
+	import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
+	import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
+	import X from 'phosphor-svelte/lib/X';
 
 	let rid = $page.params.room;
 	let unlocked = false;
@@ -15,6 +18,8 @@
 	let prKey: string;
 	let pbKey: string;
 	let profanityFilterEnabled = false;
+	let roomTitle = rid;
+	let isEditingTitle = false;
 
 	let encryptedMessages: any[] = [];
 	let decryptedMessages: any[] = [];
@@ -141,6 +146,7 @@
 			intervalId = setInterval(unpack, pollingInterval * 1000);
 		}
 	}
+
 	onMount(async () => {
 		// Check if the user has a PGP identity
 		if (rid) {
@@ -148,6 +154,7 @@
 		}
 		// add a constant loop that calls unpack
 		unpack();
+
 		if (unlocked) {
 			if (intervalId) clearInterval(intervalId);
 			intervalId = setInterval(unpack, pollingInterval * 1000);
@@ -156,12 +163,14 @@
 		// if none set , default to false
 		profanityFilterEnabled = false;
 
+		await fetchRoomTitle();
+
 		const response = await fetch('/api/prof', {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ pbKey: pbKey })
+			body: JSON.stringify({ rid: rid })
 		});
 
 		const resp = await response.json();
@@ -177,6 +186,48 @@
 		return clearInterval(intervalId);
 	});
 
+	const toggleEditTitle = () => {
+		isEditingTitle = !isEditingTitle;
+	};
+
+	async function updateRoomTitle() {
+		const responseUpdateTitle = await fetch('/api/titl', {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				pbKey: pbKey,
+				title: roomTitle
+			})
+		});
+
+		const respUpdateTitle = await responseUpdateTitle.json();
+
+		if (respUpdateTitle.error) {
+			console.log(respUpdateTitle.message);
+		} else {
+			roomTitle = respUpdateTitle.body.title;
+		}
+	}
+
+	async function fetchRoomTitle() {
+		const responseTitle = await fetch(`/api/titl?rid=${rid}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+		const respTitle = await responseTitle.json();
+		console.log('resp', respTitle);
+
+		if (respTitle.error) {
+			console.log(respTitle.message);
+		} else {
+			roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
+		}
+	}
+
 	const updateProf = async (e: any) => {
 		const response = await fetch('/api/prof', {
 			method: 'PATCH',
@@ -190,7 +241,6 @@
 		});
 
 		const resp = await response.json();
-
 
 		if (resp.error) {
 			console.log(resp.message);
@@ -206,13 +256,55 @@
 >
 	<div class="flex w-full flex-row gap-2 p-1 pb-1">
 		<h1
-			class=" relative w-full bg-base-200 p-4 text-left text-xl
-		font-semibold text-primary/90 md:text-3xl lg:text-4xl"
+			class=" relative flex w-full flex-row items-center justify-start
+		gap-2 bg-base-200 p-4 text-left text-xl font-semibold text-primary/90 md:text-3xl lg:text-4xl"
 		>
 			Room
-			<span class="rounded-sm bg-base-300 p-1 font-extralight text-base-content">
-				{rid}
-			</span>
+			{#if isEditingTitle}
+				<input
+					bind:value={roomTitle}
+					type="text"
+					minlength="1"
+					maxlength="24"
+					on:keydown={(e) => {
+						if (e.key === 'Enter') {
+							if (roomTitle.length <= 0) return;
+							updateRoomTitle();
+							toggleEditTitle();
+						}
+					}}
+					class="min-h-8 rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content focus:bg-base-100 focus:outline-none"
+					size={roomTitle.length > 5 ? roomTitle.length : 5}
+					style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
+				/>
+				<button
+					on:click={() => {
+						if (roomTitle.length <= 0) return;
+						updateRoomTitle();
+						toggleEditTitle();
+					}}
+					class="btn btn-square btn-sm"
+				>
+					<FloppyDisk size="24" weight="duotone" />
+				</button>
+				<button
+					on:click={() => {
+						toggleEditTitle();
+					}}
+					class="btn btn-square btn-sm"
+				>
+					<X size="24" weight="duotone" />
+				</button>
+			{:else}
+				<span
+					class="pointer-events-none rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content"
+				>
+					{roomTitle}
+				</span>
+				<button on:click={toggleEditTitle} class="btn btn-sm my-4">
+					<PencilSimpleLine size="24" weight="duotone" />
+				</button>
+			{/if}
 			{#if unlocked}
 				<span
 					class="absolute -top-2 left-1 rounded-sm bg-primary px-2 py-1 text-xs font-light text-primary-content"
