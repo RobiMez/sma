@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { v4 as uuid } from "uuid"
 	import { browser } from '$app/environment';
 	import { onMount } from 'svelte';
+
 
 	import colors from '$lib/utils/colors.json';
 
@@ -70,6 +72,7 @@
 				}
 			});
 
+
 			// Parse the JSON response
 			const resp = await response.json();
 
@@ -101,17 +104,16 @@
 
 					// Create an object with the decrypted message and its 'r' property
 					const msgObj = {
+						id: encryptedMessage?.id ?? uuid(),
 						msg: String(decrypted),
+						imageBase64: encryptedMessage?.imageBase64 ?? [],
 						r: encryptedMessage.r,
 						timestamp: encryptedMessage.timestamp ?? new Date(0).toISOString()
 					};
 
 					// If 'decryptedMessages' doesn't already contain this message, add it
 					if (
-						!decryptedMessages.some(
-							(obj) =>
-								obj.msg === msgObj.msg && obj.r === msgObj.r && obj.timestamp === msgObj.timestamp
-						)
+						!decryptedMessages.some( (obj) => obj.id === msgObj.id )
 					) {
 						decryptedMessages.push(msgObj);
 					}
@@ -161,7 +163,7 @@
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ pbKey: pbKey })
+			body: JSON.stringify({ rid: rid })
 		});
 
 		const resp = await response.json();

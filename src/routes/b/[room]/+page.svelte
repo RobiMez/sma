@@ -6,6 +6,7 @@
 	import checkProfanity from '$lib/profanityFilter';
 	import { ImageSquare } from 'phosphor-svelte';
 	import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
+	import { breakString, showMessageFeedback } from '$lib/utils/utils';
 
 	let prKey: string;
 	let pbKey: string;
@@ -34,19 +35,18 @@
 	};
 
 	let params = $page.params.room;
-	let postable = false;
+	let disableSend = false;
 	let message = '';
-	let imageBase64 = '';
+	let imageBase64 : string[] = [];
 	let cleartextMessage = '';
-	let sent = false;
-	let profanityWarning = false;
 
-	$: postable = !!message;
+	$: disableSend = !message;
 
 	// When posting sign the message with the private key and send it to the server
 
 	// get the private key of myself from localstorage
 	const SignMessage = async () => {
+		disableSend = true;
 		prKey = localStorage.getItem('prKey')!;
 
 		const passphrase = 'super long and hard to guess secret';
@@ -66,7 +66,6 @@
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				pbKey: pbKey,
 				rid: params,
 			})
 		});
@@ -84,10 +83,7 @@
 			const profanityCheck = await checkProfanity(message);
 			if (profanityCheck.isProfanity) {
 				message = '';
-				profanityWarning = true;
-				setTimeout(() => {
-					profanityWarning = false;
-				}, 6000);
+				showMessageFeedback('error', "⚠️ Message has not been sent because the room host doesn't allow profanity.", 'feedback_container')
 				return;
 			}
 		}
@@ -120,20 +116,21 @@
 		} else {
 			console.log(resp.message);
 			message = '';
-			imageBase64 = '';
-			sent = true;
-			setTimeout(() => {
-				sent = false;
-			}, 3000);
+			imageBase64 = [];
+			showMessageFeedback('default', '✨ Message delivered ', 'feedback_container')
 		}
+		disableSend = false;
 	};
 
 	// get the public key of the other person from the url
 	const fetchKeys = async () => {
+		disableSend = true;
 		prKey = localStorage.getItem('prKey')!;
 		const response = await fetch(`/api/pgp?r=${params}`);
 		const data = await response.json();
 		api_pbKey = data.body.pbKey;
+		console.log("Fetch done,", api_pbKey)
+		disableSend = false
 	};
 
 	// On click , ill generate the required hashes and links and redir the user to that page
@@ -187,9 +184,16 @@
 		if (file) {
 		// Create a FileReader object to read the selected file
 		const reader = new FileReader();
+		
+		// limit size to 1.5MB
+		if(file.size / (1024 * 1024) > 2){
+			alert("Size limit exceeded: 1.5MB MAX")
+			return;
+		}
 
 		reader.onload = function(e) {
-			imageBase64 = (e.target?.result ?? '') as string;
+			let imageBase64Str = (e.target?.result ?? '') as string;
+			imageBase64 = breakString(imageBase64Str, 1000);
 		};
 
 		// Read the selected file as a data URL
@@ -213,6 +217,8 @@
 	});
 
 	let powerUser = false;
+
+
 </script>
 
 <div
@@ -257,8 +263,8 @@
 			<button
 				class=" border border-black p-7 text-primary
 				transition-all
-				{postable ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
-				disabled={!postable}
+				{!disableSend ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
+				disabled={disableSend}
 				on:click={SignMessage}
 			>
 				Send
@@ -266,9 +272,9 @@
 		</span>
 		
 		<span class="border border-black flex h-full w-full flex-row gap-2 p-3 text-zinc-400/50">
-			{#if imageBase64}
+			{#if imageBase64.length}
 				<!-- <img src={imageBase64} alt="Image to send..." /> -->
-				<ImageThumbnail {imageBase64} />
+				<ImageThumbnail imageBase64={imageBase64.join("")} variant="md"/>
 			{:else}
 				<p>
 					No images
@@ -278,13 +284,7 @@
 		</span>
 	</div>
 
-	{#if sent}
-		<span class="text-xl font-light">✨ Message delivered </span>
-	{:else if profanityWarning}
-		<span class="text-error"
-			>⚠️ Message has not been sent because the room host doesn't allow profanity.</span
-		>
-	{/if}
+	<div id="feedback_container" class="w-full flex items-center justify-center"></div>
 
 	<button
 		class="btn btn-sm my-4"

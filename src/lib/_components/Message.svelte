@@ -3,6 +3,7 @@
 	export let color: any;
 	import prettyMilliseconds from 'pretty-ms';
 	import { onMount } from 'svelte';
+	import ImageThumbnail from './ImageThumbnail.svelte';
 
 	let hidden = false;
 	let time = '';
@@ -24,13 +25,16 @@
 	});
 </script>
 
-<div class=" bg-base-100 relative w-full border border-black p-2 font-light">
+<div class="bg-base-100 relative w-full border border-black px-2 py-3.5 font-light">
 	{#if !hidden}
-		<span class="w-full overflow-hidden">
+		<div class="w-full overflow-hidden">
+			{#if msg.imageBase64.length}
+				<ImageThumbnail imageBase64={msg.imageBase64.join("")}/>
+			{/if}
 			{msg.msg}
-		</span>
-	{/if}
-
+		</div>
+		{/if}
+		
 	<!-- svelte-ignore a11y-no-static-element-interactions -->
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<span
@@ -42,5 +46,6 @@
 	</span>
 	<span class="bg-base-100 absolute -top-4 left-1 border border-black p-1 px-2 text-xs">
 		{msg.r}
-	</span><span class="absolute -top-4 right-1 text-xs">{time}</span>
+	</span>
+	<span class="absolute bottom-1 right-2 text-xs">{time}</span>
 </div>

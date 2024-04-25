@@ -1,5 +1,6 @@
 import { json } from "@sveltejs/kit";
 import Listener from "../../../models/listener.schema";
+import { v4 as uuid } from "uuid"
 
 interface Listener {
   pbKey: string;
@@ -24,13 +25,17 @@ export async function PATCH({ request }) {
   const body = await request.json();
   const { message, imageBase64, r, p, timestamp } = body;
 
+  console.log("Calling with body: 🌏🌏", body)
+
   try {
 
     const user = await Listener.findOneAndUpdate(
       { rid: p },
-      { $push: { messages: { message, imageBase64, r, timestamp } } },
+      { $push: { messages: { id: uuid(), message, imageBase64, r, timestamp } } },
       { new: true }
     );
+
+    console.log("After update ⌛⌛", user)
 
     if (user) {
       return json({ status: 200, body: user });
