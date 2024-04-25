@@ -264,6 +264,15 @@
 				<input
 					bind:value={roomTitle}
 					type="text"
+					minlength="1"
+					maxlength="24"
+					on:keydown={(e) => {
+						if (e.key === 'Enter') {
+							if (roomTitle.length <= 0) return;
+							updateRoomTitle();
+							toggleEditTitle();
+						}
+					}}
 					class="min-h-8 rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content focus:bg-base-100 focus:outline-none"
 					size={roomTitle.length > 5 ? roomTitle.length : 5}
 					style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
