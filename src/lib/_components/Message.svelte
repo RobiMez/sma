@@ -4,6 +4,8 @@
 	import prettyMilliseconds from 'pretty-ms';
 	import { onMount } from 'svelte';
 	import ImageThumbnail from './ImageThumbnail.svelte';
+	import { decode } from "blurhash";
+	import BlurhashThumbnail from './BlurhashThumbnail.svelte';
 
 	let hidden = false;
 	let time = '';
@@ -23,13 +25,15 @@
 		time = prettyMilliseconds(diff, { compact: true });
 		return () => clearInterval(refreshInterval);
 	});
+
+
 </script>
 
 <div class="bg-base-100 relative w-full border border-black px-2 py-3.5 font-light">
 	{#if !hidden}
 		<div class="w-full overflow-hidden">
-			{#if msg.imageBase64.length}
-				<ImageThumbnail imageBase64={msg.imageBase64.join("")}/>
+			{#if msg.image && msg.image.id && msg.image.blurhash}
+				<BlurhashThumbnail blurhash={msg.image.blurhash} imageId={msg.image.id}/>
 			{/if}
 			{msg.msg}
 		</div>

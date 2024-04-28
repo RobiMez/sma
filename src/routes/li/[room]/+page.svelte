@@ -82,13 +82,13 @@
 			} else {
 				// Otherwise, set 'encryptedMessages' to the messages from the response
 				encryptedMessages = resp.body.messages;
-
 				// Loop over each encrypted message
 				for (const encryptedMessage of encryptedMessages) {
 					// Read the encrypted message
 					const readMsg = await openpgp.readMessage({
 						armoredMessage: encryptedMessage.message
 					});
+					console.log(encryptedMessage)
 
 					// Decrypt the private key
 					const privateKey = await openpgp.decryptKey({
@@ -102,13 +102,18 @@
 						decryptionKeys: privateKey
 					});
 
+
 					// Create an object with the decrypted message and its 'r' property
 					const msgObj = {
-						id: encryptedMessage?.id ?? uuid(),
+						id: encryptedMessage._id,
 						msg: String(decrypted),
-						imageBase64: encryptedMessage?.imageBase64 ?? [],
-						r: encryptedMessage.r,
-						timestamp: encryptedMessage.timestamp ?? new Date(0).toISOString()
+						image:{
+							id: encryptedMessage.image?._id,
+							blurhash: encryptedMessage.image?.blurhash,
+							nsfw: encryptedMessage.image?.nsfw,
+						},
+						r: encryptedMessage.author,
+						timestamp: encryptedMessage.timestamp
 					};
 
 					// If 'decryptedMessages' doesn't already contain this message, add it
@@ -261,7 +266,7 @@
 
 	<div class="flex w-full flex-col gap-3 p-4">
 		{#if unlocked}
-			{#each [...decryptedMessages].reverse() as msg (msg)}
+			{#each [...decryptedMessages] as msg (msg)}
 				{@const color = generateConsistentIndices(msg.r)}
 				<Message {msg} {color} />
 			{/each}

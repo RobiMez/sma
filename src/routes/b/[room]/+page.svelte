@@ -102,12 +102,16 @@
 			},
 			body: JSON.stringify({
 				message: cleartextMessage,
-				imageBase64: imageBase64,
-				timestamp: new Date().toISOString(),
+				imageData: {
+					dataURI:imageBase64,
+					blurhash: 'LEHLk~WB2yk8pyo0adR*.7kCMdnj',
+					nsfw: false
+				},
 				r: uniqueString,
 				p: params
 			})
 		});
+		
 
 		const resp = await response.json();
 
