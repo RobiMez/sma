@@ -12,3 +12,6 @@ vite.config.ts.timestamp-*
 
 #jetbrains
 /.idea
+
+# Sentry Config File
+.sentryclirc
