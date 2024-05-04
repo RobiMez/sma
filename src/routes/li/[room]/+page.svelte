@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { browser } from '$app/environment';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 
 	import colors from '$lib/utils/colors.json';
 
 	import * as openpgp from 'openpgp';
 	import Message from '$lib/_components/Message.svelte';
+
 	import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
 	import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
 	import X from 'phosphor-svelte/lib/X';
@@ -21,12 +21,13 @@
 	let roomTitle = rid;
 	let isEditingTitle = false;
 
+	let pollingInterval = 10;
+	let intervalId: any;
+	let copied = false;
+
 	let encryptedMessages: any[] = [];
 	let decryptedMessages: any[] = [];
 	let passphrase = 'super long and hard to guess secret';
-
-	$: unlocked = unlockKey === 'unlock';
-	// if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
 
 	async function createShortHash(input: string, length: number): Promise<string> {
 		const encoder = new TextEncoder();
@@ -62,11 +63,11 @@
 
 	// Define an asynchronous function named 'unpack'
 	const unpack = async () => {
+		console.log('Refreshing');
 		// Check if 'unlocked' is true
 		if (unlocked) {
 			// Set 'unpacking' to true
 			unpacking = true;
-
 			// Fetch the encrypted messages from the server
 			const response = await fetch(`/api/pgp?r=${rid}`, {
 				method: 'GET',
@@ -83,7 +84,7 @@
 				console.log(resp.message);
 			} else {
 				// Otherwise, set 'encryptedMessages' to the messages from the response
-				encryptedMessages = resp.body.messages;
+				encryptedMessages = resp.body.messages ?? [];
 
 				// Loop over each encrypted message
 				for (const encryptedMessage of encryptedMessages) {
@@ -126,65 +127,16 @@
 			}
 			// Set 'unpacking' to false
 			unpacking = false;
+		} else {
+			console.log('not unlocked yet');
 		}
 	};
-
-	let copied = false;
 
 	async function copyLink() {
 		await navigator.clipboard.writeText($page.url.origin + '/b/' + rid);
 		copied = true;
 		setTimeout(() => (copied = false), 2000);
 	}
-
-	let pollingInterval = 10;
-	let intervalId: any;
-
-	$: {
-		if (pollingInterval > 3 && unlocked) {
-			clearInterval(intervalId);
-			intervalId = setInterval(unpack, pollingInterval * 1000);
-		}
-	}
-
-	onMount(async () => {
-		// Check if the user has a PGP identity
-		if (rid) {
-			unlocked = await CheckIfUnlockable();
-		}
-		// add a constant loop that calls unpack
-		unpack();
-
-		if (unlocked) {
-			if (intervalId) clearInterval(intervalId);
-			intervalId = setInterval(unpack, pollingInterval * 1000);
-		}
-
-		// if none set , default to false
-		profanityFilterEnabled = false;
-
-		await fetchRoomTitle();
-
-		const response = await fetch('/api/prof', {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ rid: rid })
-		});
-
-		const resp = await response.json();
-
-		if (resp.error) {
-			console.log(resp.message);
-		} else {
-			console.log(resp);
-
-			profanityFilterEnabled = resp.body.profanityEnabled;
-		}
-
-		return clearInterval(intervalId);
-	});
 
 	const toggleEditTitle = () => {
 		isEditingTitle = !isEditingTitle;
@@ -249,6 +201,64 @@
 			console.log(resp.body.profanityEnabled);
 		}
 	};
+
+	$: unlocked = unlockKey === 'unlock';
+	// if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
+
+	$: {
+		if (pollingInterval > 3 && unlocked) {
+			if (intervalId) clearInterval(intervalId);
+			intervalId = setInterval(unpack, pollingInterval * 1000);
+		}
+	}
+	const pollForMessages = () => {
+		if (!unlocked) return;
+		if (pollingInterval < 3) pollingInterval = 3;
+		try {
+			intervalId = setInterval(() => {
+				unpack();
+			}, pollingInterval * 10);
+		} catch (error) {
+			console.log('Error in polling for messages', error);
+		}
+	};
+
+	onMount(async () => {
+		// Check if the user has a PGP identity
+		if (rid) {
+			unlocked = await CheckIfUnlockable();
+		}
+		if (unlocked) {
+			unpack();
+		}
+
+		pollForMessages();
+
+		// if none set , default to false
+		profanityFilterEnabled = false;
+
+		await fetchRoomTitle();
+
+		const response = await fetch('/api/prof', {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({ rid: rid })
+		});
+
+		const resp = await response.json();
+
+		if (resp.error) {
+			console.log(resp.message);
+		} else {
+			console.log(resp);
+			profanityFilterEnabled = resp.body.profanityEnabled;
+		}
+	});
+	onDestroy(() => {
+		if (intervalId) clearInterval(intervalId);
+	});
 </script>
 
 <div
