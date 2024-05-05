@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { fade, slide } from 'svelte/transition';
   import packageJson from '../../package.json';
+  import content from '../../CHANGELOG.md';
   import { marked } from 'marked';
   import { browser } from '$app/environment';
 
@@ -86,9 +87,7 @@
   let newChangelog: boolean = false;
 
   onMount(async () => {
-    const file = await fetch('CHANGELOG.md');
-    const text = await file.text();
-    changelog = await marked(text);
+    changelog = await marked(content);
     changelog = DOMPurify.sanitize(changelog);
 
     if (localStorage.getItem('LastReadChangelog') === packageJson.version) {

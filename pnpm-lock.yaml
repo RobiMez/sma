@@ -44,6 +44,9 @@ dependencies:
   theme-change:
     specifier: ^2.5.0
     version: 2.5.0
+  vite-raw-plugin:
+    specifier: ^1.0.2
+    version: 1.0.2
 
 devDependencies:
   '@commitlint/cli':
@@ -4079,6 +4082,10 @@ packages:
       - supports-color
       - terser
     dev: true
+
+  /vite-raw-plugin@1.0.2:
+    resolution: {integrity: sha512-gdp/OFVXBiVq1UwPujVb7+4mmgYHTGrzslMbQvxmgzTN4/HC+3j4GNrumsIKSWfA/y3hktII7XqY38muRaGjhw==}
+    dev: false
 
   /vite@4.4.9(@types/node@20.5.8):
     resolution: {integrity: sha512-2mbUn2LlUmNASWwSCNSJ/EG2HuSRTnVNaydp6vMCm5VIqJsjMfbIWtbH2kDuwUVW5mMUKKZvGPX/rqeqVvv1XA==}
