@@ -2,7 +2,6 @@
   <img src="static/SMA.png" alt="SMA logo" width="200px">
 </div>
 
-
 <div align="center">
   <img src="https://img.shields.io/badge/Svelte-FF3E00?style=for-the-badge&logo=svelte&logoColor=white" alt="svelte badge" />
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="typescript badge" />
@@ -11,8 +10,6 @@
 </div>
 
 # S.M.A (Send Messages Anonymously)
-
-
 
 ## Description
 
@@ -27,8 +24,6 @@ S.M.A is a web application that allows users to send messages to each other anon
 ## Live Website
 
 You can access the live website at [sma.robi.work](https://sma.robi.work/)
-
-
 
 ## Prerequisites
 
@@ -91,15 +86,16 @@ Now,
 you should be able
 to see the application running at `localhost:5000` in your web browser.
 
-
-
 ## Contributing
-Contributions are welcome! 
+
+Contributions are welcome!
 Please fork the repository and submit a pull request.
-I'll review it as soon as possible.  
+I'll review it as soon as possible.
 
 ## Credits
+
 S.M.A was created by [Robi](https://github.com/RobiMez).
 
 ## License
+
 This project is licensed under the MIT License.

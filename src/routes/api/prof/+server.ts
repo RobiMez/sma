@@ -1,5 +1,5 @@
-import { json } from "@sveltejs/kit";
-import Listener from "../../../models/listener.schema";
+import { json } from '@sveltejs/kit';
+import Listener from '../../../models/listener.schema';
 
 export async function PATCH({ request }) {
   const body = await request.json();
@@ -14,7 +14,7 @@ export async function PATCH({ request }) {
       room = await Listener.findOne({ rid: rid }, { profanityEnabled: 1, _id: 0 });
     } else {
       // If profanityEnabled is in the body, update the room with that state
-      console.log("!!profanityEnabledStatus ", !!profanityEnabledStatus);
+      console.log('!!profanityEnabledStatus ', !!profanityEnabledStatus);
 
       room = await Listener.findOneAndUpdate(
         { pbKey: pbKey },
@@ -35,5 +35,3 @@ export async function PATCH({ request }) {
     return json({ status: 500, body: 'Error updating room' });
   }
 }
-
-

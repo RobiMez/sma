@@ -1,5 +1,3 @@
-
-
 export const createShortHash = async (input: string, length: number): Promise<string> => {
   const encoder = new TextEncoder();
   const data = encoder.encode(input);

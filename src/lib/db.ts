@@ -7,23 +7,23 @@ import { SECRET_MONGO_URI } from '$env/static/private';
 config();
 
 interface Connection {
-    isConnected?: number;
+  isConnected?: number;
 }
 
 const connection: Connection = {};
 
 const dbConnect: () => Promise<void> = async () => {
-    if (connection.isConnected) {
-        return;
-    }
-    if (!SECRET_MONGO_URI) {
-        throw new Error('Please define the SECRET_MONGO_URI environment variable inside .env');
-    }
+  if (connection.isConnected) {
+    return;
+  }
+  if (!SECRET_MONGO_URI) {
+    throw new Error('Please define the SECRET_MONGO_URI environment variable inside .env');
+  }
 
-    const db: Mongoose = await mongoose.connect(SECRET_MONGO_URI);
+  const db: Mongoose = await mongoose.connect(SECRET_MONGO_URI);
 
-    connection.isConnected = db.connections[0].readyState;
-    console.log("DB Connected: ", connection.isConnected);
+  connection.isConnected = db.connections[0].readyState;
+  console.log('DB Connected: ', connection.isConnected);
 };
 
 export { dbConnect };
