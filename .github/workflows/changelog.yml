@@ -6,7 +6,6 @@ on:
       - master
 
 jobs:
-
   changelog:
     permissions:
       contents: write
