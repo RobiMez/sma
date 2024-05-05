@@ -6,15 +6,9 @@ on:
       - master
 
 jobs:
-  information:
-    name: GitHub Context
-    runs-on: ubuntu-latest
-    steps:
-      - name: Info
-        run: echo "${{ secrets.GT }}"
 
   changelog:
-    permissions: 
+    permissions:
       contents: write
 
     runs-on: ubuntu-latest
@@ -29,14 +23,14 @@ jobs:
         with:
           preset: 'conventionalcommits'
           git-branch: master
-          github-token: ${{ secrets.GT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           version-file: './package.json,./package-lock.json,./pnpm-lock.yaml'
 
       - name: Create Release
         uses: actions/create-release@v1
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.changelog.outputs.tag }}
           release_name: ${{ steps.changelog.outputs.tag }}
