@@ -3,6 +3,15 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  server: {
+    fs: {
+      allow: [
+        // allow the package json and the changelog 
+        './package.json',
+        './CHANGELOG.md',
+      ]
+    }
+  },
   plugins: [
     sentrySvelteKit({
       sourceMapsUploadOptions: {

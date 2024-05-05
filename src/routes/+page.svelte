@@ -1,7 +1,11 @@
 <script lang="ts">
   import * as openpgp from 'openpgp';
+  import DOMPurify from 'dompurify';
   import { onMount } from 'svelte';
   import { fade, slide } from 'svelte/transition';
+  import packageJson from '../../package.json';
+  import { marked } from 'marked';
+  import { browser } from '$app/environment';
 
   let prKey: string;
   let pbKey: string;
@@ -76,8 +80,24 @@
     totalMessages: number;
   }
   let stats: Stats;
+  let changelog = '';
   let powerUser: boolean = false;
+  let displayChangelog: boolean = false;
+  let newChangelog: boolean = false;
+
   onMount(async () => {
+    const file = await fetch('CHANGELOG.md');
+    const text = await file.text();
+    changelog = await marked(text);
+    changelog = DOMPurify.sanitize(changelog);
+
+    if (localStorage.getItem('LastReadChangelog') === packageJson.version) {
+      displayChangelog = false;
+    } else {
+      displayChangelog = true;
+      newChangelog = true;
+    }
+
     // Check if the user has a PGP identity
     if (!prKey || !pbKey || !RC || !uniqueString) {
       ({ prKey, pbKey, RC, uniqueString } = await GetPgpIdentity());
@@ -112,11 +132,26 @@
   <span class="flex flex-col items-center justify-center gap-2">
     <h1
       class="
-			text-4xl font-extralight text-primary/80
+			relative text-4xl font-extralight text-primary/80
 			transition-all md:text-5xl lg:text-6xl"
     >
       Welcome to S.M.A
+      {#if browser}
+        <button
+          class="absolute -bottom-6 -right-6 rounded-sm bg-base-300 p-1 text-xs
+        "
+          on:click={() => {
+            localStorage.setItem('LastReadChangelog', packageJson.version);
+            newChangelog = false;
+            displayChangelog = !displayChangelog;
+          }}
+        >
+          V{packageJson.version}
+          {!newChangelog ? '' : ' ✨ '}
+        </button>
+      {/if}
     </h1>
+
     <h6 class="text-md font-extralight md:text-lg lg:text-xl">Send Messages Anon</h6>
     {#if stats}
       <small in:fade class="text-xs font-normal text-primary/80">
@@ -128,6 +163,11 @@
       <small class="text-xs font-light text-primary"> Loading Stats... </small>
     {/if}
   </span>
+  {#if displayChangelog}
+    <div transition:slide class="changelog max-w-lg">
+      {@html changelog}
+    </div>
+  {/if}
 
   <div class="flex flex-row items-center justify-center gap-4">
     <a href="#0" class="btn btn-outline btn-primary" on:click={ResetPgpIdentity}>

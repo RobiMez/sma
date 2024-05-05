@@ -2,3 +2,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+div.changelog {
+  max-height: 20vh;
+  overflow-y: auto;
+  width: 100%;
+  font-weight: 200;
+}
+div.changelog ul {
+  text-indent: 1.2em;
+  list-style-type: circle;
+  padding-left: 1em;
+  margin-y: 0.4em;
+}
+div.changelog a {
+  text-decoration: underline;
+}
+div.changelog h2 {
+  font-size: 1.4em;
+  font-weight: 700;
+}
+div.changelog h3 {
+  font-weight: 400;
+}
