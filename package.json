@@ -1,6 +1,6 @@
 {
   "name": "sma",
-  "version": "0.0.1",
+  "version": "0.0.1-alpha",
   "private": true,
   "scripts": {
     "dev": "vite dev",
