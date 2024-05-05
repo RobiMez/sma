@@ -24,14 +24,14 @@ jobs:
         with:
           preset: 'conventionalcommits'
           git-branch: master
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GT }}
           version-file: './package.json,./pnpm-lock.yaml'
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         if: ${{ steps.changelog.outputs.skipped == 'false' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GT }}
         with:
           git-branch: master
           tag: ${{ steps.changelog.outputs.tag }}
