@@ -22,10 +22,10 @@ jobs:
         id: changelog
         uses: TriPSs/conventional-changelog-action@v5
         with:
-          preset: "conventionalcommits"
-          git-branch: main
+          preset: 'conventionalcommits'
+          git-branch: master
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          version-file: "./package.json,./package-lock.json"
+          version-file: './package.json,./pnpm-lock.yaml'
 
       - name: Create Release
         uses: ncipollo/release-action@v1
@@ -33,7 +33,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          git-branch: main
+          git-branch: master
           tag: ${{ steps.changelog.outputs.tag }}
           name: ${{ steps.changelog.outputs.tag }}
           body: ${{ steps.changelog.outputs.clean_changelog }}
