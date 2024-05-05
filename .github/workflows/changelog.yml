@@ -3,7 +3,7 @@ name: Generate Changelog
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   changelog:
@@ -17,8 +17,10 @@ jobs:
         id: changelog
         uses: TriPSs/conventional-changelog-action@v5.2.1
         with:
+          preset: 'conventionalcommits'
+          git-branch: master
           github-token: ${{ secrets.GT }}
-          version-file: package.json"
+          version-file: "./package.json,./package-lock.json,./pnpm-lock.yaml"
 
       - name: Create Release
         uses: actions/create-release@v1
