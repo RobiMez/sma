@@ -1,6 +1,8 @@
 <script lang="ts">
   import { page } from '$app/stores';
+	import { v4 as uuid } from "uuid"
   import { onDestroy, onMount } from 'svelte';
+
 
   import colors from '$lib/utils/colors.json';
 
@@ -79,19 +81,19 @@
       // Parse the JSON response
       const resp = await response.json();
 
-      // If there's an error in the response, log the message
-      if (resp.error) {
-        console.log(resp.message);
-      } else {
-        // Otherwise, set 'encryptedMessages' to the messages from the response
-        encryptedMessages = resp.body.messages ?? [];
-
-        // Loop over each encrypted message
-        for (const encryptedMessage of encryptedMessages) {
-          // Read the encrypted message
-          const readMsg = await openpgp.readMessage({
-            armoredMessage: encryptedMessage.message
-          });
+			// If there's an error in the response, log the message
+			if (resp.error) {
+				console.log(resp.message);
+			} else {
+				// Otherwise, set 'encryptedMessages' to the messages from the response
+				encryptedMessages = resp.body.messages;
+				// Loop over each encrypted message
+				for (const encryptedMessage of encryptedMessages) {
+					// Read the encrypted message
+					const readMsg = await openpgp.readMessage({
+						armoredMessage: encryptedMessage.message
+					});
+					console.log(encryptedMessage)
 
           // Decrypt the private key
           const privateKey = await openpgp.decryptKey({
@@ -99,18 +101,25 @@
             passphrase
           });
 
-          // Decrypt the message with the private key
-          const { data: decrypted } = await openpgp.decrypt({
-            message: readMsg,
-            decryptionKeys: privateKey
-          });
+					// Decrypt the message with the private key
+					const { data: decrypted } = await openpgp.decrypt({
+						message: readMsg,
+						decryptionKeys: privateKey
+					});
 
-          // Create an object with the decrypted message and its 'r' property
-          const msgObj = {
-            msg: String(decrypted),
-            r: encryptedMessage.r,
-            timestamp: encryptedMessage.timestamp ?? new Date(0).toISOString()
-          };
+
+					// Create an object with the decrypted message and its 'r' property
+					const msgObj = {
+						id: encryptedMessage._id,
+						msg: String(decrypted),
+						image:{
+							id: encryptedMessage.image?._id,
+							blurhash: encryptedMessage.image?.blurhash,
+							nsfw: encryptedMessage.image?.nsfw,
+						},
+						r: encryptedMessage.author,
+						timestamp: encryptedMessage.timestamp
+					};
 
           // If 'decryptedMessages' doesn't already contain this message, add it
           if (
