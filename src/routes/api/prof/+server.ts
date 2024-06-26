@@ -21,7 +21,6 @@ export async function PATCH({ request }) {
         { $set: { profanityEnabled: !!profanityEnabledStatus } },
         { new: true, fields: { profanityEnabled: 1, _id: 0 } }
       );
-
     }
 
     if (room) {

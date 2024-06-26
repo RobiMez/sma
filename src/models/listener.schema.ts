@@ -6,12 +6,11 @@ const ListenerSchema = new mongoose.Schema({
   title: String,
   profanityEnabled: { type: Boolean, default: false },
   messages: [
-    { 
-      type: mongoose.Schema.Types.ObjectId, 
+    {
+      type: mongoose.Schema.Types.ObjectId,
       ref: 'Message'
     }
   ]
 });
-
 
 export default mongoose.models.Listener || mongoose.model('Listener', ListenerSchema);
