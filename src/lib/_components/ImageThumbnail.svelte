@@ -13,12 +13,12 @@
 
 <div>
   <button
-    class={`${variant == 'md' ? 'w-48' : 'w-24'} rounded-sm border border-black`}
+    class={`${variant == 'md' ? 'w-48' : 'w-24'} border-black rounded-sm border`}
     on:click={toggleModal}
   >
     <img src={imageBase64} alt="Lorem" />
   </button>
-  <dialog {id} class="modal modal-bottom items-center sm:modal-middle">
+  <dialog {id} class="modal modal-bottom sm:modal-middle items-center">
     <div class="modal-box flex items-center justify-center">
       <img src={imageBase64} alt="Lorem" />
     </div>

@@ -66,12 +66,14 @@
         {/if}
       </div>
 
-      <Dialog.Close class="active:scale-98 absolute -right-8 -top-8 
-      bg-light-400 p-1 dark:bg-dark-900 
-      text-light-900 p-1 dark:text-dark-200 
+      <Dialog.Close
+        class="active:scale-98 absolute -right-8 -top-8 
+      w-fit rounded-sm bg-light-400 
+      p-1 p-1 text-light-900 
       
-      w-fit rounded-sm">
-          <X size="16" />
+      dark:bg-dark-900 dark:text-dark-200"
+      >
+        <X size="16" />
       </Dialog.Close>
     </Dialog.Content>
   </Dialog.Portal>

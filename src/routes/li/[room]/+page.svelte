@@ -283,8 +283,8 @@
     <h1
       class="
 			border-black relative flex w-full flex-row items-center justify-start
-		gap-2 border dark:border-dark-400 p-1 text-left text-base font-semibold md:p-2
-		md:text-xl lg:p-4 lg:text-2xl"
+		gap-2 border p-1 text-left text-base font-semibold md:p-2 md:text-xl
+		lg:p-4 lg:text-2xl dark:border-dark-400"
     >
       Room
       {#if isEditingTitle}
@@ -300,7 +300,7 @@
               toggleEditTitle();
             }
           }}
-          class="bg-base-300 text-base-content focus:bg-base-100 min-h-8 rounded-sm border-none p-1 font-extralight focus:outline-none"
+          class="  text-base-content focus:bg-base-100 min-h-8 rounded-sm border-none p-1 font-extralight focus:outline-none"
           size={roomTitle.length > 5 ? roomTitle.length : 5}
           style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
         />
@@ -324,7 +324,7 @@
         </button>
       {:else}
         <span
-          class="bg-base-300 text-base-content pointer-events-none rounded-sm border-none p-1 font-extralight"
+          class="  text-base-content pointer-events-none rounded-sm border-none p-1 font-extralight"
         >
           {roomTitle}
         </span>
@@ -379,7 +379,7 @@
 
   <div class="flex w-full flex-col gap-3 p-4">
     {#if unlocked}
-      {#each [...decryptedMessages].reverse() as msg (msg)}
+      {#each [...decryptedMessages] as msg (msg)}
         {@const color = generateConsistentIndices(msg.r)}
         <Message {msg} {color} />
       {/each}

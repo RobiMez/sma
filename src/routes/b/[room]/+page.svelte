@@ -41,13 +41,13 @@
   let imageBase64: string[] = [];
   let cleartextMessage = '';
 
-  $: disableSend = !message;
+  let sending = false;
 
   // When posting sign the message with the private key and send it to the server
 
   // get the private key of myself from localstorage
   const SignMessage = async () => {
-    disableSend = true;
+    sending = true;
     prKey = localStorage.getItem('prKey')!;
 
     const passphrase = 'super long and hard to guess secret';
@@ -126,7 +126,7 @@
       imageBase64 = [];
       showMessageFeedback('default', '✨ Message delivered ', 'feedback_container');
     }
-    disableSend = false;
+    sending = false;
   };
 
   // get the public key of the other person from the url
@@ -224,11 +224,10 @@
 <div
   class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-2 pt-8"
 >
-  <div class="flex w-full flex-row">
-    <h1
-      class=" bg-base-200 text-primary relative w-full p-4 text-left text-xl font-semibold transition-all md:text-2xl lg:text-4xl"
-    >
-      Send to <span class="bg-base-300 text-primary rounded-sm p-1 font-extralight">
+  <div class="flex w-full flex-row bg-light-200 dark:bg-dark-800">
+    <h1 class="md:text-md relative w-full p-4 text-left text-sm font-semibold lg:text-xl">
+      Send to
+      <span class=" rounded-sm bg-light-300 p-1 font-extralight dark:bg-dark-900">
         {params}
       </span>
     </h1>
@@ -240,37 +239,27 @@
         bind:value={message}
         type="text"
         placeholder="Enter your message here "
-        class="border-black bg-base-200/40 placeholder-base-content/70 h-full w-full border p-8"
+        class="border-black
+        h-full w-full
+        border border-light-400
+        bg-light-200 p-8
+        placeholder-light-800 dark:border-dark-600 dark:bg-dark-800 dark:placeholder-dark-200"
         maxlength="1000"
         on:keydown={(e) => {
           if (e.key === 'Enter') SignMessage();
         }}
       />
 
-      <span
-        class="text-stone-300 dark:bg-red-900 border-black absolute
-      bottom-0 left-2 rounded-sm border p-2"
-      >
-        <label for="image-input" class="cursor-pointer">
-          <ImageSquare size="34" weight="duotone" />
-        </label>
-        <input
-          id="image-input"
-          type="file"
-          class="hidden"
-          accept="image/*"
-          on:change={handleFileInput}
-        />
-      </span>
-
       <button
-        class=" border-black text-primary border p-7
-				transition-all
-				{!disableSend ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
-        disabled={disableSend}
+        class=" border-black text-primary border
+				border-light-900 p-7 transition-all dark:border-dark-600
+				{!message || sending
+          ? 'cursor-not-allowed'
+          : ' hover:bg-light-900 hover:text-light-200 hover:dark:bg-dark-900 hover:dark:text-dark-200'}"
+        disabled={!message || sending}
         on:click={SignMessage}
       >
-        Send
+        {sending ? 'Sending' : 'Send'}
       </button>
     </span>
 
@@ -279,6 +268,22 @@
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
       {:else}
         <p>No images</p>
+
+        <span
+          class="text-stone-300 dark:bg-red-900 border-black
+    bottom-0 left-2 rounded-sm border"
+        >
+          <label for="image-input" class="cursor-pointer">
+            <ImageSquare size="18" weight="duotone" />
+          </label>
+          <input
+            id="image-input"
+            type="file"
+            class="hidden"
+            accept="image/*"
+            on:change={handleFileInput}
+          />
+        </span>
       {/if}
     </span>
   </div>

@@ -3,13 +3,12 @@ import { createShortHash } from './hashing';
 
 export const ResetPgpIdentity = async () => {
   const data = {
-    privateKey: "",
-    publicKey: "",
-    revocationCertificate: "",
-    uniqueString: ""
+    privateKey: '',
+    publicKey: '',
+    revocationCertificate: '',
+    uniqueString: ''
   };
   let resp: any = null;
-
 
   const { privateKey, publicKey, revocationCertificate } = await openpgp.generateKey({
     type: 'ecc',
@@ -47,5 +46,4 @@ export const ResetPgpIdentity = async () => {
     console.log('data: ', data);
     return data;
   }
-
 };

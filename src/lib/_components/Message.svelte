@@ -33,18 +33,18 @@
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <span
-    class=" absolute -left-2 -top-4 aspect-square 
-    border border-light-300 dark:border-dark-500
-    p-1 px-2 text-sm"
+    class=" absolute -left-2 -top-4 aspect-square
+    border border-light-300 p-1
+    px-2 text-sm dark:border-dark-500"
     style="background: {color};"
     on:click={() => (hidden = !hidden)}
   >
     &nbsp;
   </span>
   <span
-    class="border-black absolute -top-4 left-1 
-    border border-light-300 dark:border-dark-500
-    bg-dark-content p-1 px-2 text-sm dark:bg-light-content"
+    class="border-black absolute -top-4 left-1
+    border border-light-300 bg-dark-content
+    p-1 px-2 text-sm dark:border-dark-500 dark:bg-light-content"
   >
     {msg.r}
   </span>
@@ -52,8 +52,8 @@
     {#if msg.image && msg.image.id && msg.image.blurhash}
       <span
         class="border-black absolute -top-4 left-28 h-7 w-7
-        border border-light-300 dark:border-dark-500
-        bg-dark-content text-sm dark:bg-light-content"
+        border border-light-300 bg-dark-content
+        text-sm dark:border-dark-500 dark:bg-light-content"
       >
         <BlurhashThumbnail blurhash={msg.image.blurhash} imageId={msg.image.id} />
       </span>
