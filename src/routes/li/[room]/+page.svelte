@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
+  import { blur, fade, scale } from 'svelte/transition';
 
   import colors from '$lib/utils/colors.json';
 
@@ -10,6 +11,9 @@
   import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
   import X from 'phosphor-svelte/lib/X';
+  import CheckFat from 'phosphor-svelte/lib/CheckFat';
+  import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
+  import CopyLink from '$lib/_components/CopyLink.svelte';
 
   let rid = $page.params.room;
   let unlocked = false;
@@ -84,7 +88,15 @@
         console.log(resp.message);
       } else {
         // Otherwise, set 'encryptedMessages' to the messages from the response
-        encryptedMessages = resp.body.messages ?? [];
+        encryptedMessages = resp.body.messages;
+        if (!encryptedMessages) {
+          console.log('No messages');
+          encryptedMessages = [];
+          return;
+        }
+        encryptedMessages.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
 
         // Loop over each encrypted message
         for (const encryptedMessage of encryptedMessages) {
@@ -107,9 +119,15 @@
 
           // Create an object with the decrypted message and its 'r' property
           const msgObj = {
+            id: encryptedMessage._id,
             msg: String(decrypted),
-            r: encryptedMessage.r,
-            timestamp: encryptedMessage.timestamp ?? new Date(0).toISOString()
+            image: {
+              id: encryptedMessage.image?._id,
+              blurhash: encryptedMessage.image?.blurhash,
+              nsfw: encryptedMessage.image?.nsfw
+            },
+            r: encryptedMessage.author,
+            timestamp: encryptedMessage.timestamp
           };
 
           // If 'decryptedMessages' doesn't already contain this message, add it
@@ -262,12 +280,14 @@
 </script>
 
 <div
-  class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-8"
+  class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-12"
 >
   <div class="flex w-full flex-row gap-2 p-1 pb-1">
     <h1
-      class=" relative flex w-full flex-row items-center justify-start
-		gap-2 bg-base-200 p-4 text-left text-xl font-semibold text-primary/90 md:text-3xl lg:text-4xl"
+      class="
+			border-black relative flex w-full flex-row items-center justify-start
+		gap-2 border p-1 text-left text-base font-semibold md:p-2 md:text-xl
+		lg:p-4 lg:text-2xl dark:border-dark-400"
     >
       Room
       {#if isEditingTitle}
@@ -283,7 +303,7 @@
               toggleEditTitle();
             }
           }}
-          class="min-h-8 rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content focus:bg-base-100 focus:outline-none"
+          class="  text-base-content focus:bg-base-100 min-h-8 rounded-sm border-none p-1 font-extralight focus:outline-none"
           size={roomTitle.length > 5 ? roomTitle.length : 5}
           style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
         />
@@ -307,7 +327,7 @@
         </button>
       {:else}
         <span
-          class="pointer-events-none rounded-sm border-none bg-base-300 p-1 font-extralight text-base-content"
+          class="  text-base-content pointer-events-none rounded-sm border-none p-1 font-extralight"
         >
           {roomTitle}
         </span>
@@ -317,24 +337,29 @@
       {/if}
       {#if unlocked}
         <span
-          class="absolute -top-2 left-1 rounded-sm bg-primary px-2 py-1 text-xs font-light text-primary-content"
+          class=" absolute -top-1 left-1 rounded-sm
+					bg-light-900 px-2 py-1 text-xs font-light text-dark-100 dark:bg-dark-800 dark:text-light-100"
           >Your
         </span>
       {/if}
       {#if unpacking}
         <span
-          class="absolute -bottom-3 left-1 rounded-sm border border-black bg-base-300 p-1 px-2 text-xs font-normal text-base-content"
+          class="absolute -bottom-3 left-1 rounded-sm
+					bg-light-200 p-1 px-2
+					text-xs font-normal dark:bg-dark-900 dark:text-dark-200"
           >Loading ...
         </span>
       {/if}
       <span
-        class="absolute -bottom-2 right-1 rounded-sm border border-black bg-base-200 p-1 px-2 text-xs font-normal"
+        class="
+			absolute -bottom-2 right-1
+			rounded-sm bg-light-200 p-1 px-2 text-xs font-normal text-light-900 dark:bg-dark-800 dark:text-dark-200"
       >
         Fetch every
 
         <input
           bind:value={pollingInterval}
-          class=" input-outline input-base-200 input input-xs w-8 appearance-none"
+          class=" input-outline w-8 appearance-none bg-dark-content dark:bg-light-content"
           type="number"
           min="3"
           max="99"
@@ -342,11 +367,7 @@
         s
       </span>
     </h1>
-    <button class="py-auto btn btn-square btn-primary h-full w-fit" on:click={copyLink}>
-      <span class="whitespace-nowrap px-4 py-6">
-        {copied ? 'Link copied!' : 'Copy your link'}
-      </span>
-    </button>
+    <CopyLink on:click={copyLink} {copied} />
   </div>
 
   <div class="flex flex-row items-center justify-center">

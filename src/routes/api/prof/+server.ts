@@ -17,12 +17,10 @@ export async function PATCH({ request }) {
       console.log('!!profanityEnabledStatus ', !!profanityEnabledStatus);
 
       room = await Listener.findOneAndUpdate(
-        { pbKey: pbKey },
+        { rid: rid },
         { $set: { profanityEnabled: !!profanityEnabledStatus } },
         { new: true, fields: { profanityEnabled: 1, _id: 0 } }
       );
-
-      console.log('Updated room:', room);
     }
 
     if (room) {

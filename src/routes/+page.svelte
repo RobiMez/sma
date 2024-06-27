@@ -7,21 +7,14 @@
   import content from '../../CHANGELOG.md';
   import { marked } from 'marked';
   import { browser } from '$app/environment';
+  import { ResetPgpIdentity } from '$lib/utils/pgp';
+  import { saveToLS } from '$lib/utils/localStorage';
 
   let prKey: string;
   let pbKey: string;
   let RC: string;
   let uniqueString: string;
 
-  async function createShortHash(input: string, length: number): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    const hash = await window.crypto.subtle.digest('SHA-256', data);
-    const hashString = btoa(String.fromCharCode(...new Uint8Array(hash)));
-
-    const base64url = hashString.replace('+', '-').replace('/', '_').replace(/=+$/, '');
-    return base64url.substring(0, length);
-  }
   const GetPgpIdentity = async () => {
     prKey = localStorage.getItem('prKey')!;
     pbKey = localStorage.getItem('pbKey')!;
@@ -33,48 +26,7 @@
   };
 
   // On click , ill generate the required hashes and links and redir the user to that page
-  const ResetPgpIdentity = () => {
-    (async () => {
-      const { privateKey, publicKey, revocationCertificate } = await openpgp.generateKey({
-        type: 'ecc',
-        curve: 'curve25519',
-        userIDs: [{ name: 'Anon', email: 'Sma@robi.work' }],
-        passphrase: 'super long and hard to guess secret',
-        format: 'armored'
-      });
-      prKey = privateKey;
-      pbKey = publicKey;
-      RC = revocationCertificate;
 
-      uniqueString = await createShortHash(privateKey + publicKey, 12);
-
-      localStorage.setItem('prKey', prKey);
-      localStorage.setItem('pbKey', pbKey);
-      localStorage.setItem('RC', RC);
-      localStorage.setItem('uniqueString', uniqueString);
-
-      const response = await fetch('/api/pgp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          pbKey,
-          rid: uniqueString
-        })
-      });
-
-      const resp = await response.json();
-
-      if (resp.error) {
-        console.log(resp.message);
-      } else {
-        console.log(resp.message);
-      }
-
-      // Create a unique string based on the keys
-    })();
-  };
   interface Stats {
     activeUsers: number;
     identities: number;
@@ -97,13 +49,21 @@
       newChangelog = true;
     }
 
+    GetPgpIdentity();
+
     // Check if the user has a PGP identity
     if (!prKey || !pbKey || !RC || !uniqueString) {
-      ({ prKey, pbKey, RC, uniqueString } = await GetPgpIdentity());
-    }
-    if (!prKey || !pbKey || !RC || !uniqueString) {
       console.log('No Pgp Identity found , creating one now');
-      ResetPgpIdentity();
+      const data = await ResetPgpIdentity();
+
+      if (!data) return;
+
+      prKey = data?.privateKey;
+      pbKey = data?.publicKey;
+      RC = data?.revocationCertificate;
+      uniqueString = data?.uniqueString;
+
+      saveToLS(data?.privateKey, data?.publicKey, data?.revocationCertificate, data?.uniqueString);
     }
 
     const response = await fetch(`/api/stats`, {
@@ -126,18 +86,18 @@
 </script>
 
 <div
-  class="container mx-auto flex min-h-screen max-w-4xl flex-grow flex-col items-center justify-center gap-8 p-8"
+  class="container mx-auto flex max-h-fit min-h-screen max-w-2xl flex-grow flex-col items-center justify-center gap-8 p-8"
 >
   <span class="flex flex-col items-center justify-center gap-2">
     <h1
-      class="
-			relative text-4xl font-extralight text-primary/80
-			transition-all md:text-5xl lg:text-6xl"
+      class="relative text-xl font-extralight transition-all sm:text-2xl
+			md:text-3xl lg:text-4xl"
     >
       Welcome to S.M.A
       {#if browser}
         <button
-          class="absolute -bottom-6 -right-6 rounded-sm bg-base-300 p-1 text-xs
+          class="absolute -bottom-6 -right-6 cursor-pointer rounded-sm bg-light-200 p-1
+					px-2 text-xs text-light-900 md:text-sm lg:text-base dark:bg-dark-800 dark:text-dark-200
         "
           on:click={() => {
             localStorage.setItem('LastReadChangelog', packageJson.version);
@@ -153,13 +113,14 @@
 
     <h6 class="text-md font-extralight md:text-lg lg:text-xl">Send Messages Anon</h6>
     {#if stats}
-      <small in:fade class="text-xs font-normal text-primary/80">
-        <b>{stats.activeUsers ?? ''}</b> Active users ,
-        <b>{stats.identities}</b> Identities ,
-        <b>{stats.totalMessages}</b> Msgs and counting...
+      <small in:fade class="text-primary/80 text-sm font-normal">
+        <b>{stats.activeUsers ?? ''}</b> Active user{stats.activeUsers != 1 ? 's' : ''} ,
+        <b>{stats.identities}</b>
+        {stats.identities != 1 ? 'Identities' : 'Identity'} ,
+        <b>{stats.totalMessages}</b> Msg{stats.totalMessages != 1 ? 's' : ''} and counting...
       </small>
     {:else}
-      <small class="text-xs font-light text-primary"> Loading Stats... </small>
+      <small class="text-primary text-sm font-light"> Loading Stats... </small>
     {/if}
   </span>
   {#if displayChangelog}
@@ -169,13 +130,36 @@
   {/if}
 
   <div class="flex flex-row items-center justify-center gap-4">
-    <a href="#0" class="btn btn-outline btn-primary" on:click={ResetPgpIdentity}>
+    <a
+      href="#0"
+      class="whitespace-nowrap rounded-sm border p-5"
+      on:click={async () => {
+        const data = await ResetPgpIdentity();
+        if (!data) return;
+
+        prKey = data?.privateKey;
+        pbKey = data?.publicKey;
+        RC = data?.revocationCertificate;
+        uniqueString = data?.uniqueString;
+
+        saveToLS(
+          data?.privateKey,
+          data?.publicKey,
+          data?.revocationCertificate,
+          data?.uniqueString
+        );
+      }}
+    >
       Reset Identity
     </a>
     <div class="relative">
-      <a class="btn btn-primary" href="/li/{uniqueString}"> Your Messages </a>
+      <a class="whitespace-nowrap rounded-sm border p-5" href="/li/{uniqueString}">
+        Your Messages
+      </a>
       <h1
-        class="absolute -bottom-4 -right-1 border border-primary bg-base-100 p-1 text-xs text-primary"
+        class="absolute -bottom-9
+        -right-1 rounded-sm border
+        bg-light-300 p-1 text-sm text-light-900 dark:bg-dark-800 dark:text-dark-200"
       >
         {uniqueString ?? ''}
       </h1>
@@ -193,8 +177,8 @@
     >
     {#if powerUser}
       <div class="flex max-w-[80vw] flex-col gap-4 py-4 lg:flex-row" transition:slide>
-        <div class="relative border border-black p-2">
-          <small class="absolute -top-3 z-40 rounded-sm bg-primary px-1 text-primary-content"
+        <div class="border-black relative border p-2">
+          <small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
             >{prKey ? 'Private Key ( Super secret , dont share )' : ''}</small
           >
           <h1 class=" break-all text-xs blur-sm transition-all duration-1000 hover:blur-none">
@@ -202,8 +186,8 @@
           </h1>
         </div>
 
-        <div class="relative border border-black p-2">
-          <small class="absolute -top-3 z-40 rounded-sm bg-primary px-1 text-primary-content"
+        <div class="border-black relative border p-2">
+          <small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
             >{pbKey ? 'Public Key ( Share as you like ) ' : ''}</small
           >
           <h1 class=" break-all text-xs">{pbKey ?? ''}</h1>
@@ -214,8 +198,8 @@
 
   <footer
     class="
-	fixed bottom-0 z-50 flex w-full items-center
-	justify-center bg-base-100 text-primary"
+	bg-base-100 text-primary fixed bottom-0 z-50 flex
+	w-full items-center justify-center"
   >
     <span class="p-1 text-sm font-extralight"
       >A <a class="underline" href="https://robi.work">robi.work</a> site

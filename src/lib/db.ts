@@ -1,10 +1,7 @@
 // src/lib/db.ts
 
 import mongoose, { Mongoose } from 'mongoose';
-import { config } from 'dotenv';
 import { SECRET_MONGO_URI } from '$env/static/private';
-
-config();
 
 interface Connection {
   isConnected?: number;
