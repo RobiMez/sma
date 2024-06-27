@@ -224,9 +224,7 @@
       {#if imageBase64.length}
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
       {:else}
-        <span
-          class="text-stone-300 dark:bg-red-900 bottom-0 left-2 rounded-sm"
-        >
+        <span class="text-stone-300 dark:bg-red-900 bottom-0 left-2 rounded-sm">
           <label for="image-input" class="cursor-pointer">
             <ImageSquare size="24" weight="duotone" />
           </label>
