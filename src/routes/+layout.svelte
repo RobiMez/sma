@@ -47,16 +47,12 @@
         }}
       >
         {#if themeDark}
-          <SunHorizon size={18} weight="duotone" />
-        {:else}
           <MoonStars size={18} weight="duotone" />
+        {:else}
+          <SunHorizon size={18} weight="duotone" />
         {/if}
         <span class="hidden lg:flex">
-          {systemPeek
-            ? 'System Default'
-            : themeDark
-            ? 'Turn the lights on '
-            : 'Turn the lights off'}
+          {systemPeek ? 'System ' : themeDark ? 'Lights off ' : 'Lights on'}
         </span>
 
         <button
@@ -94,6 +90,5 @@
       </button>
     </div>
   {/if}
-
   <slot />
 </div>

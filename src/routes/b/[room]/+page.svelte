@@ -15,16 +15,6 @@
   let RC: string;
   let uniqueString: string;
 
-  async function createShortHash(input: string, length: number): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    const hash = await window.crypto.subtle.digest('SHA-256', data);
-    const hashString = btoa(String.fromCharCode(...new Uint8Array(hash)));
-
-    const base64url = hashString.replace('+', '-').replace('/', '_').replace(/=+$/, '');
-    return base64url.substring(0, length);
-  }
-
   const GetPgpIdentity = async () => {
     console.log('Getting Pgp Identity from localStorage');
     prKey = localStorage.getItem('prKey')!;
@@ -47,12 +37,13 @@
 
   // get the private key of myself from localstorage
   const SignMessage = async () => {
+    let data = await GetPgpIdentity();
     sending = true;
     prKey = localStorage.getItem('prKey')!;
 
     const passphrase = 'super long and hard to guess secret';
     const uniqueString = localStorage.getItem('uniqueString')!;
-    const publicKey = await openpgp.readKey({ armoredKey: api_pbKey });
+    const publicKey = await openpgp.readKey({ armoredKey: data.pbKey });
 
     const privateKey = await openpgp.decryptKey({
       privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
@@ -140,45 +131,6 @@
     disableSend = false;
   };
 
-  // On click , ill generate the required hashes and links and redir the user to that page
-  // const ResetPgpIdentity = () => {
-  //   (async () => {
-  //     const { privateKey, publicKey, revocationCertificate } = await openpgp.generateKey({
-  //       type: 'ecc',
-  //       curve: 'curve25519',
-  //       userIDs: [{ name: 'Anon', email: 'Sma@robi.work' }],
-  //       passphrase: 'super long and hard to guess secret',
-  //       format: 'armored'
-  //     });
-  //     prKey = privateKey;
-  //     pbKey = publicKey;
-  //     RC = revocationCertificate;
-
-  //     uniqueString = await createShortHash(privateKey + publicKey, 12);
-
-  //     const response = await fetch('/api/pgp', {
-  //       method: 'POST',
-  //       headers: {
-  //         'Content-Type': 'application/json'
-  //       },
-  //       body: JSON.stringify({
-  //         pbKey,
-  //         rid: uniqueString
-  //       })
-  //     });
-
-  //     const resp = await response.json();
-
-  //     if (resp.error) {
-  //       console.log(resp.message);
-  //     } else {
-  //       console.log(resp.message);
-  //     }
-
-  //     // Create a unique string based on the keys
-  //   })();
-  // };
-
   // On file change generate the base64 and load preview
   function handleFileInput(event: any) {
     const file = event.target.files[0];
@@ -251,7 +203,7 @@
       />
 
       <button
-        class=" border-black text-primary border
+        class=" border-black border
 				border-light-900 p-7 transition-all dark:border-dark-600
 				{!message || sending
           ? 'cursor-not-allowed'
@@ -263,18 +215,20 @@
       </button>
     </span>
 
-    <span class="border-black text-zinc-400/50 flex h-full w-full flex-row gap-2 border p-3">
+    <span
+      class="border-black text-zinc-400/50 flex h-full w-full flex-row gap-2
+      border
+				border-light-900
+    p-3 dark:border-dark-600"
+    >
       {#if imageBase64.length}
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
       {:else}
-        <p>No images</p>
-
         <span
-          class="text-stone-300 dark:bg-red-900 border-black
-    bottom-0 left-2 rounded-sm border"
+          class="text-stone-300 dark:bg-red-900 bottom-0 left-2 rounded-sm"
         >
           <label for="image-input" class="cursor-pointer">
-            <ImageSquare size="18" weight="duotone" />
+            <ImageSquare size="24" weight="duotone" />
           </label>
           <input
             id="image-input"
@@ -303,13 +257,13 @@
   {#if powerUser}
     <div transition:slide class="flex flex-col gap-4 py-4">
       <div class="border-black bg-base-100 relative border p-2">
-        <small class="bg-primary-content text-primary absolute -top-3 rounded-sm px-1"
+        <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"
           >{prKey ? 'Signing with Private key :' : ''}
         </small>
         <h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
       </div>
       <div class="border-black bg-base-100 relative border p-2">
-        <small class="bg-primary-content text-primary absolute -top-3 rounded-sm px-1"
+        <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"
           >Encrypted Message :
         </small>
         <h1 class=" text-xs">{cleartextMessage ?? ''}</h1>

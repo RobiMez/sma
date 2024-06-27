@@ -94,13 +94,16 @@
           encryptedMessages = [];
           return;
         }
+        encryptedMessages.sort(
+          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
         // Loop over each encrypted message
         for (const encryptedMessage of encryptedMessages) {
           // Read the encrypted message
           const readMsg = await openpgp.readMessage({
             armoredMessage: encryptedMessage.message
           });
-          console.log(encryptedMessage);
 
           // Decrypt the private key
           const privateKey = await openpgp.decryptKey({
@@ -379,7 +382,7 @@
 
   <div class="flex w-full flex-col gap-3 p-4">
     {#if unlocked}
-      {#each [...decryptedMessages] as msg (msg)}
+      {#each [...decryptedMessages].reverse() as msg (msg)}
         {@const color = generateConsistentIndices(msg.r)}
         <Message {msg} {color} />
       {/each}
