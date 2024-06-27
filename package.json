@@ -47,6 +47,8 @@
   "dependencies": {
     "@sentry/sveltekit": "^7.113.0",
     "autoprefixer": "^10.4.15",
+    "bits-ui": "^0.21.10",
+    "blurhash": "^2.0.5",
     "daisyui": "^4.10.2",
     "dompurify": "^3.1.2",
     "dotenv": "^16.4.5",
@@ -56,8 +58,9 @@
     "phosphor-svelte": "^2.0.1",
     "postcss": "^8.4.29",
     "pretty-ms": "^9.0.0",
-    "tailwindcss": "^3.3.3",
+    "tailwindcss": "^3.4.4",
     "theme-change": "^2.5.0",
+    "uuid": "^10.0.0",
     "vite-raw-plugin": "^1.0.2"
   }
 }

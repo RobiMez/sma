@@ -4,9 +4,10 @@
   import * as openpgp from 'openpgp';
   import { slide } from 'svelte/transition';
   import checkProfanity from '$lib/profanityFilter';
-  import { ImageSquare } from 'phosphor-svelte';
+  import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
+  import { ResetPgpIdentity } from '$lib/utils/pgp';
 
   let prKey: string;
   let pbKey: string;
@@ -140,48 +141,43 @@
   };
 
   // On click , ill generate the required hashes and links and redir the user to that page
-  const ResetPgpIdentity = () => {
-    (async () => {
-      const { privateKey, publicKey, revocationCertificate } = await openpgp.generateKey({
-        type: 'ecc',
-        curve: 'curve25519',
-        userIDs: [{ name: 'Anon', email: 'Sma@robi.work' }],
-        passphrase: 'super long and hard to guess secret',
-        format: 'armored'
-      });
-      prKey = privateKey;
-      pbKey = publicKey;
-      RC = revocationCertificate;
+  // const ResetPgpIdentity = () => {
+  //   (async () => {
+  //     const { privateKey, publicKey, revocationCertificate } = await openpgp.generateKey({
+  //       type: 'ecc',
+  //       curve: 'curve25519',
+  //       userIDs: [{ name: 'Anon', email: 'Sma@robi.work' }],
+  //       passphrase: 'super long and hard to guess secret',
+  //       format: 'armored'
+  //     });
+  //     prKey = privateKey;
+  //     pbKey = publicKey;
+  //     RC = revocationCertificate;
 
-      uniqueString = await createShortHash(privateKey + publicKey, 12);
+  //     uniqueString = await createShortHash(privateKey + publicKey, 12);
 
-      localStorage.setItem('prKey', prKey);
-      localStorage.setItem('pbKey', pbKey);
-      localStorage.setItem('RC', RC);
-      localStorage.setItem('uniqueString', uniqueString);
+  //     const response = await fetch('/api/pgp', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json'
+  //       },
+  //       body: JSON.stringify({
+  //         pbKey,
+  //         rid: uniqueString
+  //       })
+  //     });
 
-      const response = await fetch('/api/pgp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          pbKey,
-          rid: uniqueString
-        })
-      });
+  //     const resp = await response.json();
 
-      const resp = await response.json();
+  //     if (resp.error) {
+  //       console.log(resp.message);
+  //     } else {
+  //       console.log(resp.message);
+  //     }
 
-      if (resp.error) {
-        console.log(resp.message);
-      } else {
-        console.log(resp.message);
-      }
-
-      // Create a unique string based on the keys
-    })();
-  };
+  //     // Create a unique string based on the keys
+  //   })();
+  // };
 
   // On file change generate the base64 and load preview
   function handleFileInput(event: any) {
@@ -209,7 +205,6 @@
 
   onMount(async () => {
     if (params) {
-      console.log('Fetching public key');
       await fetchKeys();
     }
     // Check if the user has a PGP identity
@@ -218,7 +213,8 @@
     }
     if (!prKey || !pbKey || !RC || !uniqueString) {
       console.log('No Pgp Identity found , creating one now');
-      ResetPgpIdentity();
+      const data = await ResetPgpIdentity();
+      console.log('data', data);
     }
   });
 
@@ -230,9 +226,9 @@
 >
   <div class="flex w-full flex-row">
     <h1
-      class=" relative w-full bg-base-200 p-4 text-left text-xl font-semibold text-primary transition-all md:text-2xl lg:text-4xl"
+      class=" bg-base-200 text-primary relative w-full p-4 text-left text-xl font-semibold transition-all md:text-2xl lg:text-4xl"
     >
-      Send to <span class="rounded-sm bg-base-300 p-1 font-extralight text-primary">
+      Send to <span class="bg-base-300 text-primary rounded-sm p-1 font-extralight">
         {params}
       </span>
     </h1>
@@ -244,14 +240,17 @@
         bind:value={message}
         type="text"
         placeholder="Enter your message here "
-        class="h-full w-full border border-black bg-base-200/40 p-8 placeholder-base-content/70"
+        class="border-black bg-base-200/40 placeholder-base-content/70 h-full w-full border p-8"
         maxlength="1000"
         on:keydown={(e) => {
           if (e.key === 'Enter') SignMessage();
         }}
       />
 
-      <span class="absolute bottom-0 left-3 rounded-sm bg-zinc-800">
+      <span
+        class="text-stone-300 dark:bg-red-900 border-black absolute
+      bottom-0 left-2 rounded-sm border p-2"
+      >
         <label for="image-input" class="cursor-pointer">
           <ImageSquare size="34" weight="duotone" />
         </label>
@@ -265,7 +264,7 @@
       </span>
 
       <button
-        class=" border border-black p-7 text-primary
+        class=" border-black text-primary border p-7
 				transition-all
 				{!disableSend ? 'hover:bg-primary hover:text-primary-content' : ' hover:bg-base-200 '}"
         disabled={disableSend}
@@ -275,9 +274,8 @@
       </button>
     </span>
 
-    <span class="flex h-full w-full flex-row gap-2 border border-black p-3 text-zinc-400/50">
+    <span class="border-black text-zinc-400/50 flex h-full w-full flex-row gap-2 border p-3">
       {#if imageBase64.length}
-        <!-- <img src={imageBase64} alt="Image to send..." /> -->
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
       {:else}
         <p>No images</p>
@@ -299,14 +297,14 @@
 
   {#if powerUser}
     <div transition:slide class="flex flex-col gap-4 py-4">
-      <div class="relative border border-black bg-base-100 p-2">
-        <small class="absolute -top-3 rounded-sm bg-primary-content px-1 text-primary"
+      <div class="border-black bg-base-100 relative border p-2">
+        <small class="bg-primary-content text-primary absolute -top-3 rounded-sm px-1"
           >{prKey ? 'Signing with Private key :' : ''}
         </small>
         <h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
       </div>
-      <div class="relative border border-black bg-base-100 p-2">
-        <small class="absolute -top-3 rounded-sm bg-primary-content px-1 text-primary"
+      <div class="border-black bg-base-100 relative border p-2">
+        <small class="bg-primary-content text-primary absolute -top-3 rounded-sm px-1"
           >Encrypted Message :
         </small>
         <h1 class=" text-xs">{cleartextMessage ?? ''}</h1>

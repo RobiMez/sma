@@ -57,3 +57,25 @@ div.changelog h3 {
     background: #000;
   }
 }
+
+/* Light & dark mode auto styles  */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+small {
+  @apply text-light-content  transition-colors duration-200 dark:text-dark-content;
+}
+
+body {
+  @apply bg-light-base text-light-content transition-colors duration-200 
+    dark:bg-dark-base dark:text-dark-content;
+}
+
+a {
+  @apply text-light-content underline  decoration-light-content-secondary/30 decoration-2 dark:text-dark-content dark:decoration-dark-content-secondary/30;
+}

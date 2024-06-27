@@ -16,11 +16,11 @@
     class={`${variant == 'md' ? 'w-48' : 'w-24'} rounded-sm border border-black`}
     on:click={toggleModal}
   >
-    <img src={imageBase64} alt="Image to send..." />
+    <img src={imageBase64} alt="Lorem" />
   </button>
   <dialog {id} class="modal modal-bottom items-center sm:modal-middle">
     <div class="modal-box flex items-center justify-center">
-      <img src={imageBase64} alt="Image to send..." />
+      <img src={imageBase64} alt="Lorem" />
     </div>
     <form method="dialog" class="modal-backdrop">
       <button>close</button>

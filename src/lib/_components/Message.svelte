@@ -27,27 +27,43 @@
   });
 </script>
 
-<div class="relative w-full border border-black bg-base-100 px-2 py-3.5 font-light">
-  {#if !hidden}
-    <div class="w-full overflow-hidden">
-      {#if msg.image && msg.image.id && msg.image.blurhash}
-        <BlurhashThumbnail blurhash={msg.image.blurhash} imageId={msg.image.id} />
-      {/if}
-      {msg.msg}
-    </div>
-  {/if}
-
+<div
+  class="bg-base-100 relative flex w-full flex-row justify-between border border-light-500 px-2 py-3.5 font-light dark:border-dark-400"
+>
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <span
-    class="absolute -left-2 -top-4 aspect-square border border-black p-1 px-2 text-xs"
+    class=" absolute -left-2 -top-4 aspect-square 
+    border border-light-300 dark:border-dark-500
+    p-1 px-2 text-sm"
     style="background: {color};"
     on:click={() => (hidden = !hidden)}
   >
     &nbsp;
   </span>
-  <span class="absolute -top-4 left-1 border border-black bg-base-100 p-1 px-2 text-xs">
+  <span
+    class="border-black absolute -top-4 left-1 
+    border border-light-300 dark:border-dark-500
+    bg-dark-content p-1 px-2 text-sm dark:bg-light-content"
+  >
     {msg.r}
   </span>
-  <span class="absolute bottom-1 right-2 text-xs">{time}</span>
+  {#if !hidden}
+    {#if msg.image && msg.image.id && msg.image.blurhash}
+      <span
+        class="border-black absolute -top-4 left-28 h-7 w-7
+        border border-light-300 dark:border-dark-500
+        bg-dark-content text-sm dark:bg-light-content"
+      >
+        <BlurhashThumbnail blurhash={msg.image.blurhash} imageId={msg.image.id} />
+      </span>
+    {/if}
+  {/if}
+
+  <span>
+    {msg.msg}
+  </span>
+  <div class="absolute bottom-2 right-2 flex flex-row items-center justify-center">
+    <span class="text-xs">{time}</span>
+  </div>
 </div>

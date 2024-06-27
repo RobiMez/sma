@@ -1,19 +1,14 @@
 <script lang="ts">
-  import { decode } from 'blurhash';
+  import { Dialog } from 'bits-ui';
   import { onMount } from 'svelte';
-  export let blurhash = '';
-  export let imageId = '';
-  export let variant: 'sm' | 'md' = 'sm';
+  import { fade } from 'svelte/transition';
+  import X from 'phosphor-svelte/lib/X';
 
-  let modal: HTMLDialogElement;
-  let pixels: any;
-  let canvas: HTMLCanvasElement;
+  export let imageId = '';
   let imageBase64 = '';
 
-  const toggleModal = async () => {
-    modal.showModal();
-    // If modal is open load the image
-    if (modal.open) {
+  const ocf = async (open: boolean) => {
+    if (open) {
       // Fetch the image from the db
       const response = await fetch(`/api/images?id=${imageId}`, {
         method: 'GET',
@@ -33,38 +28,51 @@
       }
     }
   };
-
   onMount(() => {
-    function pixelsToDataURL(pixels: Uint8ClampedArray): string {
-      const ctx = canvas.getContext('2d');
-      canvas.width = 120;
-      canvas.height = 90;
-      const imageData = new ImageData(pixels, 120, 90);
-      ctx?.putImageData(imageData, 0, 0);
-      return canvas.toDataURL('image/png');
-    }
-    pixels = decode(blurhash, 120, 90);
-    pixelsToDataURL(pixels);
+    ocf(true);
   });
 </script>
 
-<div>
-  <button
-    class={`${variant == 'md' ? 'w-48' : 'w-24'} rounded-sm border border-black`}
-    on:click={toggleModal}
+<Dialog.Root onOpenChange={ocf}>
+  <Dialog.Trigger
+    class="active:scale-98 
+  inline-flex items-center justify-center whitespace-nowrap transition-colors "
   >
-    <canvas bind:this={canvas}></canvas>
-  </button>
-  <dialog bind:this={modal} class="modal modal-bottom items-center sm:modal-middle">
-    <div class="modal-box flex items-center justify-center">
-      {#if imageBase64}
-        <img src={imageBase64} alt="Image to view..." />
-      {:else}
-        <div class="loader"></div>
-      {/if}
-    </div>
-    <form method="dialog" class="modal-backdrop">
-      <button>close</button>
-    </form>
-  </dialog>
-</div>
+    <img src={imageBase64} alt="." class=" aspect-square object-cover" />
+  </Dialog.Trigger>
+  <Dialog.Portal>
+    <Dialog.Overlay
+      transition={fade}
+      transitionConfig={{ duration: 150 }}
+      class=" border-black  fixed inset-0 z-50 
+      border bg-light-200/50 text-light-700
+      dark:bg-dark-800/50 dark:text-dark-600
+      
+      "
+    />
+    <Dialog.Content
+      class="  fixed left-[50%] top-[50%] z-50  w-fit max-w-[94%] translate-x-[-50%] translate-y-[-50%]
+      border border-dark-800
+      bg-light-100 text-light-700
+      outline-none sm:max-w-[490px] lg:max-w-[60vw] 
+      dark:border-dark-200 dark:bg-dark-800
+      dark:text-dark-200  "
+    >
+      <div class=" flex flex-col items-center justify-center gap-12 p-4 text-xs">
+        {#if imageBase64}
+          <img src={imageBase64} alt="View..." />
+        {:else}
+          <div class="loader"></div>
+        {/if}
+      </div>
+
+      <Dialog.Close class="active:scale-98 absolute -right-8 -top-8 
+      bg-light-400 p-1 dark:bg-dark-900 
+      text-light-900 p-1 dark:text-dark-200 
+      
+      w-fit rounded-sm">
+          <X size="16" />
+      </Dialog.Close>
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>
