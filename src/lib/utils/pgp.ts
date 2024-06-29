@@ -23,7 +23,6 @@ export const ResetPgpIdentity = async () => {
   data.revocationCertificate = revocationCertificate;
   data.uniqueString = await createShortHash(privateKey + publicKey, 12);
 
-
   // Save the data to the server
   const response = await fetch('/api/pgp', {
     method: 'POST',

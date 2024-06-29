@@ -1,4 +1,3 @@
-
 import colors from '$lib/utils/colors.json';
 
 export const generateConsistentIndices = (input: string) => {

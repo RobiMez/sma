@@ -88,15 +88,14 @@ export async function POST({ request }) {
   const body = await request.json();
   const { pbKey, rid } = body as unknown as Listener;
 
-  if (!pbKey || !rid) return json(
-    { status: 500, body: 'Error saving listener : supply pbkey & rid' }
-  );
+  if (!pbKey || !rid)
+    return json({ status: 500, body: 'Error saving listener : supply pbkey & rid' });
 
   const newListener = new Listener({
     pbKey,
     rid,
     title: rid,
-    profanityEnabled : true , 
+    profanityEnabled: true,
     messages: []
   });
 

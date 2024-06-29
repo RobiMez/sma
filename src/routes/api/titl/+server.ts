@@ -30,7 +30,7 @@ export async function PATCH({ request }) {
   console.log('body', body);
   try {
     console.log();
-    
+
     const room = await Listener.findOneAndUpdate(
       { pbKey: pbKey },
       { $set: { title: title } },

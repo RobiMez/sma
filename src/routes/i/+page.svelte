@@ -29,7 +29,6 @@
     uniqueString: string;
   } | null = null;
 
-
   onMount(async () => {
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();

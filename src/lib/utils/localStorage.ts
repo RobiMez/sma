@@ -1,4 +1,4 @@
-import { ResetPgpIdentity } from "./pgp";
+import { ResetPgpIdentity } from './pgp';
 
 export const saveToLS = (prKey: string, pbKey: string, RC: string, uniqueString: string) => {
   if (typeof window === 'undefined') return;
@@ -7,7 +7,6 @@ export const saveToLS = (prKey: string, pbKey: string, RC: string, uniqueString:
   keyPairs[uniqueString] = { prKey, pbKey, RC, uniqueString };
   localStorage.setItem('keyPairs', JSON.stringify(keyPairs));
 };
-
 
 export const getFromLS = async (uniqueString: string) => {
   if (typeof window === 'undefined') return;
@@ -27,15 +26,16 @@ export const getFromLS = async (uniqueString: string) => {
 export const getAllFromLS = async () => {
   if (typeof window === 'undefined') return;
   let existingEntries = localStorage.getItem('keyPairs');
-  // if no keypair in keypairs , generate one and set it 
+  // if no keypair in keypairs , generate one and set it
   if (!existingEntries) {
     const newPair = await ResetPgpIdentity();
-    if (!newPair) throw new Error("Error generating genesis identity in getAllFromLS");
+    if (!newPair) throw new Error('Error generating genesis identity in getAllFromLS');
     saveToLS(
       newPair?.privateKey,
       newPair?.publicKey,
       newPair?.revocationCertificate,
-      newPair?.uniqueString);
+      newPair?.uniqueString
+    );
 
     existingEntries = localStorage.getItem('keyPairs');
   }
@@ -90,17 +90,19 @@ export const getLoadedPairFromLS = async () => {
   // set the first keypair in localstorage as the loaded pair
   if (!loadedPair) {
     const keyPairs = await getAllFromLS();
-    // make a new keypair if none exist in ls 
+    // make a new keypair if none exist in ls
 
     if (!keyPairs) return null;
     localStorage.setItem('loadedPair', JSON.stringify(keyPairs[0]));
     return keyPairs[0];
   }
 
-  return loadedPair ? JSON.parse(loadedPair) as {
-    prKey: string;
-    pbKey: string;
-    RC: string;
-    uniqueString: string;
-  } : null;
+  return loadedPair
+    ? (JSON.parse(loadedPair) as {
+        prKey: string;
+        pbKey: string;
+        RC: string;
+        uniqueString: string;
+      })
+    : null;
 };
