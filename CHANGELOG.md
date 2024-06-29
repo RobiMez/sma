@@ -1,3 +1,11 @@
+## [0.3.1](https://github.com/RobiMez/sma/compare/v0.3.0...v0.3.1) (2024-06-29)
+
+
+### Bug Fixes
+
+* replace all ([ce287d8](https://github.com/RobiMez/sma/commit/ce287d8c85751bacd9ff165b33bab1c090e3723e))
+* uriencode ([4493b9f](https://github.com/RobiMez/sma/commit/4493b9fdb99f9e24b3875b74e6a26f5dd99193ef))
+
 ## [0.3.0](https://github.com/RobiMez/sma/compare/v0.2.0...v0.3.0) (2024-06-29)
 
 
