@@ -7,12 +7,14 @@
   import SunHorizon from 'phosphor-svelte/lib/SunHorizon';
   import MoonStars from 'phosphor-svelte/lib/MoonStars';
   import { browser } from '$app/environment';
+  import { clearLS } from '$lib/utils/localStorage';
 
   $: themeDark = false;
   $: systemPeek = false;
 
   onMount(() => {
     themeDark = document.documentElement.classList.contains('dark');
+    clearLS();
   });
 </script>
 
