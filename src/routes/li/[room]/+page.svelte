@@ -129,7 +129,8 @@
             // Decrypt the message with the private key
             const { data: decrypted } = await openpgp.decrypt({
               message: readMsg,
-              decryptionKeys: privateKey
+              decryptionKeys: privateKey,
+              config: { allowInsecureDecryptionWithSigningKeys: true }
             });
             // Create an object with the decrypted message and its 'r' property
             const msgObj = {
