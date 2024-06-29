@@ -2,7 +2,6 @@ import { json } from '@sveltejs/kit';
 import Listener from '../../../models/listener.schema';
 import Message from '../../../models/messages.schema';
 import Image from '../../../models/file.schema';
-import { v4 as uuid } from 'uuid';
 
 interface Listener {
   pbKey: string;

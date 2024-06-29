@@ -205,10 +205,10 @@
     const respTitle = await responseTitle.json();
     console.log('resp', respTitle);
 
-    if (respTitle.error) {
+    if (respTitle.error || respTitle.status === 404) {
       console.log(respTitle.message);
     } else {
-      roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
+      roomTitle = respTitle.body.title?.length == 0 ? respTitle.body.rid : respTitle.body.title;
     }
   }
 
