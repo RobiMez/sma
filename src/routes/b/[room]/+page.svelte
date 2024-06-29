@@ -158,12 +158,15 @@
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
 
-    const responseTitle = await fetch(`/api/titl?rid=${loadedPair?.uniqueString}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
+    const responseTitle = await fetch(
+      `/api/titl?rid=${encodeURIComponent(loadedPair?.uniqueString as string )}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
     const respTitle = await responseTitle.json();
     console.log('resp', respTitle);
 
