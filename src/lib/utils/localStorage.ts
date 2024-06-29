@@ -3,7 +3,7 @@ import { ResetPgpIdentity } from './pgp';
 // function to clear all LS items except loadedPair , keyPairs and LastReadChangelog
 export const clearLS = () => {
   if (typeof window === 'undefined') return;
-  
+
   const loadedPair = localStorage.getItem('loadedPair');
   const keyPairs = localStorage.getItem('keyPairs');
   const lastReadChangelog = localStorage.getItem('lastReadChangelog');
@@ -14,7 +14,6 @@ export const clearLS = () => {
   if (lastReadChangelog) localStorage.setItem('lastReadChangelog', lastReadChangelog);
   if (theme) localStorage.setItem('theme', theme);
 };
-
 
 export const saveToLS = (prKey: string, pbKey: string, RC: string, uniqueString: string) => {
   if (typeof window === 'undefined') return;
@@ -115,10 +114,10 @@ export const getLoadedPairFromLS = async () => {
 
   return loadedPair
     ? (JSON.parse(loadedPair) as {
-      prKey: string;
-      pbKey: string;
-      RC: string;
-      uniqueString: string;
-    })
+        prKey: string;
+        pbKey: string;
+        RC: string;
+        uniqueString: string;
+      })
     : null;
 };
