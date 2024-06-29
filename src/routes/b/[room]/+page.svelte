@@ -44,7 +44,7 @@
 
     const passphrase = 'super long and hard to guess secret';
     const uniqueString = loadedPair.uniqueString;
-    const publicKey = await openpgp.readKey({ armoredKey: loadedPair.pbKey });
+    const publicKey = await openpgp.readKey({ armoredKey: api_pbKey });
 
     const privateKey = await openpgp.decryptKey({
       privateKey: await openpgp.readPrivateKey({ armoredKey: loadedPair.prKey }),
