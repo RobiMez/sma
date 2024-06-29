@@ -27,12 +27,16 @@ export async function GET(request) {
 export async function PATCH({ request }) {
   const body = await request.json();
   const { pbKey, title } = body as Listener;
+  console.log('body', body);
   try {
+    console.log();
+    
     const room = await Listener.findOneAndUpdate(
       { pbKey: pbKey },
       { $set: { title: title } },
-      { new: true, fields: { title: 1, _id: 0 } }
+      { new: true }
     );
+    console.log('room', room);
     if (room) {
       return json({ status: 200, body: room });
     } else {

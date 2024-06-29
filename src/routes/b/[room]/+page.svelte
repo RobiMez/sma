@@ -7,46 +7,47 @@
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
-  import { ResetPgpIdentity } from '$lib/utils/pgp';
+  import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
-  let prKey: string;
-  let pbKey: string;
   let api_pbKey: string;
-  let RC: string;
-  let uniqueString: string;
 
-  const GetPgpIdentity = async () => {
-    console.log('Getting Pgp Identity from localStorage');
-    prKey = localStorage.getItem('prKey')!;
-    pbKey = localStorage.getItem('pbKey')!;
-    RC = localStorage.getItem('RC')!;
-    uniqueString = localStorage.getItem('uniqueString')!;
+  let keyPairs:
+    | {
+        prKey: string;
+        pbKey: string;
+        RC: string;
+        uniqueString: string;
+      }[]
+    | undefined;
 
-    return { prKey, pbKey, RC, uniqueString };
-  };
+  let loadedPair: {
+    prKey: string;
+    pbKey: string;
+    RC: string;
+    uniqueString: string;
+  } | null = null;
 
   let params = $page.params.room;
   let disableSend = false;
+  let sending = false;
   let message = '';
   let imageBase64: string[] = [];
   let cleartextMessage = '';
-
-  let sending = false;
+  let roomTitle: string;
 
   // When posting sign the message with the private key and send it to the server
 
-  // get the private key of myself from localstorage
+  // Get the private key of myself from localstorage
   const SignMessage = async () => {
-    let data = await GetPgpIdentity();
+    if (!loadedPair) return;
     sending = true;
-    prKey = localStorage.getItem('prKey')!;
 
     const passphrase = 'super long and hard to guess secret';
-    const uniqueString = localStorage.getItem('uniqueString')!;
-    const publicKey = await openpgp.readKey({ armoredKey: data.pbKey });
+    const uniqueString = loadedPair.uniqueString;
+    const publicKey = await openpgp.readKey({ armoredKey: loadedPair.pbKey });
 
     const privateKey = await openpgp.decryptKey({
-      privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
+      privateKey: await openpgp.readPrivateKey({ armoredKey: loadedPair.prKey }),
       passphrase
     });
 
@@ -123,11 +124,9 @@
   // get the public key of the other person from the url
   const fetchKeys = async () => {
     disableSend = true;
-    prKey = localStorage.getItem('prKey')!;
     const response = await fetch(`/api/pgp?r=${params}`);
     const data = await response.json();
     api_pbKey = data.body.pbKey;
-    console.log('Fetch done,', api_pbKey);
     disableSend = false;
   };
 
@@ -156,17 +155,26 @@
   }
 
   onMount(async () => {
+    keyPairs = await getAllFromLS();
+    loadedPair = await getLoadedPairFromLS();
+
+    const responseTitle = await fetch(`/api/titl?rid=${loadedPair?.uniqueString}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    const respTitle = await responseTitle.json();
+    console.log('resp', respTitle);
+
+    if (respTitle.error) {
+      console.log(respTitle.message);
+    } else {
+      roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
+    }
+
     if (params) {
       await fetchKeys();
-    }
-    // Check if the user has a PGP identity
-    if (!prKey || !pbKey || !RC || !uniqueString) {
-      ({ prKey, pbKey, RC, uniqueString } = await GetPgpIdentity());
-    }
-    if (!prKey || !pbKey || !RC || !uniqueString) {
-      console.log('No Pgp Identity found , creating one now');
-      const data = await ResetPgpIdentity();
-      console.log('data', data);
     }
   });
 
@@ -181,6 +189,9 @@
       Send to
       <span class=" rounded-sm bg-light-300 p-1 font-extralight dark:bg-dark-900">
         {params}
+        {#if roomTitle}
+          ( {roomTitle} )
+        {/if}
       </span>
     </h1>
   </div>
@@ -252,13 +263,15 @@
     PGP tools</button
   >
 
-  {#if powerUser}
+  {#if powerUser && loadedPair}
     <div transition:slide class="flex flex-col gap-4 py-4">
       <div class="border-black bg-base-100 relative border p-2">
         <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"
-          >{prKey ? 'Signing with Private key :' : ''}
+          >{loadedPair.prKey ? 'Signing with Private key :' : ''}
         </small>
-        <h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">{prKey ?? ''}</h1>
+        <h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">
+          {loadedPair.prKey ?? ''}
+        </h1>
       </div>
       <div class="border-black bg-base-100 relative border p-2">
         <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"

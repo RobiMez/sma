@@ -1,7 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
-  import { blur, fade, scale } from 'svelte/transition';
 
   import colors from '$lib/utils/colors.json';
 
@@ -11,16 +10,30 @@
   import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
   import X from 'phosphor-svelte/lib/X';
-  import CheckFat from 'phosphor-svelte/lib/CheckFat';
-  import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
   import CopyLink from '$lib/_components/CopyLink.svelte';
+  import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
   let rid = $page.params.room;
+
+  let keyPairs:
+    | {
+        prKey: string;
+        pbKey: string;
+        RC: string;
+        uniqueString: string;
+      }[]
+    | undefined;
+
+  let loadedPair: {
+    prKey: string;
+    pbKey: string;
+    RC: string;
+    uniqueString: string;
+  } | null = null;
+
   let unlocked = false;
   let unpacking = false;
   let unlockKey = '';
-  let prKey: string;
-  let pbKey: string;
   let profanityFilterEnabled = false;
   let roomTitle = rid;
   let isEditingTitle = false;
@@ -44,12 +57,12 @@
   }
 
   const CheckIfUnlockable = async () => {
-    prKey = localStorage.getItem('prKey')!;
-    pbKey = localStorage.getItem('pbKey')!;
-    const uniqueString = localStorage.getItem('uniqueString')!;
+    if (!loadedPair) return false;
+    console.log(' checking unlock ');
 
-    const hash = await createShortHash(prKey + pbKey, 12);
-    return hash === rid && uniqueString === rid;
+    const hash = await createShortHash(loadedPair.prKey + loadedPair.pbKey, 12);
+    console.log('hash', hash, loadedPair.uniqueString);
+    return hash === rid && loadedPair.uniqueString === rid;
   };
 
   function generateConsistentIndices(input: string) {
@@ -67,6 +80,7 @@
 
   // Define an asynchronous function named 'unpack'
   const unpack = async () => {
+    if (!loadedPair) return;
     console.log('Refreshing');
     // Check if 'unlocked' is true
     if (unlocked) {
@@ -107,7 +121,7 @@
 
           // Decrypt the private key
           const privateKey = await openpgp.decryptKey({
-            privateKey: await openpgp.readPrivateKey({ armoredKey: prKey }),
+            privateKey: await openpgp.readPrivateKey({ armoredKey: loadedPair?.prKey }),
             passphrase
           });
 
@@ -167,7 +181,7 @@
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        pbKey: pbKey,
+        pbKey: loadedPair?.pbKey,
         title: roomTitle
       })
     });
@@ -199,13 +213,14 @@
   }
 
   const updateProf = async (e: any) => {
+    if (!loadedPair) return;
     const response = await fetch('/api/prof', {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        pbKey: pbKey,
+        pbKey: loadedPair.pbKey,
         profanityEnabled: e.target.checked ?? false
       })
     });
@@ -242,6 +257,9 @@
   };
 
   onMount(async () => {
+    // These make sure that the creds are set internally
+    keyPairs = await getAllFromLS();
+    loadedPair = await getLoadedPairFromLS();
     // Check if the user has a PGP identity
     if (rid) {
       unlocked = await CheckIfUnlockable();

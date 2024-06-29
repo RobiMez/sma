@@ -8,30 +8,31 @@
   import { marked } from 'marked';
   import { browser } from '$app/environment';
   import { ResetPgpIdentity } from '$lib/utils/pgp';
-  import { saveToLS } from '$lib/utils/localStorage';
-
-  let prKey: string;
-  let pbKey: string;
-  let RC: string;
-  let uniqueString: string;
-
-  const GetPgpIdentity = async () => {
-    prKey = localStorage.getItem('prKey')!;
-    pbKey = localStorage.getItem('pbKey')!;
-    RC = localStorage.getItem('RC')!;
-    uniqueString = localStorage.getItem('uniqueString')!;
-    console.log('Getting Pgp Identity from localStorage');
-
-    return { prKey, pbKey, RC, uniqueString };
-  };
-
-  // On click , ill generate the required hashes and links and redir the user to that page
+  import { getAllFromLS, getLoadedPairFromLS, saveToLS } from '$lib/utils/localStorage';
+  import { generateConsistentIndices } from '$lib/utils/colors';
 
   interface Stats {
     activeUsers: number;
     identities: number;
     totalMessages: number;
   }
+
+  let keyPairs:
+    | {
+        prKey: string;
+        pbKey: string;
+        RC: string;
+        uniqueString: string;
+      }[]
+    | undefined;
+
+  let loadedPair: {
+    prKey: string;
+    pbKey: string;
+    RC: string;
+    uniqueString: string;
+  } | null = null;
+
   let stats: Stats;
   let changelog = '';
   let powerUser: boolean = false;
@@ -49,22 +50,9 @@
       newChangelog = true;
     }
 
-    GetPgpIdentity();
-
-    // Check if the user has a PGP identity
-    if (!prKey || !pbKey || !RC || !uniqueString) {
-      console.log('No Pgp Identity found , creating one now');
-      const data = await ResetPgpIdentity();
-
-      if (!data) return;
-
-      prKey = data?.privateKey;
-      pbKey = data?.publicKey;
-      RC = data?.revocationCertificate;
-      uniqueString = data?.uniqueString;
-
-      saveToLS(data?.privateKey, data?.publicKey, data?.revocationCertificate, data?.uniqueString);
-    }
+    // These make sure that the creds are set internally
+    keyPairs = await getAllFromLS();
+    loadedPair = await getLoadedPairFromLS();
 
     const response = await fetch(`/api/stats`, {
       method: 'GET',
@@ -74,7 +62,7 @@
     });
 
     const resp = await response.json();
-    console.log('response:', resp.body);
+
     if (resp.error) {
       stats = { activeUsers: -1, identities: -1, totalMessages: -1 };
       console.log(resp.message);
@@ -129,72 +117,70 @@
     </div>
   {/if}
 
-  <div class="flex flex-row items-center justify-center gap-4">
-    <a
-      href="#0"
-      class="whitespace-nowrap rounded-sm border p-5"
-      on:click={async () => {
-        const data = await ResetPgpIdentity();
-        if (!data) return;
-
-        prKey = data?.privateKey;
-        pbKey = data?.publicKey;
-        RC = data?.revocationCertificate;
-        uniqueString = data?.uniqueString;
-
-        saveToLS(
-          data?.privateKey,
-          data?.publicKey,
-          data?.revocationCertificate,
-          data?.uniqueString
-        );
-      }}
-    >
-      Reset Identity
-    </a>
-    <div class="relative">
-      <a class="whitespace-nowrap rounded-sm border p-5" href="/li/{uniqueString}">
-        Your Messages
-      </a>
-      <h1
-        class="absolute -bottom-9
-        -right-1 rounded-sm border
-        bg-light-300 p-1 text-sm text-light-900 dark:bg-dark-800 dark:text-dark-200"
-      >
-        {uniqueString ?? ''}
-      </h1>
-    </div>
-  </div>
-  <div class="flex flex-col items-center justify-center gap-4 pt-2">
-    <button
-      class="btn btn-sm"
-      on:click={() => {
-        powerUser = !powerUser;
-      }}
-    >
-      {powerUser ? 'Hide' : 'Show'}
-      PGP tools</button
-    >
-    {#if powerUser}
-      <div class="flex max-w-[80vw] flex-col gap-4 py-4 lg:flex-row" transition:slide>
-        <div class="border-black relative border p-2">
-          <small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
-            >{prKey ? 'Private Key ( Super secret , dont share )' : ''}</small
-          >
-          <h1 class=" break-all text-xs blur-sm transition-all duration-1000 hover:blur-none">
-            {prKey ?? ''}
-          </h1>
-        </div>
-
-        <div class="border-black relative border p-2">
-          <small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
-            >{pbKey ? 'Public Key ( Share as you like ) ' : ''}</small
-          >
-          <h1 class=" break-all text-xs">{pbKey ?? ''}</h1>
-        </div>
+  {#if loadedPair}
+    <div class="flex flex-row items-center justify-center gap-4">
+      <a href="/i" class="whitespace-nowrap rounded-sm border p-5"> Identities </a>
+      <div class="relative">
+        <a class="whitespace-nowrap rounded-sm border p-5" href="/li/{loadedPair?.uniqueString}">
+          Your Messages
+        </a>
+        <span
+          class="absolute -bottom-8
+      right-12 flex flex-row
+      rounded-sm text-sm"
+        >
+          {#if loadedPair}
+            {@const color = generateConsistentIndices(loadedPair.uniqueString)}
+            <span
+              class=" absolute -left-2 -top-4 aspect-square
+          border border-light-300 p-1
+          px-2 text-sm dark:border-dark-500"
+              style="background: {color};"
+            >
+              &nbsp;
+            </span>
+            <span
+              class="border-black absolute -top-4 left-1
+          whitespace-nowrap border border-light-300 bg-dark-content
+          p-1 px-2 text-sm dark:border-dark-500 dark:bg-light-content"
+            >
+              {loadedPair.uniqueString}
+            </span>
+          {/if}
+        </span>
       </div>
-    {/if}
-  </div>
+    </div>
+    <div class="flex flex-col items-center justify-center gap-4 pt-2">
+      <button
+        class="text-xs"
+        on:click={() => {
+          powerUser = !powerUser;
+        }}
+      >
+        {powerUser ? 'Hide' : 'Show'}
+        PGP tools</button
+      >
+      {#if powerUser}
+        <div class="flex max-w-[80vw] flex-col gap-4 py-4 lg:flex-row" transition:slide>
+          <div class="border-black relative border p-2">
+            <small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
+              >{loadedPair.prKey ? 'Private Key ( Super secret , dont share )' : ''}</small
+            >
+            <h1 class=" break-all text-xs blur-sm transition-all duration-1000 hover:blur-none">
+              {loadedPair.prKey ?? ''}
+            </h1>
+          </div>
+
+          <div class="border-black relative border p-2">
+            <small class="bg-primary text-primary-content absolute -top-3 z-40 rounded-sm px-1"
+              >{loadedPair.pbKey ? 'Public Key ( Share as you like ) ' : ''}</small
+            >
+            <h1 class=" break-all text-xs">{loadedPair.pbKey ?? ''}</h1>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
 
   <footer
     class="

@@ -3,8 +3,6 @@
   export let color: any;
   import prettyMilliseconds from 'pretty-ms';
   import { onMount } from 'svelte';
-  import ImageThumbnail from './ImageThumbnail.svelte';
-  import { decode } from 'blurhash';
   import BlurhashThumbnail from './BlurhashThumbnail.svelte';
 
   let hidden = false;
