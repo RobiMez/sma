@@ -125,33 +125,36 @@
             passphrase
           });
 
-          // Decrypt the message with the private key
-          const { data: decrypted } = await openpgp.decrypt({
-            message: readMsg,
-            decryptionKeys: privateKey
-          });
+          try {
+            // Decrypt the message with the private key
+            const { data: decrypted } = await openpgp.decrypt({
+              message: readMsg,
+              decryptionKeys: privateKey
+            });
+            // Create an object with the decrypted message and its 'r' property
+            const msgObj = {
+              id: encryptedMessage._id,
+              msg: String(decrypted),
+              image: {
+                id: encryptedMessage.image?._id,
+                blurhash: encryptedMessage.image?.blurhash,
+                nsfw: encryptedMessage.image?.nsfw
+              },
+              r: encryptedMessage.author,
+              timestamp: encryptedMessage.timestamp
+            };
 
-          // Create an object with the decrypted message and its 'r' property
-          const msgObj = {
-            id: encryptedMessage._id,
-            msg: String(decrypted),
-            image: {
-              id: encryptedMessage.image?._id,
-              blurhash: encryptedMessage.image?.blurhash,
-              nsfw: encryptedMessage.image?.nsfw
-            },
-            r: encryptedMessage.author,
-            timestamp: encryptedMessage.timestamp
-          };
-
-          // If 'decryptedMessages' doesn't already contain this message, add it
-          if (
-            !decryptedMessages.some(
-              (obj) =>
-                obj.msg === msgObj.msg && obj.r === msgObj.r && obj.timestamp === msgObj.timestamp
-            )
-          ) {
-            decryptedMessages.push(msgObj);
+            // If 'decryptedMessages' doesn't already contain this message, add it
+            if (
+              !decryptedMessages.some(
+                (obj) =>
+                  obj.msg === msgObj.msg && obj.r === msgObj.r && obj.timestamp === msgObj.timestamp
+              )
+            ) {
+              decryptedMessages.push(msgObj);
+            }
+          } catch (error) {
+            console.error('Error decrypting message', error);
           }
         }
         // Update 'decryptedMessages' to trigger reactivity in Svelte
