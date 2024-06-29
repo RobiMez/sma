@@ -159,7 +159,7 @@
     loadedPair = await getLoadedPairFromLS();
 
     const responseTitle = await fetch(
-      `/api/titl?rid=${encodeURIComponent(loadedPair?.uniqueString as string )}`,
+      `/api/titl?rid=${encodeURIComponent(loadedPair?.uniqueString as string)}`,
       {
         method: 'GET',
         headers: {
