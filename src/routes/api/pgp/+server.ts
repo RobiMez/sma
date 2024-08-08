@@ -2,6 +2,7 @@ import { json } from '@sveltejs/kit';
 import Listener from '../../../models/listener.schema';
 import Message from '../../../models/messages.schema';
 import Image from '../../../models/file.schema';
+import Room from '../../../models/room.schema';
 
 interface Listener {
   pbKey: string;
@@ -34,6 +35,19 @@ export async function PATCH({ request }) {
   console.log('Calling with body: 🌏🌏', body);
 
   try {
+    // Check if the room has slow mode enabled
+    const room = await Room.findOne({ rid: p });
+    if (room && room.slowMode > 0) {
+      const lastMessage = await Message.findOne({ author: r }).sort({ timestamp: -1 });
+      if (lastMessage) {
+        const now = new Date();
+        const diff = (now.getTime() - new Date(lastMessage.timestamp).getTime()) / 1000;
+        if (diff < room.slowMode) {
+          return json({ status: 429, body: 'Slow mode is enabled. Please wait before sending another message.' });
+        }
+      }
+    }
+
     // Check if the image data exists
     let image;
     console.log('⌛⌛', imageData.dataURI);
