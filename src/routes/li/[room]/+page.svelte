@@ -46,6 +46,9 @@
   let decryptedMessages: any[] = [];
   let passphrase = 'super long and hard to guess secret';
 
+  let slowModeDelay = 0; // slow mode delay in seconds
+  let lastMessageTimestamp: Date | null = null;
+
   async function createShortHash(input: string, length: number): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(input);
@@ -239,6 +242,27 @@
     }
   };
 
+  const updateSlowMode = async () => {
+    const response = await fetch('/api/slowmode', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        rid: rid,
+        slowMode: slowModeDelay
+      })
+    });
+
+    const resp = await response.json();
+
+    if (resp.error) {
+      console.log(resp.message);
+    } else {
+      console.log(resp.message);
+    }
+  };
+
   $: unlocked = unlockKey === 'unlock';
   // if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
 
@@ -294,6 +318,20 @@
     } else {
       console.log(resp);
       profanityFilterEnabled = resp.body.profanityEnabled;
+    }
+
+    // Fetch the current slow mode delay
+    const responseSlowMode = await fetch(`/api/slowmode?rid=${rid}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    const respSlowMode = await responseSlowMode.json();
+    if (respSlowMode.error) {
+      console.log(respSlowMode.message);
+    } else {
+      slowModeDelay = respSlowMode.body.slowMode;
     }
   });
   onDestroy(() => {
@@ -399,6 +437,18 @@
       class="toggle toggle-sm"
       on:change={(e) => updateProf(e)}
       checked={profanityFilterEnabled}
+    />
+  </div>
+
+  <div class="flex flex-row items-center justify-center">
+    <span class="p-2 text-sm">Slow Mode Delay (seconds):</span>
+    <input
+      type="number"
+      class="input input-bordered input-sm"
+      bind:value={slowModeDelay}
+      min="0"
+      max="3600"
+      on:change={updateSlowMode}
     />
   </div>
 
