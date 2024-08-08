@@ -34,6 +34,8 @@
   let imageBase64: string[] = [];
   let cleartextMessage = '';
   let roomTitle: string;
+  let slowModeDelay = 0; // slow mode delay in seconds
+  let lastMessageTimestamp: Date | null = null;
 
   // When posting sign the message with the private key and send it to the server
 
@@ -85,6 +87,21 @@
       }
     }
 
+    // Check if slow mode delay has passed
+    if (lastMessageTimestamp) {
+      const now = new Date();
+      const diff = (now.getTime() - lastMessageTimestamp.getTime()) / 1000;
+      if (diff < slowModeDelay) {
+        showMessageFeedback(
+          'error',
+          `⚠️ Slow mode is enabled. Please wait ${Math.ceil(slowModeDelay - diff)} seconds before sending another message.`,
+          'feedback_container'
+        );
+        sending = false;
+        return;
+      }
+    }
+
     cleartextMessage = await openpgp.encrypt({
       message: await openpgp.createMessage({ text: message }),
       encryptionKeys: publicKey,
@@ -117,6 +134,7 @@
       message = '';
       imageBase64 = [];
       showMessageFeedback('default', '✨ Message delivered ', 'feedback_container');
+      lastMessageTimestamp = new Date(); // Update the last message timestamp
     }
     sending = false;
   };
@@ -154,6 +172,27 @@
     }
   }
 
+  const updateSlowMode = async () => {
+    const response = await fetch('/api/slowmode', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        rid: params,
+        slowMode: slowModeDelay
+      })
+    });
+
+    const resp = await response.json();
+
+    if (resp.error) {
+      console.log(resp.message);
+    } else {
+      console.log(resp.message);
+    }
+  };
+
   onMount(async () => {
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
@@ -178,6 +217,20 @@
 
     if (params) {
       await fetchKeys();
+    }
+
+    // Fetch the current slow mode delay
+    const responseSlowMode = await fetch(`/api/slowmode?rid=${params}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    const respSlowMode = await responseSlowMode.json();
+    if (respSlowMode.error) {
+      console.log(respSlowMode.message);
+    } else {
+      slowModeDelay = respSlowMode.body.slowMode;
     }
   });
 
@@ -255,6 +308,18 @@
   </div>
 
   <div id="feedback_container" class="flex w-full items-center justify-center"></div>
+
+  <div class="flex flex-row items-center justify-center">
+    <span class="p-2 text-sm">Slow Mode Delay (seconds):</span>
+    <input
+      type="number"
+      class="input input-bordered input-sm"
+      bind:value={slowModeDelay}
+      min="0"
+      max="3600"
+      on:change={updateSlowMode}
+    />
+  </div>
 
   <button
     class="btn btn-sm my-4"
