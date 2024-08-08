@@ -7,7 +7,8 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Image'
   },
-  timestamp: { type: Date, default: Date.now }
+  timestamp: { type: Date, default: Date.now },
+  decryptedMessage: { type: String, default: '' } // P32cd
 });
 
 export default mongoose.models.Message || mongoose.model('Message', MessageSchema);
