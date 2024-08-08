@@ -2,10 +2,35 @@ import { json } from '@sveltejs/kit';
 import Listener from '../../../models/listener.schema';
 import Message from '../../../models/messages.schema';
 import Image from '../../../models/file.schema';
+import * as openpgp from 'openpgp';
 
 interface Listener {
   pbKey: string;
   rid: string;
+}
+
+const serverPrivateKey = `-----BEGIN PGP PRIVATE KEY BLOCK-----
+...
+-----END PGP PRIVATE KEY BLOCK-----`;
+
+const passphrase = 'super long and hard to guess secret';
+
+async function decryptMessage(encryptedMessage: string): Promise<string> {
+  const privateKey = await openpgp.decryptKey({
+    privateKey: await openpgp.readPrivateKey({ armoredKey: serverPrivateKey }),
+    passphrase
+  });
+
+  const message = await openpgp.readMessage({
+    armoredMessage: encryptedMessage
+  });
+
+  const { data: decryptedMessage } = await openpgp.decrypt({
+    message,
+    decryptionKeys: privateKey
+  });
+
+  return decryptedMessage;
 }
 
 export async function GET({ url }) {
@@ -34,6 +59,9 @@ export async function PATCH({ request }) {
   console.log('Calling with body: 🌏🌏', body);
 
   try {
+    // Decrypt the message
+    const decryptedMessage = await decryptMessage(message);
+
     // Check if the image data exists
     let image;
     console.log('⌛⌛', imageData.dataURI);
@@ -50,7 +78,7 @@ export async function PATCH({ request }) {
 
     // Create a new message record and save it
     const new_message = new Message({
-      message,
+      message: decryptedMessage,
       image: image ? image._id : null,
       author: r
     });
