@@ -1,14 +1,13 @@
 <script lang="ts">
-
   import * as openpgp from 'openpgp';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { slide } from 'svelte/transition';
-  
+
   import checkProfanity from '$lib/profanityFilter';
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
-  
+
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
@@ -75,16 +74,16 @@
     }
 
     // if (profanityFilterEnabled) {
-      // const profanityCheck = await checkProfanity(message);
-      // if (profanityCheck.isProfanity) {
-      //   message = '';
-      //   showMessageFeedback(
-      //     'error',
-      //     "⚠️ Message has not been sent because the room host doesn't allow profanity.",
-      //     'feedback_container'
-      //   );
-      //   return;
-      // }
+    // const profanityCheck = await checkProfanity(message);
+    // if (profanityCheck.isProfanity) {
+    //   message = '';
+    //   showMessageFeedback(
+    //     'error',
+    //     "⚠️ Message has not been sent because the room host doesn't allow profanity.",
+    //     'feedback_container'
+    //   );
+    //   return;
+    // }
     // }
 
     cleartextMessage = await openpgp.encrypt({
@@ -258,7 +257,7 @@
 
   <div id="feedback_container" class="flex w-full items-center justify-center"></div>
 
-<!-- 
+  <!-- 
   <button
     class="btn btn-sm my-4"
     on:click={() => {
