@@ -1,11 +1,14 @@
 <script lang="ts">
+
+  import * as openpgp from 'openpgp';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import * as openpgp from 'openpgp';
   import { slide } from 'svelte/transition';
+  
   import checkProfanity from '$lib/profanityFilter';
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
+  
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
@@ -36,7 +39,6 @@
   let roomTitle: string;
 
   // When posting sign the message with the private key and send it to the server
-
   // Get the private key of myself from localstorage
   const SignMessage = async () => {
     if (!loadedPair) return;
@@ -72,18 +74,18 @@
       console.log(re);
     }
 
-    if (profanityFilterEnabled) {
-      const profanityCheck = await checkProfanity(message);
-      if (profanityCheck.isProfanity) {
-        message = '';
-        showMessageFeedback(
-          'error',
-          "⚠️ Message has not been sent because the room host doesn't allow profanity.",
-          'feedback_container'
-        );
-        return;
-      }
-    }
+    // if (profanityFilterEnabled) {
+      // const profanityCheck = await checkProfanity(message);
+      // if (profanityCheck.isProfanity) {
+      //   message = '';
+      //   showMessageFeedback(
+      //     'error',
+      //     "⚠️ Message has not been sent because the room host doesn't allow profanity.",
+      //     'feedback_container'
+      //   );
+      //   return;
+      // }
+    // }
 
     cleartextMessage = await openpgp.encrypt({
       message: await openpgp.createMessage({ text: message }),
@@ -256,6 +258,7 @@
 
   <div id="feedback_container" class="flex w-full items-center justify-center"></div>
 
+<!-- 
   <button
     class="btn btn-sm my-4"
     on:click={() => {
@@ -264,9 +267,9 @@
   >
     {powerUser ? 'Hide' : 'Show'}
     PGP tools</button
-  >
+  > -->
 
-  {#if powerUser && loadedPair}
+  <!-- {#if powerUser && loadedPair}
     <div transition:slide class="flex flex-col gap-4 py-4">
       <div class="border-black bg-base-100 relative border p-2">
         <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"
@@ -283,5 +286,5 @@
         <h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
       </div>
     </div>
-  {/if}
+  {/if} -->
 </div>

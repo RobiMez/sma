@@ -1,7 +1,4 @@
-// src/lib/profanityFilter.ts
-
 async function checkProfanity(message: string) {
-  console.log('Checking profanity...'); // Log statement
   try {
     const res = await fetch('https://vector.profanity.dev', {
       method: 'POST',
