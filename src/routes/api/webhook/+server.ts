@@ -13,7 +13,7 @@ export async function PATCH({ request }) {
   try {
     // First verify the listener exists
     const existingListener = await Listener.findOne({ rid });
-    
+
     if (!existingListener) {
       return json({ status: 404, body: 'Listener not found' });
     }
@@ -22,27 +22,25 @@ export async function PATCH({ request }) {
     existingListener.webhookUrl = webhookUrl;
     await existingListener.save();
 
-    return json({ 
-      status: 200, 
-      body: { 
+    return json({
+      status: 200,
+      body: {
         message: 'Webhook URL updated successfully',
-        listener: existingListener 
+        listener: existingListener
       }
     });
-
   } catch (error) {
     console.error('Error updating webhook URL:', error);
     return json({ status: 500, body: 'Error updating webhook URL' });
   }
 }
 
-
 export async function GET({ url }) {
   const rid = url.searchParams.get('rid');
-  
+
   try {
     const listener = await Listener.findOne({ rid });
-    
+
     if (listener) {
       return json({ status: 200, body: { webhookUrl: listener.webhookUrl } });
     } else {

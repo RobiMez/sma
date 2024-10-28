@@ -26,7 +26,7 @@ async function sendWebhookNotification(webhookUrl: string, message: any) {
   }
 }
 
-async function saveImage(imageData: { dataURI: string; blurhash: string; nsfw: boolean; }) {
+async function saveImage(imageData: { dataURI: string; blurhash: string; nsfw: boolean }) {
   if (!imageData.dataURI.length) return null;
 
   const image = new Image({
@@ -97,7 +97,6 @@ export async function PATCH({ request }) {
     return listener
       ? json({ status: 200, body: listener })
       : json({ status: 404, body: 'Listener not found' });
-
   } catch (error) {
     console.error(error);
     return json({ status: 500, body: 'Error updating listener' });

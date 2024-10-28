@@ -23,14 +23,14 @@
   class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start gap-4 p-2 pt-8"
 >
   <div
-    class="flex w-full flex-row items-center justify-between bg-light-200 pr-12 dark:bg-dark-800 px-2"
+    class="flex w-full flex-row items-center justify-between bg-light-200 px-2 pr-12 dark:bg-dark-800"
   >
     <span class="rounded-sm p-1 font-extralight">
-      <a href="/" class="flex items-center justify-center ">
+      <a href="/" class="flex items-center justify-center">
         <CaretLeft weight="bold" size={32} />
       </a>
     </span>
-    <h1 class="text-md md:text-md relative w-full py-4 px-2 text-left font-light lg:text-xl">
+    <h1 class="text-md md:text-md relative w-full px-2 py-4 text-left font-light lg:text-xl">
       Manage rooms & identities
     </h1>
     {#if loadedPair}
