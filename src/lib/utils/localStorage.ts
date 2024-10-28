@@ -1,18 +1,60 @@
 import { ResetPgpIdentity } from './pgp';
 
-// function to clear all LS items except loadedPair , keyPairs and LastReadChangelog
+/**
+ * Clears all items from localStorage except for a few critical items:
+ * - loadedPair: Currently active PGP key pair
+ * - keyPairs: All stored PGP key pairs
+ * - lastReadChangelog: Timestamp of last changelog read
+ * - theme: Current UI theme setting
+ * 
+ * This is used to clean up localStorage while preserving essential application state.
+ * The function first saves the critical items, clears everything, then restores just those items.
+ */
 export const clearLS = () => {
-  if (typeof window === 'undefined') return;
+  // Check if we're running in a browser environment
+  if (typeof window === 'undefined') {
+    console.log('clearLS: Not in browser environment, returning early');
+    return;
+  }
 
+  console.log('clearLS: Starting localStorage cleanup');
+
+  // Save critical items before clearing
   const loadedPair = localStorage.getItem('loadedPair');
   const keyPairs = localStorage.getItem('keyPairs');
-  const lastReadChangelog = localStorage.getItem('lastReadChangelog');
+  const lastReadChangelog = localStorage.getItem('lastReadChangelog'); 
   const theme = localStorage.getItem('theme');
+
+  console.log('clearLS: Saved critical items:', {
+    hasLoadedPair: loadedPair,
+    hasKeyPairs: keyPairs,
+    lastReadChangelog: lastReadChangelog,
+    hasTheme: theme
+  });
+
+  // Clear all localStorage
   localStorage.clear();
-  if (loadedPair) localStorage.setItem('loadedPair', loadedPair);
-  if (keyPairs) localStorage.setItem('keyPairs', keyPairs);
-  if (lastReadChangelog) localStorage.setItem('lastReadChangelog', lastReadChangelog);
-  if (theme) localStorage.setItem('theme', theme);
+  console.log('clearLS: Cleared localStorage');
+
+  // Restore critical items if they existed
+  if (loadedPair) {
+    localStorage.setItem('loadedPair', loadedPair);
+    console.log('clearLS: Restored loadedPair');
+  }
+  if (keyPairs) {
+    localStorage.setItem('keyPairs', keyPairs);
+    console.log('clearLS: Restored keyPairs');
+  }
+  if (lastReadChangelog) {
+    localStorage.setItem('lastReadChangelog', lastReadChangelog);
+    console.log('clearLS: Restored lastReadChangelog');
+  }
+  if (theme) {
+    localStorage.setItem('theme', theme);
+    console.log('clearLS: Restored theme');
+  }
+
+  console.log('clearLS: Cleanup complete');
 };
 
 export const saveToLS = (prKey: string, pbKey: string, RC: string, uniqueString: string) => {
@@ -114,10 +156,10 @@ export const getLoadedPairFromLS = async () => {
 
   return loadedPair
     ? (JSON.parse(loadedPair) as {
-        prKey: string;
-        pbKey: string;
-        RC: string;
-        uniqueString: string;
-      })
+      prKey: string;
+      pbKey: string;
+      RC: string;
+      uniqueString: string;
+    })
     : null;
 };

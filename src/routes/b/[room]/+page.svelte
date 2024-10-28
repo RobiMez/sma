@@ -2,9 +2,7 @@
   import * as openpgp from 'openpgp';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { slide } from 'svelte/transition';
 
-  import checkProfanity from '$lib/profanityFilter';
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
 
@@ -30,7 +28,6 @@
   } | null = null;
 
   let params = $page.params.room;
-  let disableSend = false;
   let sending = false;
   let message = '';
   let imageBase64: string[] = [];
@@ -72,19 +69,6 @@
       profanityFilterEnabled = re.body.profanityEnabled;
       console.log(re);
     }
-
-    // if (profanityFilterEnabled) {
-    // const profanityCheck = await checkProfanity(message);
-    // if (profanityCheck.isProfanity) {
-    //   message = '';
-    //   showMessageFeedback(
-    //     'error',
-    //     "⚠️ Message has not been sent because the room host doesn't allow profanity.",
-    //     'feedback_container'
-    //   );
-    //   return;
-    // }
-    // }
 
     cleartextMessage = await openpgp.encrypt({
       message: await openpgp.createMessage({ text: message }),
