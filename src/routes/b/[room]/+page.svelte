@@ -10,6 +10,7 @@
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
   let api_pbKey: string;
+  let disableSend = false;
 
   let keyPairs:
     | {

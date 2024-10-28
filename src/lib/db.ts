@@ -1,5 +1,3 @@
-// src/lib/db.ts
-
 import mongoose, { Mongoose } from 'mongoose';
 import { SECRET_MONGO_URI } from '$env/static/private';
 

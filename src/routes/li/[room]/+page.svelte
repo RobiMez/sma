@@ -42,6 +42,29 @@
   let intervalId: any;
   let copied = false;
 
+  let webhookUrl = '';
+
+  async function updateWebhook() {
+    const response = await fetch('/api/webhook', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        rid: loadedPair?.uniqueString,
+        webhookUrl
+      })
+    });
+
+    const resp = await response.json();
+
+    if (resp.error) {
+      alert('Failed to update webhook');
+    } else {
+      alert('Webhook updated successfully');
+    }
+  }
+
   let encryptedMessages: any[] = [];
   let decryptedMessages: any[] = [];
   let passphrase = 'super long and hard to guess secret';
@@ -279,6 +302,12 @@
 
     await fetchRoomTitle();
 
+    const res = await fetch(`/api/webhook?rid=${loadedPair?.uniqueString}`);
+    const data = await res.json();
+    if (data.body?.webhookUrl) {
+      webhookUrl = data.body.webhookUrl;
+    }
+
     const response = await fetch('/api/prof', {
       method: 'PATCH',
       headers: {
@@ -413,6 +442,28 @@
         <span class="p-12"> No messages sent to your inbox yet </span>
       {/if}
     {/if}
+  </div>
+
+  <!-- Add this to your existing template where appropriate -->
+  <div class="flex flex-col gap-2 p-4">
+    <h2 class="text-lg font-semibold">Webhook Settings</h2>
+    <div class="flex flex-row gap-2">
+      <input
+        bind:value={webhookUrl}
+        type="url"
+        placeholder="Enter webhook URL"
+        class="w-full rounded-sm border border-light-400 bg-light-200 p-2 dark:border-dark-600 dark:bg-dark-800"
+      />
+      <button
+        on:click={updateWebhook}
+        class="rounded-sm border border-light-400 px-4 py-2 dark:border-dark-600"
+      >
+        Save
+      </button>
+    </div>
+    <small class="text-sm text-light-800 dark:text-dark-200">
+      Receive notifications when new messages arrive
+    </small>
   </div>
 </div>
 
