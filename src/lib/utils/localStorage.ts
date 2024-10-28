@@ -1,3 +1,4 @@
+import type { IKeyPairs, LoadedPair } from '$lib/types';
 import { ResetPgpIdentity } from './pgp';
 
 /**
@@ -81,7 +82,7 @@ export const getFromLS = async (uniqueString: string) => {
 };
 
 export const getAllFromLS = async () => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return [];
   let existingEntries = localStorage.getItem('keyPairs');
   // if no keypair in keypairs , generate one and set it
   if (!existingEntries) {
@@ -99,12 +100,7 @@ export const getAllFromLS = async () => {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const keyPairs = JSON.parse(existingEntries!);
 
-  return Object.values(keyPairs) as Array<{
-    prKey: string;
-    pbKey: string;
-    RC: string;
-    uniqueString: string;
-  }>;
+  return Object.values(keyPairs) as IKeyPairs[];
 };
 
 export const postPgpKey = async (pbKey: string, rid: string) => {
@@ -141,7 +137,7 @@ export const loadPair = (uniqueString: string) => {
 
 // Utility function to fetch the loaded pair from local storage
 export const getLoadedPairFromLS = async () => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') return undefined;
   const loadedPair = localStorage.getItem('loadedPair');
   // if there is no localstorage item with the key 'loadedPair'
   // set the first keypair in localstorage as the loaded pair
@@ -149,17 +145,10 @@ export const getLoadedPairFromLS = async () => {
     const keyPairs = await getAllFromLS();
     // make a new keypair if none exist in ls
 
-    if (!keyPairs) return null;
+    if (!keyPairs) return undefined;
     localStorage.setItem('loadedPair', JSON.stringify(keyPairs[0]));
     return keyPairs[0];
   }
 
-  return loadedPair
-    ? (JSON.parse(loadedPair) as {
-        prKey: string;
-        pbKey: string;
-        RC: string;
-        uniqueString: string;
-      })
-    : null;
+  return JSON.parse(loadedPair) as LoadedPair | undefined;
 };
