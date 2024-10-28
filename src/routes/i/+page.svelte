@@ -35,7 +35,7 @@
 
     <span class=" rounded-sm p-1 font-extralight">
       <button
-        class=" flex items-center justify-center gap-4 whitespace-nowrap rounded-sm bg-light-300 p-2 text-sm dark:bg-dark-900"
+        class="button flex items-center justify-center gap-4 whitespace-nowrap rounded-sm p-2 text-sm"
         on:click={async () => {
           loading = true;
           const newPgp = await ResetPgpIdentity();
@@ -64,3 +64,12 @@
     <IdentityList bind:loadedPair bind:keyPairs />
   </div>
 </div>
+
+<style lang="postcss">
+  .button {
+    @apply bg-dark-600 px-4 py-2 text-light-100 dark:bg-dark-content dark:text-dark-900;
+  }
+  .button:hover {
+    @apply bg-dark-800 dark:bg-dark-100;
+  }
+</style>

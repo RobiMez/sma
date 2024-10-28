@@ -101,7 +101,7 @@
 
 <style lang="postcss">
   .button {
-    @apply bg-dark-600 p-1 text-light-100 dark:bg-dark-content dark:text-dark-900;
+    @apply bg-dark-600 px-3 py-2 text-light-100 dark:bg-dark-content dark:text-dark-900;
   }
   .button:hover {
     @apply bg-dark-800 dark:bg-dark-100;
