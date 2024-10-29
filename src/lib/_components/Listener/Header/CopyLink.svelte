@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { page } from '$app/stores';
+  import { page } from '$app/stores';
   import CheckFat from 'phosphor-svelte/lib/CheckFat';
   import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
   import { scale } from 'svelte/transition';
-  
+
   let copied = false;
 
   let rid = $page.params.room;

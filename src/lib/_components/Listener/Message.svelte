@@ -6,7 +6,7 @@
 
   export let msg: any;
   const color = generateConsistentIndices(msg.r);
-  
+
   let hidden = false;
   let time = '';
 

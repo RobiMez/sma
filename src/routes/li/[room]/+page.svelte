@@ -14,6 +14,7 @@
 
   import WebhookModal from '$lib/_components/Listener/Header/WebhookModal.svelte';
   import { page } from '$app/stores';
+    import Mute from '$lib/_components/Listener/Header/Mute.svelte';
 
   let rid = $page.params.room;
 
@@ -31,6 +32,10 @@
   let encryptedMessages: any[] = [];
   let decryptedMessages: any[] = [];
   let passphrase = 'super long and hard to guess secret';
+
+  let previousMessageCount = 0;
+  let playSound = false;
+  let soundEnabled = false;
 
   async function createShortHash(input: string, length: number): Promise<string> {
     const encoder = new TextEncoder();
@@ -133,6 +138,12 @@
         }
         // Update 'decryptedMessages' to trigger reactivity in Svelte
         decryptedMessages = decryptedMessages;
+
+        // After processing messages, check if there are new ones
+        if (decryptedMessages.length > previousMessageCount) {
+          playSound = true;
+          previousMessageCount = decryptedMessages.length;
+        }
       }
       // Set 'unpacking' to false
       unpacking = false;
@@ -180,15 +191,21 @@
   });
 </script>
 
+<audio preload="auto" src="/notify.wav" style="display: none;" />
+
 <div
   class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-12"
 >
   <div class="flex w-full flex-row gap-2 p-1 pb-1">
     <Title bind:roomTitle {unlocked} {unpacking} {rid} {loadedPair}>
       <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
+
     </Title>
     <CopyLink />
-    <WebhookModal  {loadedPair} />
+    <span class="flex flex-col gap-2">
+      <WebhookModal {loadedPair} />
+      <Mute bind:soundEnabled  bind:playSound/>
+    </span>
   </div>
 
   <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />

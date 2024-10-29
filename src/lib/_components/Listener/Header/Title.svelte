@@ -3,13 +3,13 @@
   import X from 'phosphor-svelte/lib/X';
   import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
   import { onMount } from 'svelte';
-  
+
   export let roomTitle: string;
   export let unlocked: boolean;
   export let unpacking: boolean;
   export let rid: string;
   export let loadedPair: any;
-  
+
   let isEditingTitle = false;
 
   const toggleEditTitle = () => {
@@ -58,7 +58,9 @@
   });
 </script>
 
-<h1 class="border-black relative flex w-full flex-row items-center justify-start gap-2 border p-1 text-left text-base font-semibold md:p-2 md:text-xl lg:p-4 lg:text-2xl dark:border-dark-400">
+<h1
+  class="border-black relative flex w-full flex-row items-center justify-start gap-2 border p-1 text-left text-base font-semibold md:p-2 md:text-xl lg:p-4 lg:text-2xl dark:border-dark-400"
+>
   Room
   {#if isEditingTitle}
     <input
@@ -87,10 +89,7 @@
     >
       <FloppyDisk size="24" weight="duotone" />
     </button>
-    <button
-      on:click={toggleEditTitle}
-      class="btn btn-square btn-sm"
-    >
+    <button on:click={toggleEditTitle} class="btn btn-square btn-sm">
       <X size="24" weight="duotone" />
     </button>
   {:else}
@@ -101,18 +100,22 @@
       <PencilSimpleLine size="24" weight="duotone" />
     </button>
   {/if}
-  
+
   {#if unlocked}
-    <span class="absolute -top-1 left-1 rounded-sm bg-light-900 px-2 py-1 text-xs font-light text-dark-100 dark:bg-dark-800 dark:text-light-100">
+    <span
+      class="absolute -top-1 left-1 rounded-sm bg-light-900 px-2 py-1 text-xs font-light text-dark-100 dark:bg-dark-800 dark:text-light-100"
+    >
       Your
     </span>
   {/if}
-  
+
   {#if unpacking}
-    <span class="absolute -bottom-3 left-1 rounded-sm bg-light-200 p-1 px-2 text-xs font-normal dark:bg-dark-900 dark:text-dark-200">
+    <span
+      class="absolute -bottom-3 left-1 rounded-sm bg-light-200 p-1 px-2 text-xs font-normal dark:bg-dark-900 dark:text-dark-200"
+    >
       Loading ...
     </span>
   {/if}
-  
+
   <slot />
 </h1>
