@@ -14,7 +14,7 @@
 
   import WebhookModal from '$lib/_components/Listener/Header/WebhookModal.svelte';
   import { page } from '$app/stores';
-    import Mute from '$lib/_components/Listener/Header/Mute.svelte';
+  import Mute from '$lib/_components/Listener/Header/Mute.svelte';
 
   let rid = $page.params.room;
 
@@ -199,12 +199,11 @@
   <div class="flex w-full flex-row gap-2 p-1 pb-1">
     <Title bind:roomTitle {unlocked} {unpacking} {rid} {loadedPair}>
       <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
-
     </Title>
     <CopyLink />
     <span class="flex flex-col gap-2">
       <WebhookModal {loadedPair} />
-      <Mute bind:soundEnabled  bind:playSound/>
+      <Mute bind:soundEnabled bind:playSound />
     </span>
   </div>
 

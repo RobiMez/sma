@@ -4,7 +4,7 @@
 
   import { onMount } from 'svelte';
   import { scale } from 'svelte/transition';
-  
+
   import X from 'phosphor-svelte/lib/X';
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
 
@@ -60,7 +60,7 @@
 </script>
 
 <button
-  class="py-auto px-2 min-w-18 max-w-18 flex aspect-square flex-row items-center justify-center overflow-clip rounded-sm bg-light-200 dark:bg-dark-900 dark:text-dark-200"
+  class="py-auto min-w-18 max-w-18 flex aspect-square flex-row items-center justify-center overflow-clip rounded-sm bg-light-200 px-2 dark:bg-dark-900 dark:text-dark-200"
   on:click={() => (showModal = true)}
 >
   <span class="flex flex-col items-center justify-center gap-2">
