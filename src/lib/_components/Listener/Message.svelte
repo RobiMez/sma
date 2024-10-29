@@ -1,10 +1,12 @@
 <script lang="ts">
-  export let msg: any;
-  export let color: any;
+  import { generateConsistentIndices } from '$lib/utils/colors';
   import prettyMilliseconds from 'pretty-ms';
   import { onMount } from 'svelte';
   import BlurhashThumbnail from './BlurhashThumbnail.svelte';
 
+  export let msg: any;
+  const color = generateConsistentIndices(msg.r);
+  
   let hidden = false;
   let time = '';
 
@@ -53,7 +55,7 @@
         border border-light-300 bg-dark-content
         text-sm dark:border-dark-500 dark:bg-light-content"
       >
-        <BlurhashThumbnail blurhash={msg.image.blurhash} imageId={msg.image.id} />
+        <BlurhashThumbnail imageId={msg.image.id} />
       </span>
     {/if}
   {/if}

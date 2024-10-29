@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
 
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
-  import ImageThumbnail from '$lib/_components/ImageThumbnail.svelte';
+  import ImageThumbnail from '$lib/_components/Listener/ImageThumbnail.svelte';
 
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';

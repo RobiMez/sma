@@ -1,69 +1,32 @@
 <script lang="ts">
-  import { page } from '$app/stores';
   import { onDestroy, onMount } from 'svelte';
 
-  import colors from '$lib/utils/colors.json';
-
   import * as openpgp from 'openpgp';
-  import Message from '$lib/_components/Message.svelte';
-
-  import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
-  import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
-  import X from 'phosphor-svelte/lib/X';
-  import CopyLink from '$lib/_components/CopyLink.svelte';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+
+  import Title from '$lib/_components/Listener/Header/Title.svelte';
+  import Message from '$lib/_components/Listener/Message.svelte';
+  import CopyLink from '$lib/_components/Listener/Header/CopyLink.svelte';
+  import ProfanityToggle from '$lib/_components/Listener/ProfanityToggle.svelte';
+  import PollingDurationSelector from '$lib/_components/Listener/PollingDurationSelector.svelte';
+
+  import type { IKeyPairs, LoadedPair } from '$lib/types';
+
+  import WebhookModal from '$lib/_components/Listener/Header/WebhookModal.svelte';
+  import { page } from '$app/stores';
 
   let rid = $page.params.room;
 
-  let keyPairs:
-    | {
-        prKey: string;
-        pbKey: string;
-        RC: string;
-        uniqueString: string;
-      }[]
-    | undefined;
-
-  let loadedPair: {
-    prKey: string;
-    pbKey: string;
-    RC: string;
-    uniqueString: string;
-  } | null = null;
+  let keyPairs: IKeyPairs[] | undefined = undefined;
+  let loadedPair: LoadedPair | undefined = undefined;
 
   let unlocked = false;
   let unpacking = false;
   let unlockKey = '';
-  let profanityFilterEnabled = false;
   let roomTitle = rid;
-  let isEditingTitle = false;
 
   let pollingInterval = 10;
   let intervalId: any;
-  let copied = false;
-
-  let webhookUrl = '';
-
-  async function updateWebhook() {
-    const response = await fetch('/api/webhook', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        rid: loadedPair?.uniqueString,
-        webhookUrl
-      })
-    });
-
-    const resp = await response.json();
-
-    if (resp.error) {
-      alert('Failed to update webhook');
-    } else {
-      alert('Webhook updated successfully');
-    }
-  }
 
   let encryptedMessages: any[] = [];
   let decryptedMessages: any[] = [];
@@ -87,19 +50,6 @@
     console.log('hash', hash, loadedPair.uniqueString);
     return hash === rid && loadedPair.uniqueString === rid;
   };
-
-  function generateConsistentIndices(input: string) {
-    let hash = 0;
-    for (let i = 0; i < input.length; i++) {
-      hash = (hash << 5) - hash + input.charCodeAt(i);
-      hash |= 0; // Convert to 32bit integer
-    }
-
-    let index1 = Math.abs(hash % 992);
-    let index2 = Math.abs(hash % 5);
-
-    return colors[index1][index2];
-  }
 
   // Define an asynchronous function named 'unpack'
   const unpack = async () => {
@@ -191,77 +141,6 @@
     }
   };
 
-  async function copyLink() {
-    await navigator.clipboard.writeText($page.url.origin + '/b/' + rid);
-    copied = true;
-    setTimeout(() => (copied = false), 2000);
-  }
-
-  const toggleEditTitle = () => {
-    isEditingTitle = !isEditingTitle;
-  };
-
-  async function updateRoomTitle() {
-    const responseUpdateTitle = await fetch('/api/titl', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        pbKey: loadedPair?.pbKey,
-        title: roomTitle
-      })
-    });
-
-    const respUpdateTitle = await responseUpdateTitle.json();
-
-    if (respUpdateTitle.error) {
-      console.log(respUpdateTitle.message);
-    } else {
-      roomTitle = respUpdateTitle.body.title;
-    }
-  }
-
-  async function fetchRoomTitle() {
-    const responseTitle = await fetch(`/api/titl?rid=${rid}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
-    const respTitle = await responseTitle.json();
-    console.log('resp', respTitle);
-
-    if (respTitle.error || respTitle.status === 404) {
-      console.log(respTitle.message);
-    } else {
-      roomTitle = respTitle.body.title?.length == 0 ? respTitle.body.rid : respTitle.body.title;
-    }
-  }
-
-  const updateProf = async (e: any) => {
-    if (!loadedPair) return;
-    const response = await fetch('/api/prof', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        pbKey: loadedPair.pbKey,
-        profanityEnabled: e.target.checked ?? false
-      })
-    });
-
-    const resp = await response.json();
-
-    if (resp.error) {
-      console.log(resp.message);
-    } else {
-      profanityFilterEnabled = resp.body.profanityEnabled;
-      console.log(resp.body.profanityEnabled);
-    }
-  };
-
   $: unlocked = unlockKey === 'unlock';
   // if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
 
@@ -271,6 +150,7 @@
       intervalId = setInterval(unpack, pollingInterval * 1000);
     }
   }
+
   const pollForMessages = () => {
     if (!unlocked) return;
     if (pollingInterval < 3) pollingInterval = 3;
@@ -287,43 +167,13 @@
     // These make sure that the creds are set internally
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
+    console.log('loadedPair', loadedPair);
     // Check if the user has a PGP identity
     if (rid) {
       unlocked = await CheckIfUnlockable();
     }
-    if (unlocked) {
-      unpack();
-    }
-
+    if (unlocked) unpack();
     pollForMessages();
-
-    // if none set , default to false
-    profanityFilterEnabled = false;
-
-    await fetchRoomTitle();
-
-    const res = await fetch(`/api/webhook?rid=${loadedPair?.uniqueString}`);
-    const data = await res.json();
-    if (data.body?.webhookUrl) {
-      webhookUrl = data.body.webhookUrl;
-    }
-
-    const response = await fetch('/api/prof', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ rid: rid })
-    });
-
-    const resp = await response.json();
-
-    if (resp.error) {
-      console.log(resp.message);
-    } else {
-      console.log(resp);
-      profanityFilterEnabled = resp.body.profanityEnabled;
-    }
   });
   onDestroy(() => {
     if (intervalId) clearInterval(intervalId);
@@ -334,108 +184,19 @@
   class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-12"
 >
   <div class="flex w-full flex-row gap-2 p-1 pb-1">
-    <h1
-      class="
-			border-black relative flex w-full flex-row items-center justify-start
-		gap-2 border p-1 text-left text-base font-semibold md:p-2 md:text-xl
-		lg:p-4 lg:text-2xl dark:border-dark-400"
-    >
-      Room
-      {#if isEditingTitle}
-        <input
-          bind:value={roomTitle}
-          type="text"
-          minlength="1"
-          maxlength="24"
-          on:keydown={(e) => {
-            if (e.key === 'Enter') {
-              if (roomTitle.length <= 0) return;
-              updateRoomTitle();
-              toggleEditTitle();
-            }
-          }}
-          class="  text-base-content focus:bg-base-100 min-h-8 rounded-sm border-none p-1 font-extralight focus:outline-none"
-          size={roomTitle.length > 5 ? roomTitle.length : 5}
-          style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
-        />
-        <button
-          on:click={() => {
-            if (roomTitle.length <= 0) return;
-            updateRoomTitle();
-            toggleEditTitle();
-          }}
-          class="btn btn-square btn-sm"
-        >
-          <FloppyDisk size="24" weight="duotone" />
-        </button>
-        <button
-          on:click={() => {
-            toggleEditTitle();
-          }}
-          class="btn btn-square btn-sm"
-        >
-          <X size="24" weight="duotone" />
-        </button>
-      {:else}
-        <span
-          class="  text-base-content pointer-events-none rounded-sm border-none p-1 font-extralight"
-        >
-          {roomTitle}
-        </span>
-        <button on:click={toggleEditTitle} class="btn btn-sm my-4">
-          <PencilSimpleLine size="24" weight="duotone" />
-        </button>
-      {/if}
-      {#if unlocked}
-        <span
-          class=" absolute -top-1 left-1 rounded-sm
-					bg-light-900 px-2 py-1 text-xs font-light text-dark-100 dark:bg-dark-800 dark:text-light-100"
-          >Your
-        </span>
-      {/if}
-      {#if unpacking}
-        <span
-          class="absolute -bottom-3 left-1 rounded-sm
-					bg-light-200 p-1 px-2
-					text-xs font-normal dark:bg-dark-900 dark:text-dark-200"
-          >Loading ...
-        </span>
-      {/if}
-      <span
-        class="
-			absolute -bottom-2 right-1
-			rounded-sm bg-light-200 p-1 px-2 text-xs font-normal text-light-900 dark:bg-dark-800 dark:text-dark-200"
-      >
-        Fetch every
-
-        <input
-          bind:value={pollingInterval}
-          class=" input-outline w-8 appearance-none bg-dark-content dark:bg-light-content"
-          type="number"
-          min="3"
-          max="99"
-        />
-        s
-      </span>
-    </h1>
-    <CopyLink on:click={copyLink} {copied} />
+    <Title bind:roomTitle {unlocked} {unpacking} {rid} {loadedPair}>
+      <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
+    </Title>
+    <CopyLink />
+    <WebhookModal  {loadedPair} />
   </div>
 
-  <div class="flex flex-row items-center justify-center">
-    <span class="p-2 text-sm">{profanityFilterEnabled ? 'Unblock' : 'Block'} Profanity :</span>
-    <input
-      type="checkbox"
-      class="toggle toggle-sm"
-      on:change={(e) => updateProf(e)}
-      checked={profanityFilterEnabled}
-    />
-  </div>
+  <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
 
   <div class="flex w-full flex-col gap-3 p-4">
     {#if unlocked}
       {#each [...decryptedMessages].reverse() as msg (msg)}
-        {@const color = generateConsistentIndices(msg.r)}
-        <Message {msg} {color} />
+        <Message {msg} />
       {/each}
 
       {#if !decryptedMessages.length}
@@ -443,40 +204,4 @@
       {/if}
     {/if}
   </div>
-
-  <!-- Add this to your existing template where appropriate -->
-  <div class="flex flex-col gap-2 p-4">
-    <h2 class="text-lg font-semibold">Webhook Settings</h2>
-    <div class="flex flex-row gap-2">
-      <input
-        bind:value={webhookUrl}
-        type="url"
-        placeholder="Enter webhook URL"
-        class="w-full rounded-sm border border-light-400 bg-light-200 p-2 dark:border-dark-600 dark:bg-dark-800"
-      />
-      <button
-        on:click={updateWebhook}
-        class="rounded-sm border border-light-400 px-4 py-2 dark:border-dark-600"
-      >
-        Save
-      </button>
-    </div>
-    <small class="text-sm text-light-800 dark:text-dark-200">
-      Receive notifications when new messages arrive
-    </small>
-  </div>
 </div>
-
-<style>
-  /* Hide the up and down arrows in a number input field */
-  input[type='number']::-webkit-inner-spin-button,
-  input[type='number']::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  /* Firefox */
-  input[type='number'] {
-    -moz-appearance: textfield;
-    appearance: textfield;
-  }
-</style>
