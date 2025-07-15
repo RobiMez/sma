@@ -1,26 +1,26 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, scale } from 'svelte/transition';
-  
+
   import type { IKeyPairs, LoadedPair } from '$lib/types';
   import { getAllFromLS, getLoadedPairFromLS, loadPair, saveToLS } from '$lib/utils/localStorage';
   import { ResetPgpIdentity } from '$lib/utils/pgp';
   import { generateConsistentIndices } from '$lib/utils/colors';
-  
+
   import IdentificationCard from 'phosphor-svelte/lib/IdentificationCard';
   import UserSwitch from 'phosphor-svelte/lib/UserSwitch';
   import UserCheck from 'phosphor-svelte/lib/UserCheck';
   import Plus from 'phosphor-svelte/lib/Plus';
   import X from 'phosphor-svelte/lib/X';
   import Spinner from 'phosphor-svelte/lib/Spinner';
-  
+
   export let loadedPair: LoadedPair | undefined;
   export let onIdentityChange: (newLoadedPair: LoadedPair | undefined) => void;
-  
+
   let showModal = false;
   let keyPairs: IKeyPairs[] = [];
   let loading = false;
-  
+
   const handleLoadIdentity = async (identity: IKeyPairs) => {
     loadPair(identity.uniqueString);
     const newLoadedPair = await getLoadedPairFromLS();
@@ -30,7 +30,7 @@
     // Navigate to the new identity's room
     window.location.href = `/li/${identity.uniqueString}`;
   };
-  
+
   const handleCreateNewIdentity = async () => {
     loading = true;
     const newPgp = await ResetPgpIdentity();
@@ -38,18 +38,18 @@
       loading = false;
       return;
     }
-    
+
     saveToLS(
       newPgp?.privateKey,
       newPgp?.publicKey,
       newPgp?.revocationCertificate,
       newPgp?.uniqueString
     );
-    
+
     keyPairs = await getAllFromLS();
     loading = false;
   };
-  
+
   onMount(async () => {
     keyPairs = await getAllFromLS();
   });
@@ -89,8 +89,8 @@
             <X size="16" />
           </button>
         </div>
-        
-        <div class="flex flex-col gap-2 max-h-64 overflow-y-auto">
+
+        <div class="flex max-h-64 flex-col gap-2 overflow-y-auto">
           {#each keyPairs as identity, i}
             {#if identity.uniqueString}
               {@const color = generateConsistentIndices(identity.uniqueString)}
@@ -100,33 +100,34 @@
               >
                 <div class="flex items-center gap-3">
                   <div class="aspect-square h-6 w-6" style="background: {color};"></div>
-                  <span class="text-sm font-mono">{identity.uniqueString}</span>
+                  <span class="font-mono text-sm">{identity.uniqueString}</span>
                 </div>
-              
-              <button
-                class="button text-xs px-2 py-1 {loadedPair?.uniqueString === identity.uniqueString
-                  ? 'opacity-50 cursor-not-allowed'
-                  : 'hover:border-light-900 dark:hover:border-dark-100'}"
-                disabled={loadedPair?.uniqueString === identity.uniqueString}
-                on:click={() => handleLoadIdentity(identity)}
-              >
-                {#if loadedPair?.uniqueString === identity.uniqueString}
-                  <span class="flex items-center gap-1">
-                    <UserCheck size={16} />
-                    Current
-                  </span>
-                {:else}
-                  <span class="flex items-center gap-1">
-                    <UserSwitch size={16} />
-                    Load
-                  </span>
-                {/if}
+
+                <button
+                  class="button px-2 py-1 text-xs {loadedPair?.uniqueString ===
+                  identity.uniqueString
+                    ? 'cursor-not-allowed opacity-50'
+                    : 'hover:border-light-900 dark:hover:border-dark-100'}"
+                  disabled={loadedPair?.uniqueString === identity.uniqueString}
+                  on:click={() => handleLoadIdentity(identity)}
+                >
+                  {#if loadedPair?.uniqueString === identity.uniqueString}
+                    <span class="flex items-center gap-1">
+                      <UserCheck size={16} />
+                      Current
+                    </span>
+                  {:else}
+                    <span class="flex items-center gap-1">
+                      <UserSwitch size={16} />
+                      Load
+                    </span>
+                  {/if}
                 </button>
               </div>
             {/if}
           {/each}
         </div>
-        
+
         <div class="border-t border-light-400 pt-4 dark:border-dark-600">
           <button
             class="button flex w-full items-center justify-center gap-2 p-3 text-sm"

@@ -18,7 +18,7 @@
 
   const updateSlowMode = async () => {
     if (!loadedPair?.uniqueString || loadedPair.uniqueString !== rid) return;
-    
+
     loading = true;
     try {
       const response = await fetch('/api/slowmode', {
@@ -52,7 +52,7 @@
     try {
       const response = await fetch(`/api/slowmode?rid=${rid}`);
       const resp = await response.json();
-      
+
       if (!resp.error) {
         slowModeEnabled = resp.body.slowModeEnabled;
         slowModeDelay = resp.body.slowModeDelay;
@@ -71,7 +71,7 @@
 </script>
 
 {#if isRoomOwner}
-  <div class="flex flex-col gap-2 p-2 border border-light-400 rounded-sm dark:border-dark-600">
+  <div class="flex flex-col gap-2 rounded-sm border border-light-400 p-2 dark:border-dark-600">
     <div class="flex flex-row items-center justify-between">
       <div class="flex flex-row items-center gap-3">
         {#if slowModeEnabled}
@@ -81,7 +81,7 @@
         {/if}
         <span class="text-sm font-medium">Slow Mode</span>
       </div>
-      
+
       <input
         type="checkbox"
         class="toggle toggle-sm ml-4"
@@ -110,6 +110,9 @@
 {:else if slowModeEnabled}
   <div class="flex flex-row items-center gap-2 p-2 text-sm text-light-600 dark:text-dark-400">
     <ClockCountdown size={16} weight="duotone" />
-    <span>Slow mode active: {delayOptions.find(opt => opt.value === slowModeDelay)?.label || `${slowModeDelay}s`}</span>
+    <span
+      >Slow mode active: {delayOptions.find((opt) => opt.value === slowModeDelay)?.label ||
+        `${slowModeDelay}s`}</span
+    >
   </div>
 {/if}

@@ -36,7 +36,7 @@
     try {
       const response = await fetch(`/api/slowmode?rid=${params}`);
       const resp = await response.json();
-      
+
       if (!resp.error) {
         slowModeEnabled = resp.body.slowModeEnabled;
         slowModeDelay = resp.body.slowModeDelay;
@@ -49,7 +49,7 @@
   // Check if user can send message based on slow mode
   const canSendMessage = () => {
     if (!slowModeEnabled) return true;
-    
+
     const now = Date.now();
     const timeSinceLastMessage = (now - lastMessageTime) / 1000;
     return timeSinceLastMessage >= slowModeDelay;
@@ -89,7 +89,11 @@
     // Check slow mode
     if (!canSendMessage()) {
       const timeLeft = Math.ceil(slowModeTimeLeft);
-      showMessageFeedback('error', `Slow mode active. Wait ${timeLeft}s before sending another message`, 'feedback_container');
+      showMessageFeedback(
+        'error',
+        `Slow mode active. Wait ${timeLeft}s before sending another message`,
+        'feedback_container'
+      );
       return;
     }
 
@@ -157,10 +161,10 @@
       message = '';
       imageBase64 = [];
       showMessageFeedback('default', '✨ Message delivered ', 'feedback_container');
-      
+
       // Update last message time for slow mode
       lastMessageTime = Date.now();
-      
+
       // Start countdown if slow mode is enabled
       if (slowModeEnabled && slowModeDelay > 0) {
         slowModeTimeLeft = slowModeDelay;
@@ -263,11 +267,13 @@
   <div class="flex w-full justify-between pt-2">
     <span class="text-left text-sm font-light">{message.length}/1000</span>
     {#if slowModeEnabled && slowModeTimeLeft > 0}
-       <span class="flex items-center gap-1 text-right text-sm font-light text-orange-600 dark:text-orange-400">
-         <Clock size={14} weight="duotone" />
-         Slow mode enabled in this Room: {Math.ceil(slowModeTimeLeft)}s remaining
-       </span>
-     {/if}
+      <span
+        class="text-orange-600 dark:text-orange-400 flex items-center gap-1 text-right text-sm font-light"
+      >
+        <Clock size={14} weight="duotone" />
+        Slow mode enabled in this Room: {Math.ceil(slowModeTimeLeft)}s remaining
+      </span>
+    {/if}
   </div>
   <div class="mb-2 w-full">
     <span class="relative mb-2 flex h-full w-full flex-row gap-2 pb-4 pt-2">
@@ -292,7 +298,11 @@
 				{!message || sending || disableSend || !api_pbKey || (slowModeEnabled && !canSendMessage())
           ? 'cursor-not-allowed'
           : ' hover:bg-light-900 hover:text-light-200 hover:dark:bg-dark-900 hover:dark:text-dark-200'}"
-        disabled={!message || sending || disableSend || !api_pbKey || (slowModeEnabled && !canSendMessage())}
+        disabled={!message ||
+          sending ||
+          disableSend ||
+          !api_pbKey ||
+          (slowModeEnabled && !canSendMessage())}
         on:click={SignMessage}
       >
         {#if sending}

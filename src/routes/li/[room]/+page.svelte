@@ -222,7 +222,7 @@
     </span>
   </div>
 
-  <div class="flex flex-row gap-2 items-start">
+  <div class="flex flex-row items-start gap-2">
     <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
     <SlowMode {rid} {loadedPair} />
   </div>

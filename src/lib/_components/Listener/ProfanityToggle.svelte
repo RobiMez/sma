@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import ShieldCheck from 'phosphor-svelte/lib/ShieldCheck';
+  import ShieldSlash from 'phosphor-svelte/lib/ShieldSlash';
 
   export let pbKey: string | undefined;
   export let rid: string;
@@ -49,12 +51,22 @@
   });
 </script>
 
-<div class="flex flex-row items-center justify-center">
-  <span class="p-2 text-sm">{profanityFilterEnabled ? 'Unblock' : 'Block'} Profanity :</span>
-  <input
-    type="checkbox"
-    class="toggle toggle-sm"
-    on:change={(e) => updateProf(e)}
-    checked={profanityFilterEnabled}
-  />
+<div class="flex flex-col gap-2 rounded-sm border border-light-400 p-2 dark:border-dark-600">
+  <div class="flex flex-row items-center justify-between">
+    <div class="flex flex-row items-center gap-3">
+      {#if profanityFilterEnabled}
+        <ShieldCheck size={16} weight="duotone" />
+      {:else}
+        <ShieldSlash size={16} weight="duotone" />
+      {/if}
+      <span class="text-sm font-medium">Profanity Filter</span>
+    </div>
+
+    <input
+      type="checkbox"
+      class="toggle toggle-sm ml-4"
+      on:change={(e) => updateProf(e)}
+      checked={profanityFilterEnabled}
+    />
+  </div>
 </div>
