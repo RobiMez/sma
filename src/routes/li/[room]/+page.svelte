@@ -16,6 +16,7 @@
   import { page } from '$app/stores';
   import Mute from '$lib/_components/Listener/Header/Mute.svelte';
   import IdentitySwitcher from '$lib/_components/Listener/Header/IdentitySwitcher.svelte';
+  import SlowMode from '$lib/_components/Listener/SlowMode.svelte';
 
   let rid = $page.params.room;
 
@@ -221,7 +222,10 @@
     </span>
   </div>
 
-  <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
+  <div class="flex flex-row gap-2 items-start">
+    <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
+    <SlowMode {rid} {loadedPair} />
+  </div>
 
   <div class="flex w-full flex-col gap-3 p-4">
     {#if unlocked}
