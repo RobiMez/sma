@@ -1,3 +1,10 @@
+## [0.7.1](https://github.com/pilanop/sma/compare/v0.7.0...v0.7.1) (2025-07-15)
+
+
+### Bug Fixes
+
+* **slow mode:** persist slow mode state using cookies ([810aacc](https://github.com/pilanop/sma/commit/810aaccb5d8af6fc885a5c4ad544b9df9e897f39))
+
 ## [0.7.0](https://github.com/pilanop/sma/compare/v0.6.0...v0.7.0) (2025-07-15)
 
 
