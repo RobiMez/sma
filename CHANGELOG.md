@@ -1,4 +1,11 @@
-## 0.6.0 (2025-07-15)
+## [0.7.0](https://github.com/pilanop/sma/compare/v0.6.0...v0.7.0) (2025-07-15)
+
+
+### Features
+
+* **chat:** add slow mode functionality to chat rooms ([3bb42be](https://github.com/pilanop/sma/commit/3bb42bee8fa7a48e5f2064758f5f6f315bafd438))
+
+## [0.6.0](https://github.com/pilanop/sma/compare/8f3b807adcdb79d1eba1d6e650db68e93e746d3a...v0.6.0) (2025-07-15)
 
 
 ### Features
