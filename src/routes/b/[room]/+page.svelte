@@ -10,6 +10,7 @@
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
   import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import { browser } from '$app/environment';
 
   let api_pbKey: string;
   let disableSend = false;
@@ -30,6 +31,42 @@
   let lastMessageTime = 0;
   let slowModeTimeLeft = 0;
   let slowModeInterval: any;
+  let slowModePollingInterval: any;
+  let slowModeStatus = 'Slow mode: disabled';
+
+  // Cookie functions for slow mode persistence
+  const getSlowModeCookieKey = () => `slowmode_${params}_${loadedPair?.uniqueString}`;
+
+  const saveLastMessageTime = () => {
+    if (browser) {
+      const cookieKey = getSlowModeCookieKey();
+      document.cookie = `${cookieKey}=${lastMessageTime}; path=/; max-age=86400`; // 24 hours
+    }
+  };
+
+  const restoreLastMessageTime = () => {
+    if (browser) {
+      const cookieKey = getSlowModeCookieKey();
+      const cookies = document.cookie.split(';');
+      const cookie = cookies.find((c) => c.trim().startsWith(`${cookieKey}=`));
+      if (cookie) {
+        const timestamp = parseInt(cookie.split('=')[1]);
+        if (!isNaN(timestamp)) {
+          lastMessageTime = timestamp;
+
+          // Calculate remaining time if slow mode is active
+          if (slowModeEnabled && slowModeDelay > 0) {
+            const now = Date.now();
+            const timeSinceLastMessage = (now - lastMessageTime) / 1000;
+            if (timeSinceLastMessage < slowModeDelay) {
+              slowModeTimeLeft = slowModeDelay - timeSinceLastMessage;
+              slowModeInterval = setInterval(updateSlowModeCountdown, 1000);
+            }
+          }
+        }
+      }
+    }
+  };
 
   // Fetch slow mode settings
   const fetchSlowModeSettings = async () => {
@@ -40,6 +77,9 @@
       if (!resp.error) {
         slowModeEnabled = resp.body.slowModeEnabled;
         slowModeDelay = resp.body.slowModeDelay;
+
+        // Restore timer after fetching settings
+        restoreLastMessageTime();
       }
     } catch (error) {
       console.error('Error fetching slow mode settings:', error);
@@ -57,7 +97,7 @@
 
   // Update slow mode countdown
   const updateSlowModeCountdown = () => {
-    if (!slowModeEnabled || canSendMessage()) {
+    if (!slowModeEnabled) {
       slowModeTimeLeft = 0;
       if (slowModeInterval) {
         clearInterval(slowModeInterval);
@@ -71,8 +111,11 @@
     slowModeTimeLeft = Math.max(0, slowModeDelay - timeSinceLastMessage);
 
     if (slowModeTimeLeft <= 0) {
-      clearInterval(slowModeInterval);
-      slowModeInterval = null;
+      slowModeTimeLeft = 0;
+      if (slowModeInterval) {
+        clearInterval(slowModeInterval);
+        slowModeInterval = null;
+      }
     }
   };
 
@@ -164,6 +207,7 @@
 
       // Update last message time for slow mode
       lastMessageTime = Date.now();
+      saveLastMessageTime(); // Save to cookies
 
       // Start countdown if slow mode is enabled
       if (slowModeEnabled && slowModeDelay > 0) {
@@ -233,19 +277,25 @@
     if (params) {
       await fetchKeys();
       await fetchSlowModeSettings();
+
+      // Poll for slow mode settings every 5 seconds
+      slowModePollingInterval = setInterval(fetchSlowModeSettings, 5000);
     }
   });
 
   let powerUser = false;
 
-  // Reactive statement to update slow mode countdown
-  $: if (slowModeEnabled && slowModeTimeLeft > 0) {
-    updateSlowModeCountdown();
-  }
+  // Show slow mode status before sending
+  $: slowModeStatus = slowModeEnabled
+    ? `Slow mode: ${slowModeDelay}s delay`
+    : 'Slow mode: disabled';
 
   onDestroy(() => {
     if (slowModeInterval) {
       clearInterval(slowModeInterval);
+    }
+    if (slowModePollingInterval) {
+      clearInterval(slowModePollingInterval);
     }
   });
 </script>
@@ -266,14 +316,19 @@
   </div>
   <div class="flex w-full justify-between pt-2">
     <span class="text-left text-sm font-light">{message.length}/1000</span>
-    {#if slowModeEnabled && slowModeTimeLeft > 0}
-      <span
-        class="text-orange-600 dark:text-orange-400 flex items-center gap-1 text-right text-sm font-light"
-      >
-        <Clock size={14} weight="duotone" />
-        Slow mode enabled in this Room: {Math.ceil(slowModeTimeLeft)}s remaining
+    <div class="flex flex-col items-end gap-1">
+      <span class="text-gray-600 dark:text-gray-400 text-right text-sm font-light">
+        {slowModeStatus}
       </span>
-    {/if}
+      {#if slowModeEnabled && slowModeTimeLeft > 0}
+        <span
+          class="text-orange-600 dark:text-orange-400 flex items-center gap-1 text-right text-sm font-light"
+        >
+          <Clock size={14} weight="duotone" />
+          {Math.ceil(slowModeTimeLeft)}s remaining
+        </span>
+      {/if}
+    </div>
   </div>
   <div class="mb-2 w-full">
     <span class="relative mb-2 flex h-full w-full flex-row gap-2 pb-4 pt-2">
