@@ -1,10 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
-  export let pbKey: string | undefined;
-  export let rid: string;
+  interface Props {
+    pbKey: string | undefined;
+    rid: string;
+  }
 
-  let profanityFilterEnabled = false;
+  let { pbKey, rid }: Props = $props();
+
+  let profanityFilterEnabled = $state(false);
 
   const updateProf = async (e: any) => {
     if (!pbKey) return;
@@ -54,7 +58,7 @@
   <input
     type="checkbox"
     class="toggle toggle-sm"
-    on:change={(e) => updateProf(e)}
+    onchange={(e) => updateProf(e)}
     checked={profanityFilterEnabled}
   />
 </div>

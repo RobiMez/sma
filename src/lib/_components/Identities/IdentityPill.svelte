@@ -2,13 +2,17 @@
   import { generateConsistentIndices } from '$lib/utils/colors';
   import type { IKeyPairs, LoadedPair } from '$lib/types';
 
-  export let identity: IKeyPairs;
-  export let loadedPair: LoadedPair | undefined;
-  export let onClick: (identity: IKeyPairs) => void;
+  interface Props {
+    identity: IKeyPairs;
+    loadedPair: LoadedPair | undefined;
+    onClick: (identity: IKeyPairs) => void;
+  }
+
+  let { identity, loadedPair, onClick }: Props = $props();
 </script>
 
 <button
-  on:click={() => onClick(identity)}
+  onclick={() => onClick(identity)}
   class="
   inline-flex items-center justify-center whitespace-nowrap
   border-2 transition-colors

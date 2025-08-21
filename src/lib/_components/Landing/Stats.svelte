@@ -10,13 +10,13 @@
     totalMessages: number;
   }
 
-  let statsLoaded = false;
+  let statsLoaded = $state(false);
 
   const activeUsers = tweened(0, { duration: 2000, easing: cubicOut });
   const identities = tweened(0, { duration: 2000, easing: cubicOut });
   const totalMessages = tweened(0, { duration: 2000, easing: cubicOut });
 
-  let stats: Stats = { activeUsers: 0, identities: 0, totalMessages: 0 };
+  let stats: Stats = $state({ activeUsers: 0, identities: 0, totalMessages: 0 });
 
   onMount(async () => {
     const response = await fetch(`/api/stats`, {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as openpgp from 'openpgp';
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
 
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
@@ -28,12 +28,12 @@
     uniqueString: string;
   } | null = null;
 
-  let params = $page.params.room;
-  let sending = false;
-  let message = '';
-  let imageBase64: string[] = [];
+  let params = page.params.room;
+  let sending = $state(false);
+  let message = $state('');
+  let imageBase64: string[] = $state([]);
   let cleartextMessage = '';
-  let roomTitle: string;
+  let roomTitle: string = $state();
 
   // When posting sign the message with the private key and send it to the server
   // Get the private key of myself from localstorage
@@ -195,7 +195,7 @@
         bg-light-200 p-8
         placeholder-light-800 dark:border-dark-600 dark:bg-dark-800 dark:placeholder-dark-200"
         maxlength="1000"
-        on:keydown={(e) => {
+        onkeydown={(e) => {
           if (e.key === 'Enter') SignMessage();
         }}
       />
@@ -207,7 +207,7 @@
           ? 'cursor-not-allowed'
           : ' hover:bg-light-900 hover:text-light-200 hover:dark:bg-dark-900 hover:dark:text-dark-200'}"
         disabled={!message || sending}
-        on:click={SignMessage}
+        onclick={SignMessage}
       >
         {sending ? 'Sending' : 'Send'}
       </button>
@@ -231,7 +231,7 @@
             type="file"
             class="hidden"
             accept="image/*"
-            on:change={handleFileInput}
+            onchange={handleFileInput}
           />
         </span>
       {/if}

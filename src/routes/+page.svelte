@@ -13,7 +13,7 @@
   import type { LoadedPair, IKeyPairs } from '$lib/types';
 
   let keyPairs: IKeyPairs[] | undefined;
-  let loadedPair: LoadedPair | null = null;
+  let loadedPair: LoadedPair | null = $state(null);
 
   let powerUser: boolean = false;
 

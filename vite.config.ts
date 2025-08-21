@@ -1,4 +1,3 @@
-import { sentrySvelteKit } from '@sentry/sveltekit';
 import { sveltekit } from '@sveltejs/kit/vite';
 import raw from 'vite-raw-plugin';
 
@@ -16,12 +15,6 @@ export default defineConfig({
   plugins: [
     raw({
       fileRegex: /\.md$/
-    }),
-    sentrySvelteKit({
-      sourceMapsUploadOptions: {
-        org: 'robi-codes',
-        project: 'sma'
-      }
     }),
     sveltekit()
   ],

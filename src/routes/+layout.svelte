@@ -8,9 +8,13 @@
   import MoonStars from 'phosphor-svelte/lib/MoonStars';
   import { browser } from '$app/environment';
   import { clearLS } from '$lib/utils/localStorage';
+  /** @type {{children?: import('svelte').Snippet}} */
+  let { children } = $props();
 
-  $: themeDark = false;
-  $: systemPeek = false;
+  let themeDark = $state(false);
+  
+  let systemPeek = $state(false);
+  
 
   onMount(() => {
     themeDark = document.documentElement.classList.contains('dark');
@@ -31,12 +35,12 @@
   transition-colors duration-300
   "
     >
-      <button
+      <div
         class=" flex flex-row items-center justify-center gap-2 rounded-sm border
         border-light-400 px-2
         py-1
         transition-all dark:border-dark-600"
-        on:click={() => {
+        onclick={() => {
           if (systemPeek) return;
           document.documentElement.classList.toggle('dark');
           if (document.documentElement.classList.contains('dark')) {
@@ -58,19 +62,19 @@
         </span>
 
         <button
-          on:mouseover={() => {
+          onmouseover={() => {
             systemPeek = true;
           }}
-          on:focus={() => {
+          onfocus={() => {
             systemPeek = true;
           }}
-          on:mouseout={() => {
+          onmouseout={() => {
             systemPeek = false;
           }}
-          on:blur={() => {
+          onblur={() => {
             systemPeek = false;
           }}
-          on:click={() => {
+          onclick={() => {
             // Whenever the user explicitly chooses to respect the OS preference
             localStorage.removeItem('theme');
             document.documentElement.classList.remove('dark');
@@ -89,8 +93,8 @@
         >
           <AppWindow size={18} weight="duotone" />
         </button>
-      </button>
+      </div>
     </div>
   {/if}
-  <slot />
+  {@render children?.()}
 </div>

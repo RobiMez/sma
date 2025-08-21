@@ -3,7 +3,11 @@
   import { generateConsistentIndices } from '$lib/utils/colors';
   import Chat from 'phosphor-svelte/lib/Chat';
 
-  export let loadedPair: LoadedPair;
+  interface Props {
+    loadedPair: LoadedPair;
+  }
+
+  let { loadedPair }: Props = $props();
 </script>
 
 <div class="relative">

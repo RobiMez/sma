@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+  import { page } from '$app/state';
   import CheckFat from 'phosphor-svelte/lib/CheckFat';
   import ShareNetwork from 'phosphor-svelte/lib/ShareNetwork';
   import { scale } from 'svelte/transition';
 
-  let copied = false;
+  let copied = $state(false);
 
-  let rid = $page.params.room;
+  let rid = page.params.room;
 
   async function copyLink() {
-    await navigator.clipboard.writeText($page.url.origin + '/b/' + rid);
+    await navigator.clipboard.writeText(page.url.origin + '/b/' + rid);
     copied = true;
     setTimeout(() => (copied = false), 2000);
   }
@@ -22,7 +22,7 @@
 			items-center justify-center
 			overflow-clip rounded-sm bg-light-200 dark:bg-dark-900 dark:text-dark-200
 		"
-  on:click={copyLink}
+  onclick={copyLink}
 >
   <span class="relative flex w-full flex-row items-center justify-center text-xs">
     {#if copied}

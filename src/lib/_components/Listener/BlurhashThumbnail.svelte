@@ -4,8 +4,12 @@
   import { fade } from 'svelte/transition';
   import X from 'phosphor-svelte/lib/X';
 
-  export let imageId = '';
-  let imageBase64 = '';
+  interface Props {
+    imageId?: string;
+  }
+
+  let { imageId = '' }: Props = $props();
+  let imageBase64 = $state('');
 
   const ocf = async (open: boolean) => {
     if (open) {

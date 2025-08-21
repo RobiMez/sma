@@ -1,16 +1,20 @@
 <script lang="ts">
   import type { LoadedPair } from '$lib/types';
-  import { elasticInOut, expoInOut, quadIn, quintInOut } from 'svelte/easing';
+  import { expoInOut } from 'svelte/easing';
   import { slide } from 'svelte/transition';
   import XCircle from 'phosphor-svelte/lib/XCircle';
 
-  export let powerUser = false;
-  export let loadedPair: LoadedPair;
+  interface Props {
+    powerUser?: boolean;
+    loadedPair: LoadedPair;
+  }
+
+  let { powerUser = $bindable(false), loadedPair }: Props = $props();
 </script>
 
 <button
   class="text-xs underline"
-  on:click={() => {
+  onclick={() => {
     powerUser = !powerUser;
   }}
 >
@@ -19,7 +23,7 @@
 >
 {#if powerUser}
   <div class="modal" transition:slide={{ easing: expoInOut, duration: 1000 }}>
-    <button on:click={() => (powerUser = false)}>
+    <button onclick={() => (powerUser = false)}>
       <XCircle size={24} />
     </button>
     <div class="border-black relative border p-2">
@@ -46,8 +50,6 @@
   }
 
   .keyDisplay {
-    /* @apply bg-dark-content  text-dark-base dark:bg-dark-base dark:text-dark-content; */
-
     @apply break-all text-xs;
   }
   .keyDisplayBlur {

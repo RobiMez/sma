@@ -1,11 +1,17 @@
 <script lang="ts">
-  export let pollingInterval: number;
-  export let onIntervalChange: (newInterval: number) => void;
+  import { run } from 'svelte/legacy';
 
-  $: {
+  interface Props {
+    pollingInterval: number;
+    onIntervalChange: (newInterval: number) => void;
+  }
+
+  let { pollingInterval = $bindable(), onIntervalChange }: Props = $props();
+
+  run(() => {
     if (pollingInterval < 3) pollingInterval = 3;
     onIntervalChange(pollingInterval);
-  }
+  });
 </script>
 
 <span

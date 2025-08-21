@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import { onDestroy, onMount } from 'svelte';
 
   import * as openpgp from 'openpgp';
@@ -19,23 +21,23 @@
   let rid = $page.params.room;
 
   let keyPairs: IKeyPairs[] | undefined = undefined;
-  let loadedPair: LoadedPair | undefined = undefined;
+  let loadedPair: LoadedPair | undefined = $state(undefined);
 
-  let unlocked = false;
-  let unpacking = false;
+  let unlocked = $state(false);
+  let unpacking = $state(false);
   let unlockKey = '';
-  let roomTitle = rid;
+  let roomTitle = $state(rid);
 
-  let pollingInterval = 10;
-  let intervalId: any;
+  let pollingInterval = $state(10);
+  let intervalId: any = $state();
 
   let encryptedMessages: any[] = [];
-  let decryptedMessages: any[] = [];
+  let decryptedMessages: any[] = $state([]);
   let passphrase = 'super long and hard to guess secret';
 
   let previousMessageCount = 0;
-  let playSound = false;
-  let soundEnabled = false;
+  let playSound = $state(false);
+  let soundEnabled = $state(false);
 
   async function createShortHash(input: string, length: number): Promise<string> {
     const encoder = new TextEncoder();
@@ -152,15 +154,17 @@
     }
   };
 
-  $: unlocked = unlockKey === 'unlock';
+  run(() => {
+    unlocked = unlockKey === 'unlock';
+  });
   // if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
 
-  $: {
+  run(() => {
     if (pollingInterval > 3 && unlocked) {
       if (intervalId) clearInterval(intervalId);
       intervalId = setInterval(unpack, pollingInterval * 1000);
     }
-  }
+  });
 
   const pollForMessages = () => {
     if (!unlocked) return;
@@ -191,7 +195,7 @@
   });
 </script>
 
-<audio preload="auto" src="/notify.wav" style="display: none;" />
+<audio preload="auto" src="/notify.wav" style="display: none;"></audio>
 
 <div
   class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-12"

@@ -4,11 +4,15 @@
   import { onMount } from 'svelte';
   import BlurhashThumbnail from './BlurhashThumbnail.svelte';
 
-  export let msg: any;
+  interface Props {
+    msg: any;
+  }
+
+  let { msg }: Props = $props();
   const color = generateConsistentIndices(msg.r);
 
-  let hidden = false;
-  let time = '';
+  let hidden = $state(false);
+  let time = $state('');
 
   // Function to refresh the time
   const refresh = () => {
@@ -30,14 +34,14 @@
 <div
   class="bg-base-100 relative flex w-full flex-row justify-between border border-light-500 px-2 py-3.5 font-light dark:border-dark-400"
 >
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
   <span
     class=" absolute -left-2 -top-4 aspect-square
     border border-light-300 p-1
     px-2 text-sm dark:border-dark-500"
     style="background: {color};"
-    on:click={() => (hidden = !hidden)}
+    onclick={() => (hidden = !hidden)}
   >
     &nbsp;
   </span>

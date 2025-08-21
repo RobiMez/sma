@@ -6,11 +6,15 @@
 
   import type { IKeyPairs, LoadedPair } from '$lib/types';
 
-  export let loadedPair: LoadedPair | undefined;
-  export let keyPairs: IKeyPairs[];
+  interface Props {
+    loadedPair: LoadedPair | undefined;
+    keyPairs: IKeyPairs[];
+  }
 
-  let isOpen = false;
-  let selectedIdentity: IKeyPairs | null = null;
+  let { loadedPair = $bindable(), keyPairs = $bindable() }: Props = $props();
+
+  let isOpen = $state(false);
+  let selectedIdentity: IKeyPairs | null = $state(null);
 
   const handleOpenModal = (identity: IKeyPairs) => {
     selectedIdentity = identity;

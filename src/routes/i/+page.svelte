@@ -10,9 +10,9 @@
   import Spinner from 'phosphor-svelte/lib/Spinner';
   import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
 
-  let keyPairs: IKeyPairs[] = [];
-  let loadedPair: LoadedPair | undefined = undefined;
-  let loading = false;
+  let keyPairs: IKeyPairs[] = $state([]);
+  let loadedPair: LoadedPair | undefined = $state(undefined);
+  let loading = $state(false);
   onMount(async () => {
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
@@ -42,7 +42,7 @@
     <span class=" rounded-sm p-1 font-extralight">
       <button
         class="button flex items-center justify-center gap-4 whitespace-nowrap rounded-sm p-2 text-sm"
-        on:click={async () => {
+        onclick={async () => {
           loading = true;
           const newPgp = await ResetPgpIdentity();
           if (!newPgp) return;

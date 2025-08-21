@@ -1,11 +1,17 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import SpeakerHigh from 'phosphor-svelte/lib/SpeakerHigh';
   import SpeakerSlash from 'phosphor-svelte/lib/SpeakerSlash';
 
   import { onDestroy, onMount } from 'svelte';
 
-  export let soundEnabled = false;
-  export let playSound = false;
+  interface Props {
+    soundEnabled?: boolean;
+    playSound?: boolean;
+  }
+
+  let { soundEnabled = $bindable(false), playSound = $bindable(false) }: Props = $props();
 
   let notifySound: HTMLAudioElement;
 
@@ -36,17 +42,21 @@
   };
 
   // set playSound to false after playing sound
-  $: if (playSound) {
-    playNotificationSound();
-    setTimeout(() => {
-      playSound = false;
-    }, 1000);
-  }
+  run(() => {
+    if (playSound) {
+      playNotificationSound();
+      setTimeout(() => {
+        playSound = false;
+      }, 1000);
+    }
+  });
 
-  $: if (soundEnabled) {
-    initializeSound();
-    playNotificationSound();
-  }
+  run(() => {
+    if (soundEnabled) {
+      initializeSound();
+      playNotificationSound();
+    }
+  });
 
   onMount(async () => {});
 
@@ -59,7 +69,7 @@
 </script>
 
 <button
-  on:click={toggleSound}
+  onclick={toggleSound}
   class="py-auto min-w-18 max-w-18 flex aspect-square w-full flex-row items-center justify-center overflow-clip rounded-sm bg-light-200 p-1 dark:bg-dark-900 dark:text-dark-200"
 >
   <span class="flex flex-col items-center justify-center gap-1">

@@ -1,7 +1,11 @@
 <script lang="ts">
   import { v4 as uuid } from 'uuid';
-  export let imageBase64: string;
-  export let variant: 'sm' | 'md' = 'sm';
+  interface Props {
+    imageBase64: string;
+    variant?: 'sm' | 'md';
+  }
+
+  let { imageBase64, variant = 'sm' }: Props = $props();
 
   const id: string = `image_modal_${uuid()}`;
 
@@ -14,7 +18,7 @@
 <div>
   <button
     class={`${variant == 'md' ? 'w-48' : 'w-24'} border-black rounded-sm border`}
-    on:click={toggleModal}
+    onclick={toggleModal}
   >
     <img src={imageBase64} alt="Lorem" />
   </button>

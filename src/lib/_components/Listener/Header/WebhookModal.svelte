@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { self } from 'svelte/legacy';
+
   import type { LoadedPair } from '$lib/types';
   import WebhooksLogo from 'phosphor-svelte/lib/WebhooksLogo';
 
@@ -8,11 +10,15 @@
   import X from 'phosphor-svelte/lib/X';
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
 
-  export let loadedPair: LoadedPair | undefined = undefined;
-  export let showModal = false;
 
-  export let webhookUrl = '';
-  let validationError = '';
+  interface Props {
+    loadedPair?: LoadedPair | undefined;
+    showModal?: boolean;
+    webhookUrl?: string;
+  }
+
+  let { loadedPair = undefined, showModal = $bindable(false), webhookUrl = $bindable('') }: Props = $props();
+  let validationError = $state('');
 
   function isValidUrl(url: string): boolean {
     if (!url) return true; // Allow empty URL for clearing webhook
@@ -61,7 +67,7 @@
 
 <button
   class="py-auto min-w-18 max-w-18 flex aspect-square flex-row items-center justify-center overflow-clip rounded-sm bg-light-200 px-2 dark:bg-dark-900 dark:text-dark-200"
-  on:click={() => (showModal = true)}
+  onclick={() => (showModal = true)}
 >
   <span class="flex flex-col items-center justify-center gap-2">
     <span>
@@ -72,13 +78,13 @@
 </button>
 
 {#if showModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-dark-900/50
     
     "
-    on:click|self={() => (showModal = false)}
+    onclick={self(() => (showModal = false))}
   >
     <div
       class="w-full max-w-xl rounded-sm
@@ -106,11 +112,11 @@
           </small>
         </div>
         <div class="flex justify-end gap-2">
-          <button class="cancel-button" on:click={() => (showModal = false)}>
+          <button class="cancel-button" onclick={() => (showModal = false)}>
             <X size={20} />
             Cancel
           </button>
-          <button class="save-button" on:click={updateWebhook}>
+          <button class="save-button" onclick={updateWebhook}>
             <FloppyDisk size={20} />
             Save
           </button>

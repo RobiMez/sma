@@ -4,13 +4,25 @@
   import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
   import { onMount } from 'svelte';
 
-  export let roomTitle: string;
-  export let unlocked: boolean;
-  export let unpacking: boolean;
-  export let rid: string;
-  export let loadedPair: any;
+  interface Props {
+    roomTitle: string;
+    unlocked: boolean;
+    unpacking: boolean;
+    rid: string;
+    loadedPair: any;
+    children?: import('svelte').Snippet;
+  }
 
-  let isEditingTitle = false;
+  let {
+    roomTitle = $bindable(),
+    unlocked,
+    unpacking,
+    rid,
+    loadedPair,
+    children
+  }: Props = $props();
+
+  let isEditingTitle = $state(false);
 
   const toggleEditTitle = () => {
     isEditingTitle = !isEditingTitle;
@@ -68,7 +80,7 @@
       type="text"
       minlength="1"
       maxlength="24"
-      on:keydown={(e) => {
+      onkeydown={(e) => {
         if (e.key === 'Enter') {
           if (roomTitle.length <= 0) return;
           updateRoomTitle();
@@ -80,7 +92,7 @@
       style={`font-size: ${Math.ceil(roomTitle.length / 50)}em`}
     />
     <button
-      on:click={() => {
+      onclick={() => {
         if (roomTitle.length <= 0) return;
         updateRoomTitle();
         toggleEditTitle();
@@ -89,14 +101,14 @@
     >
       <FloppyDisk size="24" weight="duotone" />
     </button>
-    <button on:click={toggleEditTitle} class="btn btn-square btn-sm">
+    <button onclick={toggleEditTitle} class="btn btn-square btn-sm">
       <X size="24" weight="duotone" />
     </button>
   {:else}
     <span class="text-base-content pointer-events-none rounded-sm border-none p-1 font-extralight">
       {roomTitle}
     </span>
-    <button on:click={toggleEditTitle} class="btn btn-sm my-4">
+    <button onclick={toggleEditTitle} class="btn btn-sm my-4">
       <PencilSimpleLine size="24" weight="duotone" />
     </button>
   {/if}
@@ -117,5 +129,5 @@
     </span>
   {/if}
 
-  <slot />
+  {@render children?.()}
 </h1>

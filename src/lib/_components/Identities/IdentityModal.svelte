@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { stopPropagation } from 'svelte/legacy';
+
   import { fade } from 'svelte/transition';
 
   import type { IKeyPairs, LoadedPair } from '$lib/types';
@@ -10,13 +12,22 @@
   import UserCheck from 'phosphor-svelte/lib/UserCheck';
   import UserSwitch from 'phosphor-svelte/lib/UserSwitch';
 
-  export let selectedIdentity: IKeyPairs;
-  export let loadedPair: LoadedPair | undefined;
-  export let onClose: () => void;
-  export let onLoadPairUpdate: (
+  interface Props {
+    selectedIdentity: IKeyPairs;
+    loadedPair: LoadedPair | undefined;
+    onClose: () => void;
+    onLoadPairUpdate: (
     newLoadedPair: LoadedPair | undefined,
     newKeyPairs: IKeyPairs[] | undefined
   ) => void;
+  }
+
+  let {
+    selectedIdentity,
+    loadedPair,
+    onClose,
+    onLoadPairUpdate
+  }: Props = $props();
 
   const handleLoadIdentity = async () => {
     loadPair(selectedIdentity.uniqueString);
@@ -31,17 +42,17 @@
   tabindex="0"
   transition:fade={{ duration: 150 }}
   class="fixed inset-0 z-50 flex h-full w-full items-center justify-center bg-light-200/50 text-light-700 dark:bg-dark-800/50 dark:text-dark-600"
-  on:click={onClose}
-  on:keydown={onClose}
-  on:focus={onClose}
+  onclick={onClose}
+  onkeydown={onClose}
+  onfocus={onClose}
 >
   <div
     role="button"
     tabindex="0"
     class="fixed left-[50%] top-[50%] z-50 w-fit max-w-[94%] translate-x-[-50%] translate-y-[-50%] cursor-default border border-dark-800 bg-light-100 text-light-700 outline-none sm:max-w-[490px] lg:max-w-[60vw] dark:border-dark-200 dark:bg-dark-800 dark:text-dark-200"
-    on:click|stopPropagation={() => {}}
-    on:keydown|stopPropagation={() => {}}
-    on:focus|stopPropagation={() => {}}
+    onclick={stopPropagation(() => {})}
+    onkeydown={stopPropagation(() => {})}
+    onfocus={stopPropagation(() => {})}
   >
     <span class="flex flex-col gap-4 px-4 py-12 text-sm">
       <span class="inline-flex w-fit items-center justify-center whitespace-nowrap border">
@@ -77,7 +88,7 @@
           : ''}
         "
         disabled={loadedPair?.uniqueString == selectedIdentity.uniqueString}
-        on:click={handleLoadIdentity}
+        onclick={handleLoadIdentity}
       >
         {#if loadedPair?.uniqueString == selectedIdentity.uniqueString}
           <span class="flex items-center justify-center gap-2 whitespace-nowrap">
@@ -93,7 +104,7 @@
       </button>
     </span>
 
-    <button class="button absolute right-2 top-2 w-fit rounded-sm" on:click={onClose}>
+    <button class="button absolute right-2 top-2 w-fit rounded-sm" onclick={onClose}>
       <X size="16" />
     </button>
   </div>
