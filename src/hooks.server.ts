@@ -13,6 +13,4 @@ Sentry.init({
 
 dbConnect();
 export const handleError = Sentry.handleErrorWithSentry();
-export const handle: Handle = sequence(
-  Sentry.sentryHandle()
-);
+export const handle: Handle = sequence(Sentry.sentryHandle());

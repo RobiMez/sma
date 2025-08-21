@@ -3,8 +3,6 @@
   import { scale } from 'svelte/transition';
   import { expoInOut } from 'svelte/easing';
 
-
-
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
   import Stats from '$lib/_components/Landing/Stats.svelte';
@@ -22,7 +20,7 @@
   onMount(async () => {
     // These make sure that the creds are set internally
     keyPairs = await getAllFromLS();
-    loadedPair = await getLoadedPairFromLS() ?? null;
+    loadedPair = (await getLoadedPairFromLS()) ?? null;
   });
 </script>
 
@@ -50,7 +48,6 @@
       <MessagesButton {loadedPair} />
     </div>
     <PGPPowerUser {powerUser} {loadedPair} />
-
   {/if}
 
   <footer class="bg-base-100 text-primary fixed bottom-0 z-50">
