@@ -8,9 +8,8 @@ export default defineConfig({
   server: {
     fs: {
       allow: [
-        // allow the package json and the changelog
-        './package.json',
-        './CHANGELOG.md'
+        // allow the package json
+        './package.json'
       ]
     }
   },

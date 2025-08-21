@@ -5,7 +5,7 @@ import { ResetPgpIdentity } from './pgp';
  * Clears all items from localStorage except for a few critical items:
  * - loadedPair: Currently active PGP key pair
  * - keyPairs: All stored PGP key pairs
- * - lastReadChangelog: Timestamp of last changelog read
+
  * - theme: Current UI theme setting
  *
  * This is used to clean up localStorage while preserving essential application state.
@@ -23,13 +23,12 @@ export const clearLS = () => {
   // Save critical items before clearing
   const loadedPair = localStorage.getItem('loadedPair');
   const keyPairs = localStorage.getItem('keyPairs');
-  const lastReadChangelog = localStorage.getItem('lastReadChangelog');
+
   const theme = localStorage.getItem('theme');
 
   console.log('clearLS: Saved critical items:', {
     hasLoadedPair: loadedPair,
     hasKeyPairs: keyPairs,
-    lastReadChangelog: lastReadChangelog,
     hasTheme: theme
   });
 
@@ -46,10 +45,7 @@ export const clearLS = () => {
     localStorage.setItem('keyPairs', keyPairs);
     console.log('clearLS: Restored keyPairs');
   }
-  if (lastReadChangelog) {
-    localStorage.setItem('lastReadChangelog', lastReadChangelog);
-    console.log('clearLS: Restored lastReadChangelog');
-  }
+
   if (theme) {
     localStorage.setItem('theme', theme);
     console.log('clearLS: Restored theme');

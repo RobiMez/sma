@@ -142,7 +142,7 @@
 
   onMount(async () => {
     keyPairs = await getAllFromLS();
-    loadedPair = await getLoadedPairFromLS();
+    loadedPair = (await getLoadedPairFromLS()) ?? null;
 
     const responseTitle = await fetch(
       `/api/titl?rid=${encodeURIComponent(loadedPair?.uniqueString as string)}`,
@@ -166,8 +166,6 @@
       await fetchKeys();
     }
   });
-
-  let powerUser = false;
 </script>
 
 <div
@@ -241,34 +239,4 @@
   </div>
 
   <div id="feedback_container" class="flex w-full items-center justify-center"></div>
-
-  <!-- 
-  <button
-    class="btn btn-sm my-4"
-    on:click={() => {
-      powerUser = !powerUser;
-    }}
-  >
-    {powerUser ? 'Hide' : 'Show'}
-    PGP tools</button
-  > -->
-
-  <!-- {#if powerUser && loadedPair}
-    <div transition:slide class="flex flex-col gap-4 py-4">
-      <div class="border-black bg-base-100 relative border p-2">
-        <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"
-          >{loadedPair.prKey ? 'Signing with Private key :' : ''}
-        </small>
-        <h1 class=" text-xs blur-sm transition-all duration-1000 hover:blur-none">
-          {loadedPair.prKey ?? ''}
-        </h1>
-      </div>
-      <div class="border-black bg-base-100 relative border p-2">
-        <small class="text-primary absolute -top-3 rounded-sm bg-light-300 px-1 dark:bg-dark-800"
-          >Encrypted Message :
-        </small>
-        <h1 class=" text-xs">{cleartextMessage ?? ''}</h1>
-      </div>
-    </div>
-  {/if} -->
 </div>
