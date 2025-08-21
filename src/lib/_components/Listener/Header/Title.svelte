@@ -13,14 +13,7 @@
     children?: import('svelte').Snippet;
   }
 
-  let {
-    roomTitle = $bindable(),
-    unlocked,
-    unpacking,
-    rid,
-    loadedPair,
-    children
-  }: Props = $props();
+  let { roomTitle = $bindable(), unlocked, unpacking, rid, loadedPair, children }: Props = $props();
 
   let isEditingTitle = $state(false);
 

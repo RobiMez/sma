@@ -12,9 +12,8 @@
   let { children } = $props();
 
   let themeDark = $state(false);
-  
+
   let systemPeek = $state(false);
-  
 
   onMount(() => {
     themeDark = document.documentElement.classList.contains('dark');

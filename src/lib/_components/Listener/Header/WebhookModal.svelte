@@ -10,14 +10,17 @@
   import X from 'phosphor-svelte/lib/X';
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
 
-
   interface Props {
     loadedPair?: LoadedPair | undefined;
     showModal?: boolean;
     webhookUrl?: string;
   }
 
-  let { loadedPair = undefined, showModal = $bindable(false), webhookUrl = $bindable('') }: Props = $props();
+  let {
+    loadedPair = undefined,
+    showModal = $bindable(false),
+    webhookUrl = $bindable('')
+  }: Props = $props();
   let validationError = $state('');
 
   function isValidUrl(url: string): boolean {

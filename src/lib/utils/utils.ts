@@ -1,5 +1,5 @@
 import MessageFeedback from '../_components/MessageFeedback.svelte';
-import { mount, unmount } from "svelte";
+import { mount, unmount } from 'svelte';
 
 // Break a long string into some max length array of strings
 export function breakString(str: string, maxLength: number) {
@@ -27,9 +27,9 @@ export function showMessageFeedback(
 
   // Mount the MessageFeedback component to the container
   const feedback = mount(MessageFeedback, {
-      target: container,
-      props: { variant, message }
-    });
+    target: container,
+    props: { variant, message }
+  });
 
   // Remove the dynamically created div from the DOM after a delay (optional)
   setTimeout(() => {

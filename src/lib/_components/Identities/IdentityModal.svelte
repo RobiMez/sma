@@ -17,17 +17,12 @@
     loadedPair: LoadedPair | undefined;
     onClose: () => void;
     onLoadPairUpdate: (
-    newLoadedPair: LoadedPair | undefined,
-    newKeyPairs: IKeyPairs[] | undefined
-  ) => void;
+      newLoadedPair: LoadedPair | undefined,
+      newKeyPairs: IKeyPairs[] | undefined
+    ) => void;
   }
 
-  let {
-    selectedIdentity,
-    loadedPair,
-    onClose,
-    onLoadPairUpdate
-  }: Props = $props();
+  let { selectedIdentity, loadedPair, onClose, onLoadPairUpdate }: Props = $props();
 
   const handleLoadIdentity = async () => {
     loadPair(selectedIdentity.uniqueString);
