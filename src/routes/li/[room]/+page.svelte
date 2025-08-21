@@ -15,6 +15,8 @@
   import WebhookModal from '$lib/_components/Listener/Header/WebhookModal.svelte';
   import { page } from '$app/stores';
   import Mute from '$lib/_components/Listener/Header/Mute.svelte';
+  import IdentitySwitcher from '$lib/_components/Listener/Header/IdentitySwitcher.svelte';
+  import SlowMode from '$lib/_components/Listener/SlowMode.svelte';
 
   let rid = $page.params.room;
 
@@ -174,11 +176,23 @@
     }
   };
 
+  const handleIdentityChange = async (newLoadedPair: LoadedPair | undefined) => {
+    loadedPair = newLoadedPair;
+    keyPairs = await getAllFromLS();
+    // Re-check if unlockable with new identity
+    if (rid && loadedPair) {
+      unlocked = await CheckIfUnlockable();
+      if (unlocked) {
+        decryptedMessages = []; // Clear previous messages
+        unpack();
+      }
+    }
+  };
+
   onMount(async () => {
     // These make sure that the creds are set internally
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
-    console.log('loadedPair', loadedPair);
     // Check if the user has a PGP identity
     if (rid) {
       unlocked = await CheckIfUnlockable();
@@ -204,10 +218,14 @@
     <span class="flex flex-col gap-2">
       <WebhookModal {loadedPair} />
       <Mute bind:soundEnabled bind:playSound />
+      <IdentitySwitcher {loadedPair} onIdentityChange={handleIdentityChange} />
     </span>
   </div>
 
-  <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
+  <div class="flex flex-row items-start gap-2">
+    <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
+    <SlowMode {rid} {loadedPair} />
+  </div>
 
   <div class="flex w-full flex-col gap-3 p-4">
     {#if unlocked}

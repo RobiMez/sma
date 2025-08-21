@@ -1,32 +1,22 @@
 <script lang="ts">
   import * as openpgp from 'openpgp';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
 
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
+  import Clock from 'phosphor-svelte/lib/Clock';
   import ImageThumbnail from '$lib/_components/Listener/ImageThumbnail.svelte';
 
   import { breakString, showMessageFeedback } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import { browser } from '$app/environment';
 
   let api_pbKey: string;
   let disableSend = false;
 
-  let keyPairs:
-    | {
-        prKey: string;
-        pbKey: string;
-        RC: string;
-        uniqueString: string;
-      }[]
-    | undefined;
-
-  let loadedPair: {
-    prKey: string;
-    pbKey: string;
-    RC: string;
-    uniqueString: string;
-  } | null = null;
+  let keyPairs: IKeyPairs[] | undefined;
+  let loadedPair: LoadedPair | null = null;
 
   let params = $page.params.room;
   let sending = false;
@@ -35,10 +25,121 @@
   let cleartextMessage = '';
   let roomTitle: string;
 
+  // Slow mode variables
+  let slowModeEnabled = false;
+  let slowModeDelay = 0;
+  let lastMessageTime = 0;
+  let slowModeTimeLeft = 0;
+  let slowModeInterval: any;
+  let slowModePollingInterval: any;
+  let slowModeStatus = 'Slow mode: disabled';
+
+  // Cookie functions for slow mode persistence
+  const getSlowModeCookieKey = () => `slowmode_${params}_${loadedPair?.uniqueString}`;
+
+  const saveLastMessageTime = () => {
+    if (browser) {
+      const cookieKey = getSlowModeCookieKey();
+      document.cookie = `${cookieKey}=${lastMessageTime}; path=/; max-age=86400`; // 24 hours
+    }
+  };
+
+  const restoreLastMessageTime = () => {
+    if (browser) {
+      const cookieKey = getSlowModeCookieKey();
+      const cookies = document.cookie.split(';');
+      const cookie = cookies.find((c) => c.trim().startsWith(`${cookieKey}=`));
+      if (cookie) {
+        const timestamp = parseInt(cookie.split('=')[1]);
+        if (!isNaN(timestamp)) {
+          lastMessageTime = timestamp;
+
+          // Calculate remaining time if slow mode is active
+          if (slowModeEnabled && slowModeDelay > 0) {
+            const now = Date.now();
+            const timeSinceLastMessage = (now - lastMessageTime) / 1000;
+            if (timeSinceLastMessage < slowModeDelay) {
+              slowModeTimeLeft = slowModeDelay - timeSinceLastMessage;
+              slowModeInterval = setInterval(updateSlowModeCountdown, 1000);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  // Fetch slow mode settings
+  const fetchSlowModeSettings = async () => {
+    try {
+      const response = await fetch(`/api/slowmode?rid=${params}`);
+      const resp = await response.json();
+
+      if (!resp.error) {
+        slowModeEnabled = resp.body.slowModeEnabled;
+        slowModeDelay = resp.body.slowModeDelay;
+
+        // Restore timer after fetching settings
+        restoreLastMessageTime();
+      }
+    } catch (error) {
+      console.error('Error fetching slow mode settings:', error);
+    }
+  };
+
+  // Check if user can send message based on slow mode
+  const canSendMessage = () => {
+    if (!slowModeEnabled) return true;
+
+    const now = Date.now();
+    const timeSinceLastMessage = (now - lastMessageTime) / 1000;
+    return timeSinceLastMessage >= slowModeDelay;
+  };
+
+  // Update slow mode countdown
+  const updateSlowModeCountdown = () => {
+    if (!slowModeEnabled) {
+      slowModeTimeLeft = 0;
+      if (slowModeInterval) {
+        clearInterval(slowModeInterval);
+        slowModeInterval = null;
+      }
+      return;
+    }
+
+    const now = Date.now();
+    const timeSinceLastMessage = (now - lastMessageTime) / 1000;
+    slowModeTimeLeft = Math.max(0, slowModeDelay - timeSinceLastMessage);
+
+    if (slowModeTimeLeft <= 0) {
+      slowModeTimeLeft = 0;
+      if (slowModeInterval) {
+        clearInterval(slowModeInterval);
+        slowModeInterval = null;
+      }
+    }
+  };
+
   // When posting sign the message with the private key and send it to the server
   // Get the private key of myself from localstorage
   const SignMessage = async () => {
     if (!loadedPair) return;
+    if (!api_pbKey) {
+      console.error('No public key available for recipient');
+      showMessageFeedback('error', 'No public key found for recipient', 'feedback_container');
+      return;
+    }
+
+    // Check slow mode
+    if (!canSendMessage()) {
+      const timeLeft = Math.ceil(slowModeTimeLeft);
+      showMessageFeedback(
+        'error',
+        `Slow mode active. Wait ${timeLeft}s before sending another message`,
+        'feedback_container'
+      );
+      return;
+    }
+
     sending = true;
 
     const passphrase = 'super long and hard to guess secret';
@@ -103,6 +204,16 @@
       message = '';
       imageBase64 = [];
       showMessageFeedback('default', '✨ Message delivered ', 'feedback_container');
+
+      // Update last message time for slow mode
+      lastMessageTime = Date.now();
+      saveLastMessageTime(); // Save to cookies
+
+      // Start countdown if slow mode is enabled
+      if (slowModeEnabled && slowModeDelay > 0) {
+        slowModeTimeLeft = slowModeDelay;
+        slowModeInterval = setInterval(updateSlowModeCountdown, 1000);
+      }
     }
     sending = false;
   };
@@ -142,7 +253,8 @@
 
   onMount(async () => {
     keyPairs = await getAllFromLS();
-    loadedPair = await getLoadedPairFromLS();
+    const loaded = await getLoadedPairFromLS();
+    loadedPair = loaded || null;
 
     const responseTitle = await fetch(
       `/api/titl?rid=${encodeURIComponent(loadedPair?.uniqueString as string)}`,
@@ -164,10 +276,28 @@
 
     if (params) {
       await fetchKeys();
+      await fetchSlowModeSettings();
+
+      // Poll for slow mode settings every 5 seconds
+      slowModePollingInterval = setInterval(fetchSlowModeSettings, 5000);
     }
   });
 
   let powerUser = false;
+
+  // Show slow mode status before sending
+  $: slowModeStatus = slowModeEnabled
+    ? `Slow mode: ${slowModeDelay}s delay`
+    : 'Slow mode: disabled';
+
+  onDestroy(() => {
+    if (slowModeInterval) {
+      clearInterval(slowModeInterval);
+    }
+    if (slowModePollingInterval) {
+      clearInterval(slowModePollingInterval);
+    }
+  });
 </script>
 
 <div
@@ -184,7 +314,22 @@
       </span>
     </h1>
   </div>
-  <span class="w-full pt-2 text-left text-sm font-light">{message.length}/1000</span>
+  <div class="flex w-full justify-between pt-2">
+    <span class="text-left text-sm font-light">{message.length}/1000</span>
+    <div class="flex flex-col items-end gap-1">
+      <span class="text-gray-600 dark:text-gray-400 text-right text-sm font-light">
+        {slowModeStatus}
+      </span>
+      {#if slowModeEnabled && slowModeTimeLeft > 0}
+        <span
+          class="text-orange-600 dark:text-orange-400 flex items-center gap-1 text-right text-sm font-light"
+        >
+          <Clock size={14} weight="duotone" />
+          {Math.ceil(slowModeTimeLeft)}s remaining
+        </span>
+      {/if}
+    </div>
+  </div>
   <div class="mb-2 w-full">
     <span class="relative mb-2 flex h-full w-full flex-row gap-2 pb-4 pt-2">
       <input
@@ -205,13 +350,23 @@
       <button
         class=" border-black border
 				border-light-900 p-7 transition-all dark:border-dark-600
-				{!message || sending
+				{!message || sending || disableSend || !api_pbKey || (slowModeEnabled && !canSendMessage())
           ? 'cursor-not-allowed'
           : ' hover:bg-light-900 hover:text-light-200 hover:dark:bg-dark-900 hover:dark:text-dark-200'}"
-        disabled={!message || sending}
+        disabled={!message ||
+          sending ||
+          disableSend ||
+          !api_pbKey ||
+          (slowModeEnabled && !canSendMessage())}
         on:click={SignMessage}
       >
-        {sending ? 'Sending' : 'Send'}
+        {#if sending}
+          Sending
+        {:else if slowModeEnabled && !canSendMessage()}
+          Wait {Math.ceil(slowModeTimeLeft)}s
+        {:else}
+          Send
+        {/if}
       </button>
     </span>
 
