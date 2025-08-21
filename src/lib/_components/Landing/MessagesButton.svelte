@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
   import { generateConsistentIndices } from '$lib/utils/colors';
   import Chat from 'phosphor-svelte/lib/Chat';
 
   interface Props {
-    loadedPair: LoadedPair;
+    loadedPair: IKeyPairs;
   }
 
   let { loadedPair }: Props = $props();

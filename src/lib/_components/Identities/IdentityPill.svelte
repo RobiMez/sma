@@ -1,10 +1,10 @@
 <script lang="ts">
   import { generateConsistentIndices } from '$lib/utils/colors';
-  import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
 
   interface Props {
     identity: IKeyPairs;
-    loadedPair: LoadedPair | undefined;
+    loadedPair: IKeyPairs | undefined;
     onClick: (identity: IKeyPairs) => void;
   }
 

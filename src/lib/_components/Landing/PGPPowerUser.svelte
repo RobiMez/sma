@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
   import { expoInOut } from 'svelte/easing';
   import { slide } from 'svelte/transition';
   import XCircle from 'phosphor-svelte/lib/XCircle';
 
   interface Props {
     powerUser?: boolean;
-    loadedPair: LoadedPair;
+    loadedPair: IKeyPairs;
   }
 
   let { powerUser = $bindable(false), loadedPair }: Props = $props();

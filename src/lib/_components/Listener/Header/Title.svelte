@@ -3,13 +3,14 @@
   import X from 'phosphor-svelte/lib/X';
   import PencilSimpleLine from 'phosphor-svelte/lib/PencilSimpleLine';
   import { onMount } from 'svelte';
+  import type { IKeyPairs } from '$lib/types';
 
   interface Props {
     roomTitle: string;
     unlocked: boolean;
     unpacking: boolean;
     rid: string;
-    loadedPair: any;
+    loadedPair: IKeyPairs;
     children?: import('svelte').Snippet;
   }
 

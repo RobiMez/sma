@@ -1,7 +1,7 @@
 <script lang="ts">
   import { self } from 'svelte/legacy';
 
-  import type { LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
   import WebhooksLogo from 'phosphor-svelte/lib/WebhooksLogo';
 
   import { onMount } from 'svelte';
@@ -11,7 +11,7 @@
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk';
 
   interface Props {
-    loadedPair?: LoadedPair | undefined;
+    loadedPair?: IKeyPairs | undefined;
     showModal?: boolean;
     webhookUrl?: string;
   }

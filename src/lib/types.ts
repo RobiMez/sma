@@ -1,9 +1,3 @@
-interface LoadedPair {
-  prKey: string;
-  pbKey: string;
-  RC: string;
-  uniqueString: string;
-}
 interface IKeyPairs {
   prKey: string;
   pbKey: string;
@@ -11,4 +5,4 @@ interface IKeyPairs {
   uniqueString: string;
 }
 
-export type { LoadedPair, IKeyPairs };
+export type { IKeyPairs };

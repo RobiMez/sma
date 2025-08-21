@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
 
   import { onMount } from 'svelte';
 
@@ -11,7 +11,7 @@
   import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
 
   let keyPairs: IKeyPairs[] = $state([]);
-  let loadedPair: LoadedPair | undefined = $state(undefined);
+  let loadedPair: IKeyPairs | undefined = $state(undefined);
   let loading = $state(false);
   onMount(async () => {
     keyPairs = await getAllFromLS();

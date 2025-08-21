@@ -1,4 +1,4 @@
-import type { IKeyPairs, LoadedPair } from '$lib/types';
+import type { IKeyPairs } from '$lib/types';
 import { ResetPgpIdentity } from './pgp';
 
 /**
@@ -69,12 +69,7 @@ export const getFromLS = async (uniqueString: string) => {
   const keyPairs = JSON.parse(existingEntries);
   const keyPair = keyPairs[uniqueString];
   if (!keyPair) return;
-  return keyPair as {
-    prKey: string;
-    pbKey: string;
-    RC: string;
-    uniqueString: string;
-  };
+  return keyPair as IKeyPairs;
 };
 
 export const getAllFromLS = async () => {
@@ -146,5 +141,5 @@ export const getLoadedPairFromLS = async () => {
     return keyPairs[0];
   }
 
-  return JSON.parse(loadedPair) as LoadedPair | undefined;
+  return JSON.parse(loadedPair) as IKeyPairs | undefined;
 };

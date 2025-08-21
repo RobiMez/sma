@@ -4,10 +4,10 @@
   import IdentityPill from './IdentityPill.svelte';
   import IdentityModal from './IdentityModal.svelte';
 
-  import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
 
   interface Props {
-    loadedPair: LoadedPair | undefined;
+    loadedPair: IKeyPairs | undefined;
     keyPairs: IKeyPairs[];
   }
 
@@ -27,7 +27,7 @@
   };
 
   const handleLoadPairUpdate = (
-    newLoadedPair: LoadedPair | undefined,
+    newLoadedPair: IKeyPairs | undefined,
     newKeyPairs: IKeyPairs[] | undefined
   ) => {
     loadedPair = newLoadedPair;

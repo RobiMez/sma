@@ -33,7 +33,7 @@
   let message = $state('');
   let imageBase64: string[] = $state([]);
   let cleartextMessage = '';
-  let roomTitle: string = $state();
+  let roomTitle = $state('');
 
   // When posting sign the message with the private key and send it to the server
   // Get the private key of myself from localstorage

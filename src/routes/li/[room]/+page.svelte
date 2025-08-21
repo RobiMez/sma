@@ -12,7 +12,7 @@
   import ProfanityToggle from '$lib/_components/Listener/ProfanityToggle.svelte';
   import PollingDurationSelector from '$lib/_components/Listener/PollingDurationSelector.svelte';
 
-  import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
 
   import WebhookModal from '$lib/_components/Listener/Header/WebhookModal.svelte';
   import { page } from '$app/stores';
@@ -21,7 +21,7 @@
   let rid = $page.params.room;
 
   let keyPairs: IKeyPairs[] | undefined = undefined;
-  let loadedPair: LoadedPair | undefined = $state(undefined);
+  let loadedPair: IKeyPairs | undefined = $state(undefined);
 
   let unlocked = $state(false);
   let unpacking = $state(false);
@@ -200,28 +200,31 @@
 <div
   class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-12"
 >
-  <div class="flex w-full flex-row gap-2 p-1 pb-1">
-    <Title bind:roomTitle {unlocked} {unpacking} {rid} {loadedPair}>
-      <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
-    </Title>
-    <CopyLink />
-    <span class="flex flex-col gap-2">
-      <WebhookModal {loadedPair} />
-      <Mute bind:soundEnabled bind:playSound />
-    </span>
-  </div>
+  {#if roomTitle && loadedPair && rid}
+    <div class="flex w-full flex-row gap-2 p-1 pb-1">
+      <Title bind:roomTitle {unlocked} {unpacking} {rid} {loadedPair}>
+        <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
+      </Title>
 
-  <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
+      <CopyLink />
+      <span class="flex flex-col gap-2">
+        <WebhookModal {loadedPair} />
+        <Mute bind:soundEnabled bind:playSound />
+      </span>
+    </div>
 
-  <div class="flex w-full flex-col gap-3 p-4">
-    {#if unlocked}
-      {#each [...decryptedMessages].reverse() as msg (msg)}
-        <Message {msg} />
-      {/each}
+    <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
 
-      {#if !decryptedMessages.length}
-        <span class="p-12"> No messages sent to your inbox yet </span>
+    <div class="flex w-full flex-col gap-3 p-4">
+      {#if unlocked}
+        {#each [...decryptedMessages].reverse() as msg (msg)}
+          <Message {msg} />
+        {/each}
+
+        {#if !decryptedMessages.length}
+          <span class="p-12"> No messages sent to your inbox yet </span>
+        {/if}
       {/if}
-    {/if}
-  </div>
+    </div>
+  {/if}
 </div>

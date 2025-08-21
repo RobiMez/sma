@@ -10,17 +10,17 @@
   import MessagesButton from '$lib/_components/Landing/MessagesButton.svelte';
   import PGPPowerUser from '$lib/_components/Landing/PGPPowerUser.svelte';
 
-  import type { LoadedPair, IKeyPairs } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
 
   let keyPairs: IKeyPairs[] | undefined;
-  let loadedPair: LoadedPair | null = $state(null);
+  let loadedPair: IKeyPairs | undefined;
 
   let powerUser: boolean = false;
 
   onMount(async () => {
     // These make sure that the creds are set internally
     keyPairs = await getAllFromLS();
-    loadedPair = (await getLoadedPairFromLS()) ?? null;
+    loadedPair = await getLoadedPairFromLS();
   });
 </script>
 

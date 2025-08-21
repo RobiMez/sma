@@ -3,7 +3,7 @@
 
   import { fade } from 'svelte/transition';
 
-  import type { IKeyPairs, LoadedPair } from '$lib/types';
+  import type { IKeyPairs } from '$lib/types';
 
   import { getAllFromLS, getLoadedPairFromLS, loadPair } from '$lib/utils/localStorage';
   import { generateConsistentIndices } from '$lib/utils/colors';
@@ -14,10 +14,10 @@
 
   interface Props {
     selectedIdentity: IKeyPairs;
-    loadedPair: LoadedPair | undefined;
+    loadedPair: IKeyPairs | undefined;
     onClose: () => void;
     onLoadPairUpdate: (
-      newLoadedPair: LoadedPair | undefined,
+      newLoadedPair: IKeyPairs | undefined,
       newKeyPairs: IKeyPairs[] | undefined
     ) => void;
   }
