@@ -102,7 +102,6 @@
       console.log(resp.message);
       message = '';
       imageBase64 = [];
-
     }
     sending = false;
   };
@@ -237,5 +236,4 @@
       {/if}
     </span>
   </div>
-
 </div>
