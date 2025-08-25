@@ -6,7 +6,7 @@
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import ImageThumbnail from '$lib/_components/Listener/ImageThumbnail.svelte';
 
-  import { breakString, showMessageFeedback } from '$lib/utils/utils';
+  import { breakString } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
   let api_pbKey: string;
@@ -102,7 +102,7 @@
       console.log(resp.message);
       message = '';
       imageBase64 = [];
-      showMessageFeedback('default', '✨ Message delivered ', 'feedback_container');
+
     }
     sending = false;
   };
@@ -238,5 +238,4 @@
     </span>
   </div>
 
-  <div id="feedback_container" class="flex w-full items-center justify-center"></div>
 </div>

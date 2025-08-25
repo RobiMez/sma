@@ -5,10 +5,10 @@
 
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
-  import Stats from '$lib/_components/Landing/Stats.svelte';
-  import IdentitiesButton from '$lib/_components/Landing/IdentitiesButton.svelte';
-  import MessagesButton from '$lib/_components/Landing/MessagesButton.svelte';
-  import PGPPowerUser from '$lib/_components/Landing/PGPPowerUser.svelte';
+  import Stats from './Stats.svelte';
+  import IdentitiesButton from './IdentitiesButton.svelte';
+  import MessagesButton from './MessagesButton.svelte';
+  import PGPPowerUser from './PGPPowerUser.svelte';
 
   import type { IKeyPairs } from '$lib/types';
 

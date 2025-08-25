@@ -43,9 +43,7 @@
   "type": "module",
   "dependencies": {
     "autoprefixer": "^10.4.21",
-    "bits-ui": "^0.21.16",
     "blurhash": "^2.0.5",
-    "daisyui": "^4.12.24",
     "dotenv": "^16.6.1",
     "mongoose": "^8.17.2",
     "openpgp": "^5.11.3",
