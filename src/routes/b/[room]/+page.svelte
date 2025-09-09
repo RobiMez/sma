@@ -95,6 +95,7 @@
     if (profane) {
       profaneBlock = true;
       message = '';
+      sending = false;
       setTimeout(() => {
         profaneBlock = false;
       }, 2000);
