@@ -43,7 +43,6 @@ export const ResetPgpIdentity = async () => {
     console.log(resp.message);
   } else {
     console.log(resp.message);
-    console.log('data: ', data);
     return data;
   }
 };

@@ -1,35 +1,30 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
-
   import { onDestroy, onMount } from 'svelte';
 
   import * as openpgp from 'openpgp';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
-  import Title from '$lib/_components/Listener/Header/Title.svelte';
-  import Message from '$lib/_components/Listener/Message.svelte';
-  import CopyLink from '$lib/_components/Listener/Header/CopyLink.svelte';
-  import ProfanityToggle from '$lib/_components/Listener/ProfanityToggle.svelte';
-  import PollingDurationSelector from '$lib/_components/Listener/PollingDurationSelector.svelte';
+  import Message from './Message/Message.svelte';
 
   import type { IKeyPairs } from '$lib/types';
 
-  import WebhookModal from '$lib/_components/Listener/Header/WebhookModal.svelte';
-  import { page } from '$app/stores';
-  import Mute from '$lib/_components/Listener/Header/Mute.svelte';
+  import { page } from '$app/state';
 
-  let rid = $page.params.room;
+  import ListenerHeader from './ListenerHeader.svelte';
+  import { FolderDashed } from 'phosphor-svelte';
+
+  let rid = page.params.room;
+  let { data } = $props();
 
   let keyPairs: IKeyPairs[] | undefined = undefined;
   let loadedPair: IKeyPairs | undefined = $state(undefined);
 
   let unlocked = $state(false);
   let unpacking = $state(false);
-  let unlockKey = '';
   let roomTitle = $state(rid);
 
   let pollingInterval = $state(10);
-  let intervalId: any = $state();
+  let timeoutId: NodeJS.Timeout | undefined = $state();
 
   let encryptedMessages: any[] = [];
   let decryptedMessages: any[] = $state([]);
@@ -37,7 +32,6 @@
 
   let previousMessageCount = 0;
   let playSound = $state(false);
-  let soundEnabled = $state(false);
 
   async function createShortHash(input: string, length: number): Promise<string> {
     const encoder = new TextEncoder();
@@ -77,6 +71,7 @@
       // Parse the JSON response
       const resp = await response.json();
 
+      console.log(resp);
       // If there's an error in the response, log the message
       if (resp.error) {
         console.log(resp.message);
@@ -154,75 +149,63 @@
     }
   };
 
-  run(() => {
-    unlocked = unlockKey === 'unlock';
-  });
-  // if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
-
-  run(() => {
-    if (pollingInterval > 3 && unlocked) {
-      if (intervalId) clearInterval(intervalId);
-      intervalId = setInterval(unpack, pollingInterval * 1000);
-    }
-  });
-
-  const pollForMessages = () => {
-    if (!unlocked) return;
-    if (pollingInterval < 3) pollingInterval = 3;
-    try {
-      intervalId = setInterval(() => {
-        unpack();
-      }, pollingInterval * 10);
-    } catch (error) {
-      console.log('Error in polling for messages', error);
-    }
+  const recursiveFetch = () => {
+    unpack();
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(recursiveFetch, pollingInterval * 1000);
   };
+
+  // if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
 
   onMount(async () => {
     // These make sure that the creds are set internally
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
-    console.log('loadedPair', loadedPair);
     // Check if the user has a PGP identity
-    if (rid) {
-      unlocked = await CheckIfUnlockable();
-    }
-    if (unlocked) unpack();
-    pollForMessages();
+    if (rid) unlocked = await CheckIfUnlockable();
+    console.log('ONMOUNT : ', unlocked);
+
+    if (unlocked) recursiveFetch();
   });
+
   onDestroy(() => {
-    if (intervalId) clearInterval(intervalId);
+    if (timeoutId) clearInterval(timeoutId);
   });
 </script>
 
 <audio preload="auto" src="/notify.wav" style="display: none;"></audio>
 
 <div
-  class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start p-1 pt-12"
+  class="container mx-auto flex min-h-screen w-full max-w-4xl grow flex-col items-center justify-start p-1 pt-12"
 >
   {#if roomTitle && loadedPair && rid}
     <div class="flex w-full flex-row gap-2 p-1 pb-1">
-      <Title bind:roomTitle {unlocked} {unpacking} {rid} {loadedPair}>
-        <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
-      </Title>
-
-      <CopyLink />
-      <span class="flex flex-col gap-2">
-        <WebhookModal {loadedPair} />
-        <Mute bind:soundEnabled bind:playSound />
-      </span>
+      <ListenerHeader
+        {unpack}
+        {loadedPair}
+        bind:playSound
+        bind:unpacking
+        bind:pollingInterval
+        isProfanityEnabled={data.profanityFilterEnabled}
+      />
     </div>
 
-    <ProfanityToggle pbKey={loadedPair?.pbKey} {rid} />
-
-    <div class="flex w-full flex-col gap-3 p-4">
+    <div class="flex w-full flex-col gap-3 p-4 pt-8">
       {#if unlocked}
         {#each [...decryptedMessages].reverse() as msg (msg)}
           <Message {msg} />
         {/each}
 
         {#if !decryptedMessages.length}
-          <span class="p-12"> No messages sent to your inbox yet </span>
+          <span
+            class="border-primary bg-secondary/5 flex flex-col items-center justify-center gap-4 border border-dashed p-12"
+          >
+            <FolderDashed class="size-18 md:size-32 " weight="duotone" />
+            <h3 class="text-md font-light md:text-xl">No messages sent to your inbox yet</h3>
+            <span class="text-primary/60 text-sm">
+              Copy and share your link to get new messages !
+            </span>
+          </span>
         {/if}
       {/if}
     </div>

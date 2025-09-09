@@ -53,10 +53,10 @@
     @apply break-all text-xs;
   }
   .keyDisplayBlur {
-    @apply break-all text-xs blur-sm transition-all duration-1000 hover:blur-none;
+    @apply break-all text-xs blur-xs transition-all duration-1000 hover:blur-none;
   }
 
   .keydisplayHeader {
-    @apply absolute -top-3 z-40 rounded-sm bg-dark-base px-1 text-dark-content dark:bg-dark-content dark:text-dark-base;
+    @apply absolute -top-3 z-40 rounded-xs bg-dark-base px-1 text-dark-content dark:bg-dark-content dark:text-dark-base;
   }
 </style>

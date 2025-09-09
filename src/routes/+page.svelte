@@ -4,18 +4,16 @@
   import { expoInOut } from 'svelte/easing';
 
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import { Button } from '$lib/components/ui/button';
 
+  import IdentificationCard from 'phosphor-svelte/lib/IdentificationCard';
   import Stats from './Stats.svelte';
-  import IdentitiesButton from './IdentitiesButton.svelte';
   import MessagesButton from './MessagesButton.svelte';
-  import PGPPowerUser from './PGPPowerUser.svelte';
 
   import type { IKeyPairs } from '$lib/types';
 
   let keyPairs: IKeyPairs[] | undefined;
   let loadedPair: IKeyPairs | undefined;
-
-  let powerUser: boolean = false;
 
   onMount(async () => {
     // These make sure that the creds are set internally
@@ -25,7 +23,7 @@
 </script>
 
 <div
-  class="container mx-auto flex max-h-fit min-h-screen max-w-2xl flex-grow flex-col items-center justify-center gap-8 p-8"
+  class="container mx-auto flex max-h-fit min-h-screen max-w-2xl grow flex-col items-center justify-center gap-8 p-8"
 >
   <span class="flex flex-col items-center justify-center gap-2">
     <h1
@@ -44,10 +42,13 @@
       class="flex flex-row items-center justify-center gap-4"
       transition:scale={{ easing: expoInOut, duration: 500, start: 0.99 }}
     >
-      <IdentitiesButton />
+      <Button href="/i" size="lg" class="text-md">
+        <IdentificationCard class="size-5" weight="duotone" />
+        Identities
+      </Button>
+
       <MessagesButton {loadedPair} />
     </div>
-    <PGPPowerUser {powerUser} {loadedPair} />
   {/if}
 
   <footer class="bg-base-100 text-primary fixed bottom-0 z-50">

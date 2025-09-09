@@ -34,8 +34,10 @@
   transition-colors duration-300
   "
     >
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
-        class=" flex flex-row items-center justify-center gap-2 rounded-sm border
+        class=" flex flex-row items-center justify-center gap-2 rounded-xs border
         border-light-400 px-2
         py-1
         transition-all dark:border-dark-600"

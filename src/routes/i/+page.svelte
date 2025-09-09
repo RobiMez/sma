@@ -6,9 +6,12 @@
   import { getAllFromLS, getLoadedPairFromLS, saveToLS } from '$lib/utils/localStorage';
 
   import { ResetPgpIdentity } from '$lib/utils/pgp';
-  import IdentityList from '$lib/_components/Identities/IdentityList.svelte';
+  import IdentityList from './IdentityList.svelte';
   import Spinner from 'phosphor-svelte/lib/Spinner';
   import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
+  import IdentityPill from './IdentityPill.svelte';
+  import { Button } from '$lib/components/ui/button';
+  import UserPlus from 'phosphor-svelte/lib/UserPlus';
 
   let keyPairs: IKeyPairs[] = $state([]);
   let loadedPair: IKeyPairs | undefined = $state(undefined);
@@ -20,12 +23,12 @@
 </script>
 
 <div
-  class="container mx-auto flex min-h-screen w-full max-w-4xl flex-grow flex-col items-center justify-start gap-4 p-2 pt-8"
+  class="container mx-auto flex min-h-screen w-full max-w-4xl grow flex-col items-center justify-start gap-4 p-2 pt-8"
 >
   <div
-    class="flex w-full flex-row items-center justify-between bg-light-200 px-2 pr-12 dark:bg-dark-800"
+    class="bg-light-200 dark:bg-dark-800 flex w-full flex-row items-center justify-between px-2 pr-12"
   >
-    <span class="rounded-sm p-1 font-extralight">
+    <span class="rounded-xs p-1 font-extralight">
       <a href="/" class="flex items-center justify-center">
         <CaretLeft weight="bold" size={32} />
       </a>
@@ -34,14 +37,14 @@
       Manage rooms & identities
     </h1>
     {#if loadedPair}
-      <span class="px-4">
-        {loadedPair?.uniqueString}
+      <span class="px-4 whitespace-nowrap">
+        <IdentityPill identity={loadedPair} />
       </span>
     {/if}
 
-    <span class=" rounded-sm p-1 font-extralight">
-      <button
-        class="button flex items-center justify-center gap-4 whitespace-nowrap rounded-sm p-2 text-sm"
+    <span class=" rounded-xs p-1 font-extralight">
+      <Button
+        class=" flex items-center justify-center gap-4 rounded-xs p-2 text-sm whitespace-nowrap"
         onclick={async () => {
           loading = true;
           const newPgp = await ResetPgpIdentity();
@@ -60,9 +63,11 @@
       >
         {#if loading}
           <Spinner class="animate-spin" />
+        {:else}
+          <UserPlus />
         {/if}
         New Identity
-      </button>
+      </Button>
     </span>
   </div>
 
@@ -70,12 +75,3 @@
     <IdentityList bind:loadedPair bind:keyPairs />
   </div>
 </div>
-
-<style lang="postcss">
-  .button {
-    @apply bg-dark-600 px-4 py-2 text-light-100 dark:bg-dark-content dark:text-dark-900;
-  }
-  .button:hover {
-    @apply bg-dark-800 dark:bg-dark-100;
-  }
-</style>

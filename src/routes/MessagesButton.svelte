@@ -1,54 +1,47 @@
 <script lang="ts">
   import type { IKeyPairs } from '$lib/types';
   import { generateConsistentIndices } from '$lib/utils/colors';
-  import Chat from 'phosphor-svelte/lib/Chat';
+  import { Button } from '$lib/components/ui/button';
+  import Mailbox from 'phosphor-svelte/lib/Mailbox';
+  import { fly, scale } from 'svelte/transition';
+  import { quintInOut } from 'svelte/easing';
 
   interface Props {
     loadedPair: IKeyPairs;
   }
 
   let { loadedPair }: Props = $props();
+  const color = $derived(generateConsistentIndices(loadedPair.uniqueString));
 </script>
 
 <div class="relative">
-  <a class="button" href="/li/{loadedPair?.uniqueString}">
-    <Chat size={24} />
-
+  <Button href="/li/{loadedPair?.uniqueString}" size="lg" class="text-md">
+    <Mailbox class="size-5" weight="duotone" />
     Your Messages
-  </a>
+  </Button>
+
   <span
-    class="absolute -bottom-2
-    right-12 flex flex-row
-    rounded-sm text-sm"
+    in:scale={{ start: 1.02, duration: 800, easing: quintInOut }}
+    class="
+        absolute right-12
+        -bottom-2
+        flex flex-row
+        rounded-xs text-sm"
   >
-    {#if loadedPair}
-      {@const color = generateConsistentIndices(loadedPair.uniqueString)}
-      <span
-        class=" absolute -left-2 -top-4 aspect-square
-    border border-light-300 p-1
-    px-2 text-sm dark:border-dark-500"
-        style="background: {color};"
-      >
-        &nbsp;
-      </span>
-      <span
-        class="border-black absolute -top-4 left-1
-    whitespace-nowrap border border-light-300 bg-dark-content
-    p-1 px-2 text-sm dark:border-dark-500 dark:bg-light-content"
-      >
-        {loadedPair.uniqueString}
-      </span>
-    {/if}
+    <span
+      class=" border-primary absolute -top-4
+        -left-2 aspect-square border
+        p-1 px-2 text-sm"
+      style="background: {color};"
+    >
+      &nbsp;
+    </span>
+    <span
+      class="border-primary bg-muted
+        absolute -top-4 left-1 border
+        border-black p-1 px-2 text-sm whitespace-nowrap"
+    >
+      {loadedPair.uniqueString}
+    </span>
   </span>
 </div>
-
-<style lang="postcss">
-  .button {
-    @apply flex items-center justify-center gap-3 whitespace-nowrap rounded-sm border p-5 transition-all;
-  }
-
-  .button:hover {
-    @apply bg-dark-700 dark:bg-light-base;
-    @apply text-light-base dark:text-light-content;
-  }
-</style>

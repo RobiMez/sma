@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100;200;300;400;500;600;700;800;900&display=swap')
+layer(base);
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --text-*: initial;
+  --text-xs: 0.56rem;
+  --text-sm: 0.75rem;
+  --text-base: 1rem;
+  --text-lg: 1.33rem;
+  --text-xl: 1.78rem;
+  --text-2xl: 2.37rem;
+  --text-3xl: 3.16rem;
+  --text-4xl: 4.21rem;
+  --text-5xl: 5.61rem;
+  --text-6xl: 7.48rem;
+  --text-7xl: 9.97rem;
+
+  --color-*: initial;
+  --color-dark-content: #edede9;
+  --color-dark-content-secondary: #f5ebe0;
+  --color-dark-base: #282d2d;
+
+  --color-dark-50: oklch(86.53% 0.00658 197.86);
+  --color-dark-100: oklch(82.734% 0.00774 197.677);
+  --color-dark-200: oklch(74.93% 0.01127 197.334);
+  --color-dark-300: oklch(66.926% 0.01495 197.083);
+  --color-dark-400: oklch(58.502% 0.01655 196.932);
+  --color-dark-500: oklch(49.381% 0.01357 196.95);
+  --color-dark-600: oklch(39.815% 0.01043 196.982);
+  --color-dark-700: oklch(29.225% 0.00706 197.034);
+  --color-dark-800: oklch(25.207% 0.00587 197.057);
+  --color-dark-900: oklch(21.894% 0.00457 197.126);
+  --color-dark-950: oklch(19.694% 0.00468 197.044);
+
+  --color-light-content: #272d2d;
+  --color-light-content-secondary: #5e503f;
+  --color-light-base: #edede9;
+
+  --color-light-50: oklch(97.558% 0.00254 107.115);
+  --color-light-100: oklch(94.499% 0.00522 106.819);
+  --color-light-200: oklch(87.799% 0.00945 100.101);
+  --color-light-300: oklch(80.1% 0.01785 106.882);
+  --color-light-400: oklch(71.232% 0.02407 101.539);
+  --color-light-500: oklch(64.807% 0.02771 97.319);
+  --color-light-600: oklch(60.052% 0.02456 89.876);
+  --color-light-700: oklch(52.843% 0.02067 89.451);
+  --color-light-800: oklch(46.462% 0.0165 88.773);
+  --color-light-900: oklch(40.359% 0.01117 78.151);
+  --color-light-950: oklch(14.434% 0.00218 106.792);
+
+  --font-*: initial;
+  --font-sans: Lexend, sans-serif;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+.loader {
+  width: 15px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  animation: l5 1s infinite linear alternate;
+}
+@keyframes l5 {
+  0% {
+    box-shadow:
+      20px 0 #000,
+      -20px 0 #0002;
+    background: #000;
+  }
+  33% {
+    box-shadow:
+      20px 0 #000,
+      -20px 0 #0002;
+    background: #0002;
+  }
+  66% {
+    box-shadow:
+      20px 0 #0002,
+      -20px 0 #000;
+    background: #0002;
+  }
+  100% {
+    box-shadow:
+      20px 0 #0002,
+      -20px 0 #000;
+    background: #000;
+  }
+}
+
+/* Light & dark mode auto styles  */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+small {
+  @apply text-light-content  transition-colors duration-200 dark:text-dark-content;
+}
+
+body {
+  @apply bg-light-base text-light-content transition-colors duration-200 
+    dark:bg-dark-base dark:text-dark-content;
+}
+
+a {
+  @apply text-light-content underline  decoration-light-content-secondary/30 decoration-2 dark:text-dark-content dark:decoration-dark-content-secondary/30;
+}
