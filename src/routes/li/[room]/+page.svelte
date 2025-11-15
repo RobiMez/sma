@@ -190,7 +190,7 @@
       />
     </div>
 
-    <div class="flex w-full flex-col gap-3 p-4 pt-8">
+    <div class="flex w-full flex-col  p-4 pt-8">
       {#if unlocked}
         {#each [...decryptedMessages].reverse() as msg (msg)}
           <Message {msg} />

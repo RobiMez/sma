@@ -52,6 +52,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "blurhash": "^2.0.5",
     "dotenv": "^16.6.1",
+    "modern-screenshot": "^4.6.6",
     "mongoose": "^8.17.2",
     "openpgp": "^5.11.3",
     "phosphor-svelte": "^2.0.1",
