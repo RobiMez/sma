@@ -5,6 +5,7 @@
   import BlurhashThumbnail from './BlurhashThumbnail.svelte';
   import { domToPng } from 'modern-screenshot';
   import FileArrowDown from 'phosphor-svelte/lib/FileArrowDown';
+  import Copy from 'phosphor-svelte/lib/Copy';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button';
   interface Props {
@@ -49,6 +50,36 @@
       link.remove();
     } catch (error) {
       console.error('Failed to download image using dom-to-png:', error);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    try {
+      if (!messageElement) {
+        console.error('No messageElement found');
+        return;
+      }
+
+      // Use domToPng to convert the element to an image
+      const dataUrl = await domToPng(messageElement, {
+        backgroundColor: 'var(--background)',
+        scale: 4
+      });
+
+      // Convert data URL to blob
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+
+      // Copy to clipboard using Clipboard API
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob
+        })
+      ]);
+
+      console.log('Image copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy image to clipboard:', error);
     }
   };
 
@@ -109,58 +140,69 @@
   <Dialog.Content>
     <Dialog.Header>
       <Dialog.Title>Download image</Dialog.Title>
-      <Dialog.Description class="pt-4">
-        <div
-          bind:this={messageElement}
-          class=" group -m-2 flex w-full flex-row justify-between px-4 py-6 pr-3 pb-2"
-          id="message"
-        >
+      <Dialog.Description class=" pt-4 ">
+        <div class="m-auto aspect-square border border-black flex justify-center items-center" bind:this={messageElement}>
           <div
-            class="border-primary bg-muted relative flex w-full flex-row justify-between border p-3"
+            class=" group m-auto flex w-full flex-row justify-between px-4 py-6 pr-3 pb-2"
+            id="message"
           >
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <!-- svelte-ignore a11y_click_events_have_key_events -->
-            <span class="absolute -top-1 -left-[5px] flex flex-row text-sm">
-              <span
-                class=" border-primary absolute -top-4
+            <div
+              class="border-primary bg-muted relative flex w-full flex-row justify-between border p-3"
+            >
+              <!-- svelte-ignore a11y_no_static_element_interactions -->
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <span class="absolute -top-1 -left-[5px] flex flex-row text-sm">
+                <span
+                  class=" border-primary absolute -top-4
   -left-2 aspect-square border
   p-1 px-2 text-sm"
-                style="background: {color};"
-              >
-                &nbsp;
+                  style="background: {color};"
+                >
+                  &nbsp;
+                </span>
+                <span
+                  class="border-primary bg-background absolute -top-4 left-1 border border-black p-1 px-2 text-sm whitespace-nowrap"
+                >
+                  {msg.r}
+                </span>
               </span>
-              <span
-                class="border-primary bg-background absolute -top-4 left-1 border border-black p-1 px-2 text-sm whitespace-nowrap"
-              >
-                {msg.r}
-              </span>
-            </span>
 
-            {#if msg.image && msg.image.id && msg.image.blurhash}
-              <span class="border-primary absolute -top-5 left-28 h-7 w-7 border text-sm">
-                <BlurhashThumbnail imageId={msg.image.id} />
-              </span>
-            {/if}
+              {#if msg.image && msg.image.id && msg.image.blurhash}
+                <span class="border-primary absolute -top-5 left-28 h-7 w-7 border text-sm">
+                  <BlurhashThumbnail imageId={msg.image.id} />
+                </span>
+              {/if}
 
-            <span class="w-full text-left">
-              {msg.msg}
-            </span>
-            <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
-              <span class="text-xs">{time}</span>
+              <span class="w-full text-left">
+                {msg.msg}
+              </span>
+              <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
+                <span class="text-xs">{time}</span>
+              </div>
             </div>
           </div>
         </div>
       </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer>
-      <Button
-        class="aspect-square"
-        onclick={() => {
-          downloadImage();
-        }}
-      >
-        <FileArrowDown size={20} />
-      </Button>
+      <div class="flex gap-2">
+        <Button
+          class="aspect-square"
+          onclick={() => {
+            copyToClipboard();
+          }}
+        >
+          <Copy size={20} />
+        </Button>
+        <Button
+          class="aspect-square"
+          onclick={() => {
+            downloadImage();
+          }}
+        >
+          <FileArrowDown size={20} />
+        </Button>
+      </div>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
