@@ -108,7 +108,7 @@
 </script>
 
 <div class=" group -m-2 flex w-full flex-row justify-between px-4 py-6 pr-3 pb-2" id="message">
-  <div class="border-primary bg-muted relative flex w-full flex-row justify-between border p-3">
+  <div class="border-border bg-muted relative flex w-full flex-row justify-between border p-3">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <span class="absolute -top-1 -left-[5px] flex flex-row text-sm">
