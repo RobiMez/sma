@@ -6,6 +6,8 @@
   import { domToPng } from 'modern-screenshot';
   import FileArrowDown from 'phosphor-svelte/lib/FileArrowDown';
   import Copy from 'phosphor-svelte/lib/Copy';
+  import Check from 'phosphor-svelte/lib/Check';
+  import XCircle from 'phosphor-svelte/lib/XCircle';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button';
   interface Props {
@@ -17,6 +19,7 @@
 
   let time = $state('');
   let dialogOpen = $state(false);
+  let copyState = $state<'idle' | 'copied' | 'error'>('idle');
 
   // Function to refresh the time
   const refresh = () => {
@@ -57,6 +60,10 @@
     try {
       if (!messageElement) {
         console.error('No messageElement found');
+        copyState = 'error';
+        setTimeout(() => {
+          copyState = 'idle';
+        }, 2000);
         return;
       }
 
@@ -77,9 +84,16 @@
         })
       ]);
 
-      console.log('Image copied to clipboard!');
+      copyState = 'copied';
+      setTimeout(() => {
+        copyState = 'idle';
+      }, 2000);
     } catch (error) {
       console.error('Failed to copy image to clipboard:', error);
+      copyState = 'error';
+      setTimeout(() => {
+        copyState = 'idle';
+      }, 2000);
     }
   };
 
@@ -191,8 +205,15 @@
           onclick={() => {
             copyToClipboard();
           }}
+          disabled={copyState !== 'idle'}
         >
-          <Copy size={20} />
+          {#if copyState === 'copied'}
+            <Check size={20} />
+          {:else if copyState === 'error'}
+            <XCircle size={20} />
+          {:else}
+            <Copy size={20} />
+          {/if}
         </Button>
         <Button
           class="aspect-square"
