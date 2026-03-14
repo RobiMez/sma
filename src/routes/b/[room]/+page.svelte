@@ -240,7 +240,7 @@
         class=" border-light-900 dark:border-dark-600
 				relative h-fit border border-black p-7 transition-all
 				{!message || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
-        disabled={!message || sending || checkingProfanity}
+        disabled={!message || message.trim().length === 0 || sending || checkingProfanity}
         onclick={signMessage}
       >
         {#if checkingProfanity}
