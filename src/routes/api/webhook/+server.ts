@@ -6,8 +6,11 @@ export async function PATCH({ request }) {
   const { rid, webhookUrl } = body;
   console.log('Updating webhook with:', { rid, webhookUrl });
 
-  if (!rid || !webhookUrl) {
-    return json({ status: 400, body: 'Missing required fields' });
+  if (!rid) {
+    return json({ status: 400, body: 'Missing required field: rid' });
+  }
+  if (typeof webhookUrl !== 'string') {
+    return json({ status: 400, body: 'Missing required field: webhookUrl' });
   }
 
   try {
@@ -18,7 +21,7 @@ export async function PATCH({ request }) {
       return json({ status: 404, body: 'Listener not found' });
     }
 
-    // Update the webhook URL
+    // Update the webhook URL (empty string clears it)
     existingListener.webhookUrl = webhookUrl;
     await existingListener.save();
 

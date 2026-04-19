@@ -44,7 +44,7 @@
 
     <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
     <ProfanityToggle {rid} bind:profanityEnabled />
-    <WebhookSettings bind:webhookUrl />
+    <WebhookSettings {rid} bind:webhookUrl />
 
     <Dialog.Footer>
       <div class="flex justify-end gap-2">

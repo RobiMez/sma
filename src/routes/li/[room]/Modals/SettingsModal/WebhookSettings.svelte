@@ -1,6 +1,4 @@
 <script lang="ts">
-  import type { IKeyPairs } from '$lib/types';
-
   import { onMount } from 'svelte';
   import { scale } from 'svelte/transition';
 
@@ -11,11 +9,11 @@
   import Input from '$lib/components/ui/input/input.svelte';
 
   interface Props {
-    loadedPair?: IKeyPairs | undefined;
+    rid: string;
     webhookUrl?: string;
   }
 
-  let { loadedPair = undefined, webhookUrl = $bindable('') }: Props = $props();
+  let { rid, webhookUrl = $bindable('') }: Props = $props();
   let validationError = $state('');
   let saved = $state(false);
 
@@ -43,7 +41,7 @@
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        rid: loadedPair?.uniqueString,
+        rid,
         webhookUrl
       })
     });
@@ -60,7 +58,7 @@
   }
 
   onMount(async () => {
-    const res = await fetch(`/api/webhook?rid=${loadedPair?.uniqueString}`);
+    const res = await fetch(`/api/webhook?rid=${encodeURIComponent(rid)}`);
     const data = await res.json();
     if (data.body?.webhookUrl) {
       webhookUrl = data.body.webhookUrl;
