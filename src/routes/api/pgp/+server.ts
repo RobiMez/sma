@@ -10,17 +10,22 @@ interface Listener {
 
 async function sendWebhookNotification(webhookUrl: string, message: any) {
   try {
-    await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         content: message.message,
-        timestamp: message.createdAt,
+        timestamp: message.timestamp,
         author: message.author
       })
     });
+    if (!res.ok) {
+      console.error(
+        `Webhook notification failed: ${res.status} ${res.statusText} from ${webhookUrl}`
+      );
+    }
   } catch (error) {
     console.error('Webhook notification failed:', error);
   }
