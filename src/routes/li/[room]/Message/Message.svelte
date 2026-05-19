@@ -17,17 +17,24 @@
   let { msg }: Props = $props();
   const color = generateConsistentIndices(msg.r);
 
-  let time = $state('');
+  let showExactTime = $state(false);
+  let now = $state(new Date());
   let dialogOpen = $state(false);
   let copyState = $state<'idle' | 'copied' | 'error'>('idle');
 
-  // Function to refresh the time
-  const refresh = () => {
-    const now = new Date();
-    const diff = now.getTime() - new Date(msg.timestamp ?? 0).getTime();
-    time = prettyMilliseconds(diff, { compact: true });
-  };
-  const refreshInterval = setInterval(refresh, 10000);
+  const timestamp = $derived(new Date(msg.timestamp ?? 0));
+  const time = $derived.by(() => {
+    const diff = Math.max(0, now.getTime() - timestamp.getTime());
+    const relative = prettyMilliseconds(diff, { compact: true });
+    const exact = timestamp.toLocaleTimeString(undefined, {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    if (showExactTime) {
+      return `${exact} (${relative})`;
+    }
+    return relative;
+  });
   let messageElement: HTMLDivElement | undefined = $state(undefined);
 
   const downloadImage = async () => {
@@ -98,12 +105,11 @@
   };
 
   onMount(() => {
-    const timestamp = new Date(msg.timestamp ?? 0);
-    const now = new Date();
-    const diff = now.getTime() - timestamp.getTime();
-    time = prettyMilliseconds(diff, { compact: true });
+    const interval = setInterval(() => {
+      now = new Date();
+    }, 10000);
 
-    return () => clearInterval(refreshInterval);
+    return () => clearInterval(interval);
   });
 </script>
 
@@ -111,7 +117,7 @@
   <div class="border-border bg-muted relative flex w-full flex-row justify-between border p-3">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <span class="absolute -top-1 -left-[5px] flex flex-row text-sm">
+    <span class="absolute -top-1 left-[-5px] flex flex-row text-sm">
       <span
         class=" border-primary absolute -top-4
   -left-2 aspect-square border
@@ -137,7 +143,13 @@
       {msg.msg}
     </span>
     <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
-      <span class="text-xs">{time}</span>
+      <button
+        class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
+        onclick={() => (showExactTime = !showExactTime)}
+        title={showExactTime ? "Click to see relative time" : "Click to see exact time"}
+      >
+        {time}
+      </button>
     </div>
     <button
       class="border-primary bg-background absolute -top-5 right-4 flex h-7 w-7 items-center justify-center border text-sm opacity-0 transition-all group-hover:opacity-100"
@@ -165,7 +177,7 @@
             >
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <span class="absolute -top-1 -left-[5px] flex flex-row text-sm">
+              <span class="absolute -top-1 left-[-5px] flex flex-row text-sm">
                 <span
                   class=" border-primary absolute -top-4
   -left-2 aspect-square border
@@ -191,7 +203,13 @@
                 {msg.msg}
               </span>
               <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
-                <span class="text-xs">{time}</span>
+                <button
+                  class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
+                  onclick={() => (showExactTime = !showExactTime)}
+                  title={showExactTime ? "Click to show relative time" : "Click to show exact time"}
+                >
+                  {time}
+                </button>
               </div>
             </div>
           </div>
