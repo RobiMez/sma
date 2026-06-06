@@ -21,8 +21,8 @@
 
   <span
     in:scale={{ start: 1.02, duration: 800, easing: quintInOut }}
-    class="absolute -bottom-6 right-12"
+    class="absolute right-12 -bottom-2"
   >
-    <IdentityChip rid={loadedPair.uniqueString} />
+    <IdentityChip rid={loadedPair.uniqueString} variant="tab" />
   </span>
 </div>
