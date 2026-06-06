@@ -7,6 +7,7 @@
   import { onMount } from 'svelte';
 
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
+  import Spinner from 'phosphor-svelte/lib/Spinner';
   import ImageThumbnail from '../../li/[room]/Message/ImageThumbnail.svelte';
   import Textarea from '$lib/components/ui/textarea/textarea.svelte';
 
@@ -14,6 +15,7 @@
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
   import { X } from 'phosphor-svelte';
   import { Button } from '$lib/components/ui/button';
+  import IdentityChip from '$lib/components/IdentityChip.svelte';
 
   let api_pbKey: string;
   let disableSend = false;
@@ -27,13 +29,14 @@
   let keyPairs: IKeyPairs[] | undefined;
   let loadedPair: IKeyPairs | null = null;
 
-  let params = page.params.room;
+  let params = page.params.room ?? '';
 
   let sending = $state(false);
   let checkingProfanity = $state(false);
 
   let message = $state('');
   let roomTitle = $state('');
+  let loadingRoom = $state(true);
   let imageBase64: string[] = $state([]);
   let profanityCheckResponse: IVectorResponse | undefined = $state();
   let profaneBlock = $state(false);
@@ -174,22 +177,26 @@
     keyPairs = await getAllFromLS();
     loadedPair = (await getLoadedPairFromLS()) ?? null;
 
-    const responseTitle = await fetch(
-      `/api/title?rid=${encodeURIComponent(loadedPair?.uniqueString as string)}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
+    try {
+      const responseTitle = await fetch(
+        `/api/title?rid=${encodeURIComponent(loadedPair?.uniqueString as string)}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
         }
-      }
-    );
-    const respTitle = await responseTitle.json();
-    console.log('resp', respTitle);
+      );
+      const respTitle = await responseTitle.json();
+      console.log('resp', respTitle);
 
-    if (respTitle.error) {
-      console.log(respTitle.message);
-    } else {
-      roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
+      if (respTitle.error) {
+        console.log(respTitle.message);
+      } else {
+        roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
+      }
+    } finally {
+      loadingRoom = false;
     }
 
     if (params) {
@@ -206,17 +213,22 @@
       class="md:text-md relative flex w-full items-center justify-baseline p-4 text-left text-sm font-semibold lg:text-xl"
     >
       Send to
-      <span class=" flex items-baseline justify-center gap-2 rounded-xs p-1 font-light">
-        {#if roomTitle}
+      <span class=" flex items-center justify-center gap-2 rounded-xs p-1 font-light">
+        {#if loadingRoom}
+          <span
+            class="text-muted-foreground border-muted-foreground/40 text-md inline-flex animate-pulse items-center gap-1.5 border border-dashed px-2 tracking-wider uppercase italic md:text-xl"
+            aria-live="polite"
+          >
+            <Spinner class="size-4 animate-spin md:size-5" weight="duotone" />
+            loading
+          </span>
+        {:else if roomTitle}
           <h2 class="text-md md:text-xl">
             [ {roomTitle} ]
           </h2>
-          <span class="text-sm">
-            {params}
-          </span>
-        {:else}
-          {params}
+          <span class="text-muted-foreground text-md font-light italic md:text-xl">as</span>
         {/if}
+        <IdentityChip rid={params} classString="translate-y-[3px] ml-[3px]" />
       </span>
     </div>
   </div>
