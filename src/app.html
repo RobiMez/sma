@@ -4,6 +4,17 @@
     <meta charset="utf-8" />
     <link rel="icon" href="%sveltekit.assets%/favicon.png" />
     <meta name="viewport" content="width=device-width" />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.theme;
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (stored === 'dark' || (!stored && prefersDark)) {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {}
+      })();
+    </script>
     %sveltekit.head%
 
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />

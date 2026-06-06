@@ -54,9 +54,9 @@
         }}
       >
         {#if themeDark}
-          <MoonStars size={18} weight="duotone" />
-        {:else}
           <SunHorizon size={18} weight="duotone" />
+        {:else}
+          <MoonStars size={18} weight="duotone" />
         {/if}
         <span class="hidden lg:flex">
           {systemPeek ? 'System ' : themeDark ? 'Lights off ' : 'Lights on'}
