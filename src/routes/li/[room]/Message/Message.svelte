@@ -139,7 +139,7 @@
       </span>
     {/if}
 
-    <span class="w-full">
+    <span class="w-full min-w-0 break-words">
       {msg.msg}
     </span>
     <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
@@ -199,7 +199,7 @@
                 </span>
               {/if}
 
-              <span class="w-full text-left">
+              <span class="w-full min-w-0 text-left break-words">
                 {msg.msg}
               </span>
               <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
