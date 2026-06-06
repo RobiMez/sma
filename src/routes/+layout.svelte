@@ -59,7 +59,7 @@
           <MoonStars size={18} weight="duotone" />
         {/if}
         <span class="hidden lg:flex">
-          {systemPeek ? 'System ' : themeDark ? 'Lights off ' : 'Lights on'}
+          {systemPeek ? 'System ' : themeDark ? 'Lights on' : 'Lights off '}
         </span>
 
         <button
