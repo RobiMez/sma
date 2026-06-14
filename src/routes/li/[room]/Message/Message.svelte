@@ -161,7 +161,7 @@
       </button>
     </div>
     <span
-      class="absolute -top-5 right-4 flex flex-row gap-1 opacity-0 transition-all group-hover:opacity-100"
+      class="absolute -top-5 right-4 flex flex-row gap-1 transition-all lg:opacity-0 lg:group-hover:opacity-100"
     >
       <button
         class="border-primary flex h-7 w-7 items-center justify-center border text-sm transition-all
