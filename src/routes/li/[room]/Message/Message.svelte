@@ -4,12 +4,14 @@
   import BlurhashThumbnail from './BlurhashThumbnail.svelte';
   import { domToPng } from 'modern-screenshot';
   import FileArrowDown from 'phosphor-svelte/lib/FileArrowDown';
+  import Eraser from 'phosphor-svelte/lib/Eraser';
   import Copy from 'phosphor-svelte/lib/Copy';
   import Check from 'phosphor-svelte/lib/Check';
   import XCircle from 'phosphor-svelte/lib/XCircle';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button';
   import IdentityChip from '$lib/components/IdentityChip.svelte';
+  import MessageText from './MessageText.svelte';
   interface Props {
     msg: any;
   }
@@ -20,6 +22,22 @@
   let now = $state(new Date());
   let dialogOpen = $state(false);
   let copyState = $state<'idle' | 'copied' | 'error'>('idle');
+  let redactMode = $state(false);
+  let redactedIndices = $state(new Set<number>());
+
+  const toggleRedactMode = () => {
+    redactMode = !redactMode;
+  };
+
+  const toggleWordRedaction = (index: number) => {
+    const next = new Set(redactedIndices);
+    if (next.has(index)) {
+      next.delete(index);
+    } else {
+      next.add(index);
+    }
+    redactedIndices = next;
+  };
 
   const timestamp = $derived(new Date(msg.timestamp ?? 0));
   const time = $derived.by(() => {
@@ -126,9 +144,13 @@
       </span>
     {/if}
 
-    <span class="w-full min-w-0 break-words">
-      {msg.msg}
-    </span>
+    <MessageText
+      text={msg.msg}
+      {redactMode}
+      showHighlights={redactMode}
+      {redactedIndices}
+      onWordClick={toggleWordRedaction}
+    />
     <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
       <button
         class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
@@ -138,14 +160,27 @@
         {time}
       </button>
     </div>
-    <button
-      class="border-primary bg-background absolute -top-5 right-4 flex h-7 w-7 items-center justify-center border text-sm opacity-0 transition-all group-hover:opacity-100"
-      onclick={() => {
-        dialogOpen = !dialogOpen;
-      }}
+    <span
+      class="absolute -top-5 right-4 flex flex-row gap-1 opacity-0 transition-all group-hover:opacity-100"
     >
-      <FileArrowDown size={20} />
-    </button>
+      <button
+        class="border-primary flex h-7 w-7 items-center justify-center border text-sm transition-all
+          {redactMode ? 'bg-primary text-primary-foreground' : 'bg-background'}"
+        onclick={toggleRedactMode}
+        title={redactMode ? 'Exit redact mode' : 'Redact words'}
+      >
+        <Eraser size={20} />
+      </button>
+      <button
+        class="border-primary bg-background flex h-7 w-7 items-center justify-center border text-sm"
+        onclick={() => {
+          dialogOpen = !dialogOpen;
+        }}
+        title="Save image"
+      >
+        <FileArrowDown size={20} />
+      </button>
+    </span>
   </div>
 </div>
 
@@ -177,9 +212,7 @@
             </span>
           {/if}
 
-          <span class="w-full min-w-0 text-left break-words">
-            {msg.msg}
-          </span>
+          <MessageText text={msg.msg} {redactedIndices} />
           <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
             <button
               class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
