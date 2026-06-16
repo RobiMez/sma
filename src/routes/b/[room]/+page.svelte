@@ -28,7 +28,7 @@
   }
 
   let keyPairs: IKeyPairs[] | undefined;
-  let loadedPair: IKeyPairs | null = null;
+  let loadedPair: IKeyPairs | null = $state(null);
 
   let params = page.params.room ?? '';
 
