@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
 
   import * as openpgp from 'openpgp';
+  import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
 
   import Message from './Message/Message.svelte';
@@ -28,7 +29,26 @@
 
   let encryptedMessages: any[] = [];
   let decryptedMessages: any[] = $state([]);
-  let passphrase = 'super long and hard to guess secret';
+  let passphrase = PUBLIC_PGP_PASSPHRASE;
+
+  // Cache author rid -> armored public key so we don't refetch on every poll.
+  const authorKeyCache = new Map<string, string | null>();
+
+  const fetchAuthorPublicKey = async (authorRid: string): Promise<string | null> => {
+    if (!authorRid) return null;
+    if (authorKeyCache.has(authorRid)) return authorKeyCache.get(authorRid) ?? null;
+    try {
+      const res = await fetch(`/api/pgp?r=${encodeURIComponent(authorRid)}&lim=0`);
+      const json = await res.json();
+      const pbKey = json?.body?.pbKey ?? null;
+      authorKeyCache.set(authorRid, pbKey);
+      return pbKey;
+    } catch (e) {
+      console.error('Failed to fetch author public key', authorRid, e);
+      authorKeyCache.set(authorRid, null);
+      return null;
+    }
+  };
 
   let previousMessageCount = 0;
   let playSound = $state(false);
@@ -101,12 +121,45 @@
           });
 
           try {
-            // Decrypt the message with the private key
-            const { data: decrypted } = await openpgp.decrypt({
+            // Look up the claimed author's public key so we can verify the
+            // PGP signature. The `author` field on the server is attacker-
+            // controlled; the signature is what actually proves identity.
+            const claimedAuthorRid = encryptedMessage.author;
+            const authorPbKeyArmored = await fetchAuthorPublicKey(claimedAuthorRid);
+            if (!authorPbKeyArmored) {
+              console.warn(
+                'Skipping message: no public key on record for claimed author',
+                claimedAuthorRid
+              );
+              continue;
+            }
+            const authorPublicKey = await openpgp.readKey({ armoredKey: authorPbKeyArmored });
+
+            // Decrypt and verify in one pass. If `signatures` ends up empty or
+            // `verified` rejects, the message was unsigned or signed by a key
+            // that doesn't match the claimed author — treat both as a spoof.
+            const { data: decrypted, signatures } = await openpgp.decrypt({
               message: readMsg,
               decryptionKeys: privateKey,
+              verificationKeys: authorPublicKey,
               config: { allowInsecureDecryptionWithSigningKeys: true }
             });
+
+            if (!signatures || signatures.length === 0) {
+              console.warn('Skipping unsigned message from claimed author', claimedAuthorRid);
+              continue;
+            }
+            try {
+              await signatures[0].verified;
+            } catch (verifyError) {
+              console.warn(
+                'Skipping message: signature does not match claimed author',
+                claimedAuthorRid,
+                verifyError
+              );
+              continue;
+            }
+
             // Create an object with the decrypted message and its 'r' property
             const msgObj = {
               id: encryptedMessage._id,
@@ -116,7 +169,7 @@
                 blurhash: encryptedMessage.image?.blurhash,
                 nsfw: encryptedMessage.image?.nsfw
               },
-              r: encryptedMessage.author,
+              r: claimedAuthorRid,
               timestamp: encryptedMessage.timestamp
             };
 

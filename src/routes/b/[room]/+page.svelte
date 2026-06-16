@@ -5,6 +5,7 @@
 
   import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
 
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
   import Spinner from 'phosphor-svelte/lib/Spinner';
@@ -61,7 +62,7 @@
     if (!loadedPair) return;
     sending = true;
 
-    const passphrase = 'super long and hard to guess secret';
+    const passphrase = PUBLIC_PGP_PASSPHRASE;
     const uniqueString = loadedPair.uniqueString;
     const publicKey = await openpgp.readKey({ armoredKey: api_pbKey });
 

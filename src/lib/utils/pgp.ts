@@ -1,4 +1,5 @@
 import * as openpgp from 'openpgp';
+import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
 import { createShortHash } from './hashing';
 
 export const ResetPgpIdentity = async () => {
@@ -14,7 +15,7 @@ export const ResetPgpIdentity = async () => {
     type: 'ecc',
     curve: 'curve25519',
     userIDs: [{ name: 'Anon', email: 'Sma@robi.work' }],
-    passphrase: 'super long and hard to guess secret',
+    passphrase: PUBLIC_PGP_PASSPHRASE,
     format: 'armored'
   });
 
