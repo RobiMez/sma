@@ -180,7 +180,7 @@
 
     try {
       const responseTitle = await fetch(
-        `/api/title?rid=${encodeURIComponent(loadedPair?.uniqueString as string)}`,
+        `/api/title?rid=${encodeURIComponent(params)}`,
         {
           method: 'GET',
           headers: {
@@ -229,7 +229,9 @@
           </h2>
           <span class="text-muted-foreground text-md font-light italic md:text-xl">as</span>
         {/if}
-        <IdentityChip rid={params} classString="translate-y-[3px] ml-[3px]" />
+        {#if loadedPair}
+          <IdentityChip rid={loadedPair.uniqueString} classString="translate-y-[3px] ml-[3px]" />
+        {/if}
       </span>
     </div>
   </div>
