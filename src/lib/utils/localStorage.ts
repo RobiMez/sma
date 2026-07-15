@@ -1,5 +1,6 @@
 import type { IKeyPairs } from '$lib/types';
 import { ResetPgpIdentity } from './pgp';
+import { apiUrl } from '$lib/api';
 
 /**
  * Clears all items from localStorage except for a few critical items:
@@ -95,7 +96,7 @@ export const getAllFromLS = async () => {
 };
 
 export const postPgpKey = async (pbKey: string, rid: string) => {
-  const response = await fetch('/api/pgp', {
+  const response = await fetch(apiUrl('/api/pgp'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

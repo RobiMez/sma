@@ -1,12 +1,8 @@
 import { json } from '@sveltejs/kit';
 import Listener from '../../../models/listener.schema';
 
-// Public aggregate counts — readable from any origin (e.g. portfolio badges).
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Cache-Control': 'public, max-age=60'
-};
-
+// Public aggregate counts. CORS + OPTIONS preflight are handled centrally in
+// hooks.server.ts for every /api route, so this only sets caching.
 export async function GET({ url }) {
   const lim = parseInt(url.searchParams.get('lim') ?? '100');
 
@@ -29,16 +25,6 @@ export async function GET({ url }) {
         identities: identities.length
       }
     },
-    { headers: CORS_HEADERS }
+    { headers: { 'Cache-Control': 'public, max-age=60' } }
   );
-}
-
-export function OPTIONS() {
-  return new Response(null, {
-    headers: {
-      ...CORS_HEADERS,
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Max-Age': '600'
-    }
-  });
 }

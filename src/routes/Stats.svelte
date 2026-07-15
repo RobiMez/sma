@@ -3,6 +3,7 @@
   import { tweened } from 'svelte/motion';
   import { fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
+  import { apiUrl } from '$lib/api';
 
   interface Stats {
     activeUsers: number;
@@ -19,7 +20,7 @@
   let stats: Stats = $state({ activeUsers: 0, identities: 0, totalMessages: 0 });
 
   onMount(async () => {
-    const response = await fetch(`/api/stats`, {
+    const response = await fetch(apiUrl('/api/stats'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

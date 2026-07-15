@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import X from 'phosphor-svelte/lib/X';
   import * as Dialog from '$lib/components/ui/dialog';
+  import { apiUrl } from '$lib/api';
 
   interface Props {
     imageId?: string;
@@ -13,7 +14,7 @@
   const fetchFullImage = async (open: boolean) => {
     if (open) {
       // Fetch the image from the db
-      const response = await fetch(`/api/images?id=${imageId}`, {
+      const response = await fetch(apiUrl(`/api/images?id=${imageId}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'

@@ -4,6 +4,7 @@
   import * as openpgp from 'openpgp';
   import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import { apiUrl, wsUrl } from '$lib/api';
 
   import Message from './Message/Message.svelte';
 
@@ -58,7 +59,7 @@
     if (!authorRid) return null;
     if (authorKeyCache.has(authorRid)) return authorKeyCache.get(authorRid) ?? null;
     try {
-      const res = await fetch(`/api/pgp?r=${encodeURIComponent(authorRid)}&lim=0`);
+      const res = await fetch(apiUrl(`/api/pgp?r=${encodeURIComponent(authorRid)}&lim=0`));
       const json = await res.json();
       const pbKey = json?.body?.pbKey ?? null;
       authorKeyCache.set(authorRid, pbKey);
@@ -103,7 +104,7 @@
     unpacking = true;
     try {
       const since = newestSeen ? `&since=${encodeURIComponent(newestSeen)}` : '';
-      const response = await fetch(`/api/pgp?r=${rid}${since}`, {
+      const response = await fetch(apiUrl(`/api/pgp?r=${rid}${since}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
@@ -228,9 +229,8 @@
 
   const connectWs = () => {
     if (destroyed || typeof window === 'undefined') return;
-    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
     try {
-      ws = new WebSocket(`${scheme}://${location.host}/ws?rid=${encodeURIComponent(rid)}`);
+      ws = new WebSocket(wsUrl(`/ws?rid=${encodeURIComponent(rid)}`));
     } catch (e) {
       console.warn('WS connect failed, polling only', e);
       return;

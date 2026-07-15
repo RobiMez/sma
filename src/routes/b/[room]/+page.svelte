@@ -14,6 +14,7 @@
 
   import { breakString } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import { apiUrl } from '$lib/api';
   import { X } from 'phosphor-svelte';
   import { Button } from '$lib/components/ui/button';
   import IdentityChip from '$lib/components/IdentityChip.svelte';
@@ -73,7 +74,7 @@
 
     let profanityAllowed = false;
 
-    const respn = await fetch(`/api/profanity?rid=${encodeURIComponent(params)}`);
+    const respn = await fetch(apiUrl(`/api/profanity?rid=${encodeURIComponent(params)}`));
 
     const re = await respn.json();
 
@@ -104,7 +105,7 @@
       signingKeys: privateKey
     });
 
-    const response = await fetch('/api/pgp', {
+    const response = await fetch(apiUrl('/api/pgp'), {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json'
@@ -138,7 +139,7 @@
     disableSend = true;
     // lim=0 → just the listener record (pbKey); without it this downloaded
     // the recipient's entire encrypted mailbox to read one key.
-    const response = await fetch(`/api/pgp?r=${params}&lim=0`);
+    const response = await fetch(apiUrl(`/api/pgp?r=${params}&lim=0`));
     const data = await response.json();
     api_pbKey = data.body.pbKey;
     disableSend = false;
@@ -173,7 +174,7 @@
     loadedPair = (await getLoadedPairFromLS()) ?? null;
 
     try {
-      const responseTitle = await fetch(`/api/title?rid=${encodeURIComponent(params)}`, {
+      const responseTitle = await fetch(apiUrl(`/api/title?rid=${encodeURIComponent(params)}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'

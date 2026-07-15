@@ -1,6 +1,7 @@
 import * as openpgp from 'openpgp';
 import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
 import { createShortHash } from './hashing';
+import { apiUrl } from '$lib/api';
 
 export const ResetPgpIdentity = async () => {
   const data = {
@@ -25,7 +26,7 @@ export const ResetPgpIdentity = async () => {
   data.uniqueString = await createShortHash(privateKey + publicKey, 12);
 
   // Save the data to the server
-  const response = await fetch('/api/pgp', {
+  const response = await fetch(apiUrl('/api/pgp'), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

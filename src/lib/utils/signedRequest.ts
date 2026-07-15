@@ -1,6 +1,7 @@
 import * as openpgp from 'openpgp';
 import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
 import { getFromLS } from './localStorage';
+import { apiUrl } from '$lib/api';
 
 // Owner-only API mutations are authorized by a PGP signature, not by knowing
 // the rid — the rid is public, it's in the share link. The signed payload
@@ -36,7 +37,7 @@ export const signedFetch = async (
   params: Record<string, unknown> = {}
 ) => {
   const body = await signAction(rid, action, params);
-  const response = await fetch(url, {
+  const response = await fetch(apiUrl(url), {
     method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)

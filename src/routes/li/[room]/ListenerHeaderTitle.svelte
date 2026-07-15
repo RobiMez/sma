@@ -11,6 +11,7 @@
   import { ArrowSquareUpLeft, ClockCountdown, House, WebhooksLogo } from 'phosphor-svelte';
   import { goto } from '$app/navigation';
   import { signedFetch } from '$lib/utils/signedRequest';
+  import { apiUrl } from '$lib/api';
 
   interface Props {
     roomTitle: string;
@@ -41,7 +42,7 @@
   };
 
   async function fetchRoomTitle() {
-    const responseTitle = await fetch(`/api/title?rid=${rid}`, {
+    const responseTitle = await fetch(apiUrl(`/api/title?rid=${rid}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

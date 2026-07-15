@@ -1,11 +1,37 @@
 import { dbConnect } from '$lib/db';
 import { json, type Handle } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import { RateLimiter } from '$lib/server/rateLimit';
 
 dbConnect();
 
 const limiter = new RateLimiter();
 const MINUTE = 60_000;
+
+// The Vercel frontend calls this box cross-origin, so /api needs CORS.
+// CORS_ORIGINS is a comma-separated allowlist (e.g. the Vercel domain[s]).
+// Empty or "*" reflects any Origin — acceptable here because the API is either
+// public or signature-authenticated, never cookie/origin-trusted.
+const CORS_ALLOWLIST = (env.CORS_ORIGINS ?? '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function allowedOrigin(origin: string | null): string | null {
+  if (!origin) return null;
+  if (CORS_ALLOWLIST.length === 0 || CORS_ALLOWLIST.includes('*')) return origin;
+  return CORS_ALLOWLIST.includes(origin) ? origin : null;
+}
+
+function corsHeaders(origin: string): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Max-Age': '86400',
+    Vary: 'Origin'
+  };
+}
 
 interface Rule {
   bucket: string;
@@ -44,6 +70,14 @@ function ruleFor(method: string, pathname: string): Rule | null {
 }
 
 export const handle: Handle = async ({ event, resolve }) => {
+  const isApi = event.url.pathname.startsWith('/api/');
+  const cors = isApi ? allowedOrigin(event.request.headers.get('origin')) : null;
+
+  // CORS preflight — answer before rate limiting or route logic.
+  if (isApi && event.request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors ? corsHeaders(cors) : {} });
+  }
+
   const rule = ruleFor(event.request.method, event.url.pathname);
   if (rule) {
     let ip = 'unknown';
@@ -60,10 +94,22 @@ export const handle: Handle = async ({ event, resolve }) => {
       // { status, body } envelope for callers that read the JSON.
       return json(
         { status: 429, body: 'Too many requests, please slow down.' },
-        { status: 429, headers: { 'Retry-After': String(result.retryAfterSec) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(result.retryAfterSec),
+            ...(cors ? corsHeaders(cors) : {})
+          }
+        }
       );
     }
   }
 
-  return await resolve(event);
+  const response = await resolve(event);
+  if (cors) {
+    for (const [key, value] of Object.entries(corsHeaders(cors))) {
+      response.headers.set(key, value);
+    }
+  }
+  return response;
 };
