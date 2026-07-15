@@ -1,0 +1,34 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+# Never let two deploys overlap; a newer push supersedes an in-flight one.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd /opt/sma
+            git fetch --all --prune
+            git reset --hard origin/master
+            pnpm install --frozen-lockfile
+            pnpm build
+            sudo systemctl restart sma
+            # Give it a moment, then fail the deploy if the service didn't come up.
+            sleep 3
+            systemctl is-active --quiet sma && echo "sma is active" || (journalctl -u sma -n 40 --no-pager; exit 1)

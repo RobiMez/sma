@@ -1,0 +1,21 @@
+[Unit]
+Description=SMA (Send Messages Anonymously)
+After=network.target mongod.service
+Wants=mongod.service
+
+[Service]
+Type=simple
+User=deploy
+WorkingDirectory=/opt/sma
+EnvironmentFile=/opt/sma/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+# Basic hardening
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
