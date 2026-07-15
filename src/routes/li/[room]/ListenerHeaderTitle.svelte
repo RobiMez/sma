@@ -8,7 +8,13 @@
   import Input from '$lib/components/ui/input/input.svelte';
   import { fly, slide } from 'svelte/transition';
   import { quintInOut } from 'svelte/easing';
-  import { ArrowSquareUpLeft, ClockCountdown, House, WebhooksLogo } from 'phosphor-svelte';
+  import {
+    ArrowSquareUpLeft,
+    Broadcast,
+    ClockCountdown,
+    House,
+    WebhooksLogo
+  } from 'phosphor-svelte';
   import { goto } from '$app/navigation';
   import { signedFetch } from '$lib/utils/signedRequest';
   import { apiUrl } from '$lib/api';
@@ -165,13 +171,9 @@
   >
     {#if wsConnected}
       <span
-        class="flex items-center justify-center gap-1.5 rounded-sm bg-green-600/15 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-green-700 ring-1 ring-green-600/30 ring-inset dark:text-green-400"
+        class="bg-primary flex items-center justify-center gap-1 rounded-sm px-2 py-0.5 text-xs whitespace-nowrap"
         title="Live updates over WebSocket — no polling"
-      >
-        <span
-          class="inline-block size-1.5 animate-pulse rounded-full bg-green-600 dark:bg-green-400"
-        ></span>
-        WebSocket connected
+        ><Broadcast /> WebSocket connected
       </span>
     {:else}
       <span
