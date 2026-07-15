@@ -209,22 +209,23 @@
     }
   };
 
-  // A live WebSocket delivers new-message pings instantly. Polling stays as a
-  // safety net, but backs off to a slow interval while the socket is healthy —
-  // the whole point of the perf work was to stop hammering decrypt on a timer.
+  // While the WebSocket is connected the server pushes a ping on every new
+  // message, so the timer poll is off entirely — no 10s loop. Polling only
+  // runs as a fallback when the socket is down (or never opened).
   let ws: WebSocket | undefined;
   let wsConnected = $state(false);
   let wsRetry = 0;
   let destroyed = false;
 
-  const FAST_POLL_FALLBACK_S = () => pollingInterval;
-  const SLOW_POLL_WHEN_LIVE_S = 60;
-
-  const recursiveFetch = () => {
-    unpack();
+  const startPolling = () => {
     if (timeoutId) clearTimeout(timeoutId);
-    const next = (wsConnected ? SLOW_POLL_WHEN_LIVE_S : FAST_POLL_FALLBACK_S()) * 1000;
-    timeoutId = setTimeout(recursiveFetch, next);
+    unpack();
+    timeoutId = setTimeout(startPolling, pollingInterval * 1000);
+  };
+
+  const stopPolling = () => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = undefined;
   };
 
   const connectWs = () => {
@@ -233,12 +234,17 @@
       ws = new WebSocket(wsUrl(`/ws?rid=${encodeURIComponent(rid)}`));
     } catch (e) {
       console.warn('WS connect failed, polling only', e);
+      startPolling();
       return;
     }
 
     ws.onopen = () => {
       wsConnected = true;
       wsRetry = 0;
+      // Socket is live: stop the timer and pull once to catch anything that
+      // arrived during connection setup.
+      stopPolling();
+      unpack();
     };
     ws.onmessage = () => {
       // Any ping means "your inbox changed" — pull immediately.
@@ -247,7 +253,8 @@
     ws.onclose = () => {
       wsConnected = false;
       if (destroyed) return;
-      // Reconnect with capped backoff; polling covers the gap meanwhile.
+      // Socket dropped: fall back to polling and reconnect with backoff.
+      startPolling();
       wsRetry = Math.min(wsRetry + 1, 6);
       setTimeout(connectWs, 1000 * wsRetry);
     };
@@ -265,14 +272,15 @@
     console.log('ONMOUNT : ', unlocked);
 
     if (unlocked) {
-      recursiveFetch();
+      // Poll once immediately for first paint; the socket takes over on open.
+      startPolling();
       connectWs();
     }
   });
 
   onDestroy(() => {
     destroyed = true;
-    if (timeoutId) clearTimeout(timeoutId);
+    stopPolling();
     ws?.close();
   });
 </script>
@@ -287,6 +295,7 @@
       <ListenerHeader
         {unpack}
         {loadedPair}
+        {wsConnected}
         bind:playSound
         bind:unpacking
         bind:pollingInterval

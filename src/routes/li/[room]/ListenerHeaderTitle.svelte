@@ -17,6 +17,7 @@
     roomTitle: string;
     unpacking: boolean;
     pollingInterval: number;
+    wsConnected?: boolean;
     rid: string;
     loadedPair: IKeyPairs;
     profanityEnabled: boolean;
@@ -27,6 +28,7 @@
   let {
     roomTitle = $bindable(),
     unpacking,
+    wsConnected = false,
     rid,
     loadedPair,
     children,
@@ -161,9 +163,21 @@
     out:fly={{ y: 4, easing: quintInOut }}
     class="text-primary-foreground absolute bottom-1 left-0 flex gap-1"
   >
-    <span class="bg-primary flex items-center justify-center gap-1 rounded-sm px-2 py-0.5 text-xs"
-      ><ClockCountdown /> {pollingInterval} s
-    </span>
+    {#if wsConnected}
+      <span
+        class="flex items-center justify-center gap-1.5 rounded-sm bg-green-600 px-2 py-0.5 text-xs whitespace-nowrap text-white"
+        title="Live updates over WebSocket — no polling"
+      >
+        <span class="inline-block size-1.5 animate-pulse rounded-full bg-white"></span>
+        WebSocket connected
+      </span>
+    {:else}
+      <span
+        class="bg-primary flex items-center justify-center gap-1 rounded-sm px-2 py-0.5 text-xs"
+        title="Polling — WebSocket not connected"
+        ><ClockCountdown /> {pollingInterval} s
+      </span>
+    {/if}
     <span class="bg-primary flex items-center justify-center gap-1 rounded-sm px-2 py-0.5 text-xs"
       ><WebhooksLogo /> {webhookUrl}
     </span>
@@ -180,7 +194,9 @@
       >
         Loading ...
       </span>
-    {:else}
+    {:else if !wsConnected}
+      <!-- The sweeping bar tracks the poll interval; meaningless once the
+           socket is live and there is no timer, so only show it when polling. -->
       <span
         in:slide={{ axis: 'x', duration: pollingInterval * 1000, easing: quintInOut }}
         out:slide={{ axis: 'y', duration: 300 }}

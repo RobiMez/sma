@@ -8,6 +8,7 @@
   let {
     unpack,
     loadedPair,
+    wsConnected = false,
     playSound = $bindable(),
     unpacking = $bindable(),
     pollingInterval = $bindable(),
@@ -26,6 +27,7 @@
       bind:roomTitle
       bind:pollingInterval
       {unpacking}
+      {wsConnected}
       {rid}
       {loadedPair}
       {profanityEnabled}
