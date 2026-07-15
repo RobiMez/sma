@@ -73,15 +73,7 @@
 
     let profanityAllowed = false;
 
-    const respn = await fetch('/api/profanity', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        rid: params
-      })
-    });
+    const respn = await fetch(`/api/profanity?rid=${encodeURIComponent(params)}`);
 
     const re = await respn.json();
 
@@ -144,7 +136,9 @@
   // get the public key of the other person from the url
   const fetchKeys = async () => {
     disableSend = true;
-    const response = await fetch(`/api/pgp?r=${params}`);
+    // lim=0 → just the listener record (pbKey); without it this downloaded
+    // the recipient's entire encrypted mailbox to read one key.
+    const response = await fetch(`/api/pgp?r=${params}&lim=0`);
     const data = await response.json();
     api_pbKey = data.body.pbKey;
     disableSend = false;
@@ -179,15 +173,12 @@
     loadedPair = (await getLoadedPairFromLS()) ?? null;
 
     try {
-      const responseTitle = await fetch(
-        `/api/title?rid=${encodeURIComponent(params)}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json'
-          }
+      const responseTitle = await fetch(`/api/title?rid=${encodeURIComponent(params)}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
         }
-      );
+      });
       const respTitle = await responseTitle.json();
       console.log('resp', respTitle);
 

@@ -10,6 +10,7 @@
   import { quintInOut } from 'svelte/easing';
   import { ArrowSquareUpLeft, ClockCountdown, House, WebhooksLogo } from 'phosphor-svelte';
   import { goto } from '$app/navigation';
+  import { signedFetch } from '$lib/utils/signedRequest';
 
   interface Props {
     roomTitle: string;
@@ -56,23 +57,18 @@
   }
 
   async function updateRoomTitle() {
-    const responseUpdateTitle = await fetch('/api/title', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        pbKey: loadedPair?.pbKey,
+    try {
+      const respUpdateTitle = await signedFetch('/api/title', 'PATCH', rid, 'title:set', {
         title: roomTitle
-      })
-    });
+      });
 
-    const respUpdateTitle = await responseUpdateTitle.json();
-
-    if (respUpdateTitle.error) {
-      console.log(respUpdateTitle.message);
-    } else {
-      roomTitle = respUpdateTitle.body.title;
+      if (respUpdateTitle.error || respUpdateTitle.status >= 400) {
+        console.error(respUpdateTitle.body ?? respUpdateTitle.message);
+      } else {
+        roomTitle = respUpdateTitle.body.title;
+      }
+    } catch (e) {
+      console.error('Failed to update room title', e);
     }
   }
 

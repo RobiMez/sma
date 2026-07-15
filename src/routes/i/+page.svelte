@@ -12,6 +12,7 @@
   import IdentityPill from './IdentityPill.svelte';
   import { Button } from '$lib/components/ui/button';
   import UserPlus from 'phosphor-svelte/lib/UserPlus';
+  import IdentityBackup from './IdentityBackup.svelte';
 
   let keyPairs: IKeyPairs[] = $state([]);
   let loadedPair: IKeyPairs | undefined = $state(undefined);
@@ -69,6 +70,10 @@
         New Identity
       </Button>
     </span>
+  </div>
+
+  <div class="flex w-full flex-row justify-end px-4">
+    <IdentityBackup onImported={async () => (keyPairs = await getAllFromLS())} />
   </div>
 
   <div class=" flex w-full flex-row flex-wrap gap-4 p-4">

@@ -14,7 +14,7 @@
   import ListenerHeader from './ListenerHeader.svelte';
   import { FolderDashed } from 'phosphor-svelte';
 
-  let rid = page.params.room;
+  let rid = page.params.room ?? '';
   let { data } = $props();
 
   let keyPairs: IKeyPairs[] | undefined = undefined;
@@ -27,9 +27,29 @@
   let pollingInterval = $state(10);
   let timeoutId: NodeJS.Timeout | undefined = $state();
 
-  let encryptedMessages: any[] = [];
   let decryptedMessages: any[] = $state([]);
   let passphrase = PUBLIC_PGP_PASSPHRASE;
+
+  // Decrypting the private key runs the passphrase KDF, which is deliberately
+  // slow — do it once and reuse it for every message and every poll.
+  let cachedPrivateKey: openpgp.PrivateKey | null = null;
+  const getPrivateKey = async () => {
+    if (!cachedPrivateKey && loadedPair) {
+      cachedPrivateKey = await openpgp.decryptKey({
+        privateKey: await openpgp.readPrivateKey({ armoredKey: loadedPair.prKey }),
+        passphrase
+      });
+    }
+    return cachedPrivateKey;
+  };
+
+  // Messages are immutable, so each one only needs to be decrypted and
+  // verified once, ever. Keyed by server _id. Spoofed/undecryptable ids are
+  // remembered too so they aren't re-attempted every poll.
+  const decryptedById = new Map<string, any>();
+  const skippedIds = new Set<string>();
+  // Newest timestamp processed so far — polls ask the server only for newer.
+  let newestSeen: string | null = null;
 
   // Cache author rid -> armored public key so we don't refetch on every poll.
   const authorKeyCache = new Map<string, string | null>();
@@ -72,140 +92,166 @@
     return hash === rid && loadedPair.uniqueString === rid;
   };
 
-  // Define an asynchronous function named 'unpack'
+  // Fetch new messages and decrypt only the ones we haven't processed yet.
   const unpack = async () => {
     if (!loadedPair) return;
+    if (!unlocked) {
+      console.log('not unlocked yet');
+      return;
+    }
     console.log('Refreshing');
-    // Check if 'unlocked' is true
-    if (unlocked) {
-      // Set 'unpacking' to true
-      unpacking = true;
-      // Fetch the encrypted messages from the server
-      const response = await fetch(`/api/pgp?r=${rid}`, {
+    unpacking = true;
+    try {
+      const since = newestSeen ? `&since=${encodeURIComponent(newestSeen)}` : '';
+      const response = await fetch(`/api/pgp?r=${rid}${since}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
         }
       });
 
-      // Parse the JSON response
       const resp = await response.json();
 
-      console.log(resp);
-      // If there's an error in the response, log the message
       if (resp.error) {
         console.log(resp.message);
-      } else {
-        // Otherwise, set 'encryptedMessages' to the messages from the response
-        encryptedMessages = resp.body.messages;
-        if (!encryptedMessages) {
-          console.log('No messages');
-          encryptedMessages = [];
-          return;
-        }
-        encryptedMessages.sort(
-          (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        );
+        return;
+      }
 
-        // Loop over each encrypted message
-        for (const encryptedMessage of encryptedMessages) {
-          // Read the encrypted message
+      const incoming = resp.body.messages ?? [];
+
+      for (const encryptedMessage of incoming) {
+        const id = encryptedMessage._id;
+        // Advance the poll cursor over everything the server handed us,
+        // including messages we skip — retrying those would fail again.
+        if (!newestSeen || new Date(encryptedMessage.timestamp) > new Date(newestSeen)) {
+          newestSeen = encryptedMessage.timestamp;
+        }
+        if (decryptedById.has(id) || skippedIds.has(id)) continue;
+
+        try {
           const readMsg = await openpgp.readMessage({
             armoredMessage: encryptedMessage.message
           });
 
-          // Decrypt the private key
-          const privateKey = await openpgp.decryptKey({
-            privateKey: await openpgp.readPrivateKey({ armoredKey: loadedPair?.prKey }),
-            passphrase
+          const privateKey = await getPrivateKey();
+          if (!privateKey) return;
+
+          // Look up the claimed author's public key so we can verify the
+          // PGP signature. The `author` field on the server is attacker-
+          // controlled; the signature is what actually proves identity.
+          const claimedAuthorRid = encryptedMessage.author;
+          const authorPbKeyArmored = await fetchAuthorPublicKey(claimedAuthorRid);
+          if (!authorPbKeyArmored) {
+            console.warn(
+              'Skipping message: no public key on record for claimed author',
+              claimedAuthorRid
+            );
+            skippedIds.add(id);
+            continue;
+          }
+          const authorPublicKey = await openpgp.readKey({ armoredKey: authorPbKeyArmored });
+
+          // Decrypt and verify in one pass. If `signatures` ends up empty or
+          // `verified` rejects, the message was unsigned or signed by a key
+          // that doesn't match the claimed author — treat both as a spoof.
+          const { data: decrypted, signatures } = await openpgp.decrypt({
+            message: readMsg,
+            decryptionKeys: privateKey,
+            verificationKeys: authorPublicKey,
+            config: { allowInsecureDecryptionWithSigningKeys: true }
           });
 
-          try {
-            // Look up the claimed author's public key so we can verify the
-            // PGP signature. The `author` field on the server is attacker-
-            // controlled; the signature is what actually proves identity.
-            const claimedAuthorRid = encryptedMessage.author;
-            const authorPbKeyArmored = await fetchAuthorPublicKey(claimedAuthorRid);
-            if (!authorPbKeyArmored) {
-              console.warn(
-                'Skipping message: no public key on record for claimed author',
-                claimedAuthorRid
-              );
-              continue;
-            }
-            const authorPublicKey = await openpgp.readKey({ armoredKey: authorPbKeyArmored });
-
-            // Decrypt and verify in one pass. If `signatures` ends up empty or
-            // `verified` rejects, the message was unsigned or signed by a key
-            // that doesn't match the claimed author — treat both as a spoof.
-            const { data: decrypted, signatures } = await openpgp.decrypt({
-              message: readMsg,
-              decryptionKeys: privateKey,
-              verificationKeys: authorPublicKey,
-              config: { allowInsecureDecryptionWithSigningKeys: true }
-            });
-
-            if (!signatures || signatures.length === 0) {
-              console.warn('Skipping unsigned message from claimed author', claimedAuthorRid);
-              continue;
-            }
-            try {
-              await signatures[0].verified;
-            } catch (verifyError) {
-              console.warn(
-                'Skipping message: signature does not match claimed author',
-                claimedAuthorRid,
-                verifyError
-              );
-              continue;
-            }
-
-            // Create an object with the decrypted message and its 'r' property
-            const msgObj = {
-              id: encryptedMessage._id,
-              msg: String(decrypted),
-              image: {
-                id: encryptedMessage.image?._id,
-                blurhash: encryptedMessage.image?.blurhash,
-                nsfw: encryptedMessage.image?.nsfw
-              },
-              r: claimedAuthorRid,
-              timestamp: encryptedMessage.timestamp
-            };
-
-            // If 'decryptedMessages' doesn't already contain this message, add it
-            if (
-              !decryptedMessages.some(
-                (obj) =>
-                  obj.msg === msgObj.msg && obj.r === msgObj.r && obj.timestamp === msgObj.timestamp
-              )
-            ) {
-              decryptedMessages.push(msgObj);
-            }
-          } catch (error) {
-            console.error('Error decrypting message', error);
+          if (!signatures || signatures.length === 0) {
+            console.warn('Skipping unsigned message from claimed author', claimedAuthorRid);
+            skippedIds.add(id);
+            continue;
           }
-        }
-        // Update 'decryptedMessages' to trigger reactivity in Svelte
-        decryptedMessages = decryptedMessages;
+          try {
+            await signatures[0].verified;
+          } catch (verifyError) {
+            console.warn(
+              'Skipping message: signature does not match claimed author',
+              claimedAuthorRid,
+              verifyError
+            );
+            skippedIds.add(id);
+            continue;
+          }
 
-        // After processing messages, check if there are new ones
-        if (decryptedMessages.length > previousMessageCount) {
-          playSound = true;
-          previousMessageCount = decryptedMessages.length;
+          decryptedById.set(id, {
+            id,
+            msg: String(decrypted),
+            image: {
+              id: encryptedMessage.image?._id,
+              blurhash: encryptedMessage.image?.blurhash,
+              nsfw: encryptedMessage.image?.nsfw
+            },
+            r: claimedAuthorRid,
+            timestamp: encryptedMessage.timestamp
+          });
+        } catch (error) {
+          console.error('Error decrypting message', error);
+          skippedIds.add(id);
         }
       }
-      // Set 'unpacking' to false
+
+      decryptedMessages = [...decryptedById.values()].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+
+      if (decryptedMessages.length > previousMessageCount) {
+        playSound = true;
+        previousMessageCount = decryptedMessages.length;
+      }
+    } finally {
       unpacking = false;
-    } else {
-      console.log('not unlocked yet');
     }
   };
+
+  // A live WebSocket delivers new-message pings instantly. Polling stays as a
+  // safety net, but backs off to a slow interval while the socket is healthy —
+  // the whole point of the perf work was to stop hammering decrypt on a timer.
+  let ws: WebSocket | undefined;
+  let wsConnected = $state(false);
+  let wsRetry = 0;
+  let destroyed = false;
+
+  const FAST_POLL_FALLBACK_S = () => pollingInterval;
+  const SLOW_POLL_WHEN_LIVE_S = 60;
 
   const recursiveFetch = () => {
     unpack();
     if (timeoutId) clearTimeout(timeoutId);
-    timeoutId = setTimeout(recursiveFetch, pollingInterval * 1000);
+    const next = (wsConnected ? SLOW_POLL_WHEN_LIVE_S : FAST_POLL_FALLBACK_S()) * 1000;
+    timeoutId = setTimeout(recursiveFetch, next);
+  };
+
+  const connectWs = () => {
+    if (destroyed || typeof window === 'undefined') return;
+    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+    try {
+      ws = new WebSocket(`${scheme}://${location.host}/ws?rid=${encodeURIComponent(rid)}`);
+    } catch (e) {
+      console.warn('WS connect failed, polling only', e);
+      return;
+    }
+
+    ws.onopen = () => {
+      wsConnected = true;
+      wsRetry = 0;
+    };
+    ws.onmessage = () => {
+      // Any ping means "your inbox changed" — pull immediately.
+      unpack();
+    };
+    ws.onclose = () => {
+      wsConnected = false;
+      if (destroyed) return;
+      // Reconnect with capped backoff; polling covers the gap meanwhile.
+      wsRetry = Math.min(wsRetry + 1, 6);
+      setTimeout(connectWs, 1000 * wsRetry);
+    };
+    ws.onerror = () => ws?.close();
   };
 
   // if the pgp hash of the values in the localstorage are equal to the hash in the url , then unlock the page
@@ -218,11 +264,16 @@
     if (rid) unlocked = await CheckIfUnlockable();
     console.log('ONMOUNT : ', unlocked);
 
-    if (unlocked) recursiveFetch();
+    if (unlocked) {
+      recursiveFetch();
+      connectWs();
+    }
   });
 
   onDestroy(() => {
-    if (timeoutId) clearInterval(timeoutId);
+    destroyed = true;
+    if (timeoutId) clearTimeout(timeoutId);
+    ws?.close();
   });
 </script>
 
@@ -243,9 +294,9 @@
       />
     </div>
 
-    <div class="flex w-full flex-col  p-4 pt-8">
+    <div class="flex w-full flex-col p-4 pt-8">
       {#if unlocked}
-        {#each [...decryptedMessages].reverse() as msg (msg)}
+        {#each [...decryptedMessages].reverse() as msg (msg.id)}
           <Message {msg} />
         {/each}
 

@@ -3,9 +3,11 @@
   "version": "0.5.0",
   "private": true,
   "license": "GPL-3.0-only",
+  "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "start": "node server.js",
     "preview": "vite preview",
     "test": "npm run test:integration && npm run test:unit",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -23,9 +25,11 @@
     "@openpgp/web-stream-tools": "0.0.11-patch-0",
     "@playwright/test": "^1.61.0",
     "@sveltejs/adapter-auto": "^3.3.1",
+    "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/kit": "^2.65.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "bits-ui": "^2.18.1",
@@ -61,7 +65,8 @@
     "tailwindcss": "^4.3.1",
     "theme-change": "^2.5.2",
     "uuid": "^11.1.1",
-    "vite-raw-plugin": "^1.0.2"
+    "vite-raw-plugin": "^1.0.2",
+    "ws": "^8.21.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -2,7 +2,9 @@ import mongoose from 'mongoose';
 
 const ListenerSchema = new mongoose.Schema({
   pbKey: String,
-  rid: String,
+  // Unique: a second listener with the same rid could shadow the original
+  // and hijack signature-authenticated mutations.
+  rid: { type: String, unique: true },
   title: String,
   webhookUrl: String,
   profanityEnabled: { type: Boolean, default: false },

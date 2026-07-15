@@ -1,33 +1,34 @@
 import { json } from '@sveltejs/kit';
 import Listener from '../../../models/listener.schema';
+import { verifySignedAction } from '$lib/server/signedAction';
 
-export async function PATCH({ request }) {
-  const body = await request.json();
-  const { rid, pbKey } = body;
-  const profanityEnabledStatus = body.profanityEnabled;
-  console.log('PATCH /api/profanity/:pbKey called with body:', body);
+// Public read — senders need to know whether to run the profanity check
+// before encrypting their message.
+export async function GET({ url }) {
+  const rid = url.searchParams.get('rid') ?? '';
   try {
-    let room;
-
-    if (profanityEnabledStatus === undefined) {
-      // If profanityEnabled is not in the body, find the room and return its state
-      room = await Listener.findOne({ rid: rid }, { profanityEnabled: 1, _id: 0 });
-    } else {
-      // If profanityEnabled is in the body, update the room with that state
-      console.log('!!profanityEnabledStatus ', !!profanityEnabledStatus);
-
-      room = await Listener.findOneAndUpdate(
-        { rid: rid },
-        { $set: { profanityEnabled: !!profanityEnabledStatus } },
-        { new: true, fields: { profanityEnabled: 1, _id: 0 } }
-      );
-    }
+    const room = await Listener.findOne({ rid }, { profanityEnabled: 1, _id: 0 });
 
     if (room) {
       return json({ status: 200, body: room });
-    } else {
-      return json({ status: 404, body: 'Room not found' });
     }
+    return json({ status: 404, body: 'Room not found' });
+  } catch (error) {
+    console.error(error);
+    return json({ status: 500, body: 'Error fetching profanity state' });
+  }
+}
+
+// Owner-only write, authorized by a signature from the room's private key.
+export async function PATCH({ request }) {
+  const verdict = await verifySignedAction(await request.json(), 'profanity:set');
+  if (!verdict.ok) return json({ status: verdict.status, body: verdict.message });
+
+  const { listener, params } = verdict;
+  try {
+    listener.profanityEnabled = !!params.profanityEnabled;
+    await listener.save();
+    return json({ status: 200, body: { profanityEnabled: listener.profanityEnabled } });
   } catch (error) {
     console.error(error);
     return json({ status: 500, body: 'Error updating room' });

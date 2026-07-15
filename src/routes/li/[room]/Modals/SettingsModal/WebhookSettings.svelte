@@ -7,6 +7,7 @@
 
   import { Button } from '$lib/components/ui/button';
   import Input from '$lib/components/ui/input/input.svelte';
+  import { signedFetch } from '$lib/utils/signedRequest';
 
   interface Props {
     rid: string;
@@ -35,20 +36,14 @@
 
     validationError = '';
 
-    const response = await fetch('/api/webhook', {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        rid,
-        webhookUrl
-      })
-    });
+    try {
+      const resp = await signedFetch('/api/webhook', 'PATCH', rid, 'webhook:set', { webhookUrl });
 
-    const resp = await response.json();
-
-    if (resp.error || resp.status >= 400) {
+      if (resp.error || resp.status >= 400) {
+        validationError = typeof resp.body === 'string' ? resp.body : 'Failed to update webhook';
+        return;
+      }
+    } catch {
       validationError = 'Failed to update webhook';
       return;
     }
@@ -58,10 +53,14 @@
   }
 
   onMount(async () => {
-    const res = await fetch(`/api/webhook?rid=${encodeURIComponent(rid)}`);
-    const data = await res.json();
-    if (data.body?.webhookUrl) {
-      webhookUrl = data.body.webhookUrl;
+    // Reading the webhook is owner-only too, so it's a signed POST.
+    try {
+      const data = await signedFetch('/api/webhook', 'POST', rid, 'webhook:read');
+      if (data.body?.webhookUrl) {
+        webhookUrl = data.body.webhookUrl;
+      }
+    } catch (e) {
+      console.warn('Could not load current webhook URL', e);
     }
   });
 </script>

@@ -60,7 +60,7 @@ Using pnpm:
 pnpm dev
 ```
 
-You can find the site at `http://localhost:5173/`.
+You can find the site at `http://localhost:5340/`.
 
 ## Contributing
 

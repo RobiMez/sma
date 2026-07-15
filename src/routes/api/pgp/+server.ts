@@ -1,20 +1,39 @@
 import { json } from '@sveltejs/kit';
+import * as openpgp from 'openpgp';
 import Listener from '../../../models/listener.schema';
 import Message from '../../../models/messages.schema';
 import Image from '../../../models/file.schema';
+import { isSafeWebhookUrl } from '$lib/server/webhookGuard';
+import { notifyRoom } from '$lib/server/wsRegistry.js';
 
 interface Listener {
   pbKey: string;
   rid: string;
 }
 
+// rids are 12-char base64url hashes; be lenient on length, strict on charset.
+const RID_PATTERN = /^[\w-]{8,64}$/;
+// Armored+signed ciphertext of a 1000-char message is ~3KB; 16KB is generous.
+const MAX_MESSAGE_CHARS = 16_384;
+// Client caps image files at 1.5MB; base64 + chunking overhead lands under this.
+const MAX_IMAGE_CHARS = 3_000_000;
+const MAX_PBKEY_CHARS = 16_384;
+
 async function sendWebhookNotification(webhookUrl: string, message: any) {
+  // Re-check at send time — the DB may hold URLs saved before validation
+  // existed. redirect: 'error' stops redirect-based SSRF hops.
+  if (!isSafeWebhookUrl(webhookUrl)) {
+    console.error(`Skipping webhook: unsafe URL ${webhookUrl}`);
+    return;
+  }
   try {
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
+      redirect: 'error',
+      signal: AbortSignal.timeout(10_000),
       body: JSON.stringify({
         content: message.message,
         timestamp: message.timestamp,
@@ -31,7 +50,7 @@ async function sendWebhookNotification(webhookUrl: string, message: any) {
   }
 }
 
-async function saveImage(imageData: { dataURI: string; blurhash: string; nsfw: boolean }) {
+async function saveImage(imageData: { dataURI: string[]; blurhash: string; nsfw: boolean }) {
   if (!imageData.dataURI.length) return null;
 
   const image = new Image({
@@ -70,10 +89,24 @@ async function updateListenerWithMessage(recipientId: string, messageId: string)
 
 export async function GET({ url }) {
   const rid = url.searchParams.get('r') ?? '';
-  const lim = parseInt(url.searchParams.get('lim') ?? '100');
+  const parsedLim = parseInt(url.searchParams.get('lim') ?? '100');
+  const lim = Number.isFinite(parsedLim) ? parsedLim : 100;
+  const since = url.searchParams.get('since');
+  const sinceDate = since && !isNaN(Date.parse(since)) ? new Date(since) : null;
 
-  const user = await Listener.findOne({ rid }, { messages: { $slice: -lim } }).populate({
+  // Messages are $pushed at $position 0, so the newest ones sit at the FRONT
+  // of the array — a positive $slice takes those. (-lim took the oldest lim,
+  // which hid all new messages once a listener passed lim total.)
+  // webhookUrl is excluded: rid is public via the share link, so this
+  // endpoint must not expose owner-only settings.
+  const user = await Listener.findOne(
+    { rid },
+    { messages: { $slice: lim }, webhookUrl: 0 }
+  ).populate({
     path: 'messages',
+    // $gte (not $gt) so a message sharing the cursor's exact timestamp can't
+    // fall through the gap between two polls; clients dedup by _id.
+    match: sinceDate ? { timestamp: { $gte: sinceDate } } : {},
     populate: {
       path: 'image',
       model: 'Image',
@@ -90,14 +123,46 @@ export async function GET({ url }) {
 export async function PATCH({ request }) {
   const { message, imageData, r: author, p: recipientId } = await request.json();
 
+  // Everything here comes from an unauthenticated client: enforce shapes so
+  // objects can't reach Mongoose queries, and keep payload sizes bounded.
+  if (typeof message !== 'string' || !message || message.length > MAX_MESSAGE_CHARS) {
+    return json({ status: 400, body: 'Invalid message' });
+  }
+  if (typeof author !== 'string' || !RID_PATTERN.test(author)) {
+    return json({ status: 400, body: 'Invalid author' });
+  }
+  if (typeof recipientId !== 'string' || !RID_PATTERN.test(recipientId)) {
+    return json({ status: 400, body: 'Invalid recipient' });
+  }
+
+  const dataURI: unknown[] = Array.isArray(imageData?.dataURI) ? imageData.dataURI : [];
+  if (
+    dataURI.some((chunk) => typeof chunk !== 'string') ||
+    dataURI.reduce((len: number, chunk) => len + (chunk as string).length, 0) > MAX_IMAGE_CHARS
+  ) {
+    return json({ status: 400, body: 'Invalid image' });
+  }
+  const sanitizedImage = {
+    dataURI: dataURI as string[],
+    blurhash:
+      typeof imageData?.blurhash === 'string' && imageData.blurhash.length <= 200
+        ? imageData.blurhash
+        : '',
+    nsfw: !!imageData?.nsfw
+  };
+
   try {
-    const image = await saveImage(imageData);
+    const image = await saveImage(sanitizedImage);
     const newMessage = await createMessage(message, image?._id ?? null, author);
     const listener = await updateListenerWithMessage(recipientId, newMessage._id);
 
     if (listener?.webhookUrl) {
       await sendWebhookNotification(listener.webhookUrl, newMessage);
     }
+
+    // Wake any live inbox watching this room so it re-fetches immediately
+    // instead of waiting for its next poll. No-op if nobody is connected.
+    if (listener) notifyRoom(recipientId);
 
     return listener
       ? json({ status: 200, body: listener })
@@ -112,8 +177,27 @@ export async function POST({ request }) {
   const body = await request.json();
   const { pbKey, rid } = body as unknown as Listener;
 
-  if (!pbKey || !rid)
-    return json({ status: 500, body: 'Error saving listener : supply pbkey & rid' });
+  if (
+    typeof pbKey !== 'string' ||
+    !pbKey ||
+    pbKey.length > MAX_PBKEY_CHARS ||
+    typeof rid !== 'string' ||
+    !RID_PATTERN.test(rid)
+  )
+    return json({ status: 400, body: 'Error saving listener : supply pbkey & rid' });
+
+  try {
+    await openpgp.readKey({ armoredKey: pbKey });
+  } catch {
+    return json({ status: 400, body: 'pbKey is not a valid armored PGP key' });
+  }
+
+  // A duplicate rid would let an attacker shadow an existing room with their
+  // own key and hijack signed mutations; the schema's unique index on rid is
+  // the hard guarantee behind this check.
+  if (await Listener.exists({ rid })) {
+    return json({ status: 409, body: 'rid already registered' });
+  }
 
   const newListener = new Listener({
     pbKey,
