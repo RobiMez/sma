@@ -165,10 +165,12 @@
   >
     {#if wsConnected}
       <span
-        class="flex items-center justify-center gap-1.5 rounded-sm bg-green-600 px-2 py-0.5 text-xs whitespace-nowrap text-white"
+        class="flex items-center justify-center gap-1.5 rounded-sm bg-green-600/15 px-2 py-0.5 text-xs font-medium whitespace-nowrap text-green-700 ring-1 ring-green-600/30 ring-inset dark:text-green-400"
         title="Live updates over WebSocket — no polling"
       >
-        <span class="inline-block size-1.5 animate-pulse rounded-full bg-white"></span>
+        <span
+          class="inline-block size-1.5 animate-pulse rounded-full bg-green-600 dark:bg-green-400"
+        ></span>
         WebSocket connected
       </span>
     {:else}
