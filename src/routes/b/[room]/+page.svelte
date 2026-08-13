@@ -11,9 +11,11 @@
   import Spinner from 'phosphor-svelte/lib/Spinner';
   import ImageThumbnail from '../../li/[room]/Message/ImageThumbnail.svelte';
   import Textarea from '$lib/components/ui/textarea/textarea.svelte';
+  import VoiceRecorder from './VoiceRecorder.svelte';
 
   import { breakString } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import { transcribePcm, type TranscribeProgress } from '$lib/utils/transcribe';
   import { apiUrl } from '$lib/api';
   import { X } from 'phosphor-svelte';
   import { Button } from '$lib/components/ui/button';
@@ -35,34 +37,70 @@
 
   let sending = $state(false);
   let checkingProfanity = $state(false);
+  let checkingVoiceModeration = $state(false);
+  let voiceModerationProgress: TranscribeProgress | null = $state(null);
 
   let message = $state('');
   let roomTitle = $state('');
   let loadingRoom = $state(true);
   let imageBase64: string[] = $state([]);
+  let voiceBlob: Blob | null = $state(null);
+  let voiceDurationSec = $state(0);
+  let voiceRendering = $state(false);
+  let voiceRecorder: VoiceRecorder | undefined = $state();
   let profanityCheckResponse: IVectorResponse | undefined = $state();
   let profaneBlock = $state(false);
 
+  // A voice note or image is a complete message on its own — text isn't
+  // mandatory just because it used to be the only content type.
+  let hasContent = $derived(message.trim().length > 0 || imageBase64.length > 0 || !!voiceBlob);
+
   const checkProfanity = async (message: string) => {
     checkingProfanity = true;
-    const res = await fetch('https://vector.profanity.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
-    });
+    try {
+      const res = await fetch('https://vector.profanity.dev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
 
-    profanityCheckResponse = (await res.json()) as IVectorResponse;
-    checkingProfanity = false;
-    return profanityCheckResponse.isProfanity;
-    // {"isProfanity":true,"score":0.99999964,"flaggedFor":"Fuck"}
+      profanityCheckResponse = (await res.json()) as IVectorResponse;
+      return profanityCheckResponse.isProfanity;
+      // {"isProfanity":true,"score":0.99999964,"flaggedFor":"Fuck"}
+    } finally {
+      checkingProfanity = false;
+    }
   };
+
+  let sendError = $state('');
 
   // When posting sign the message with the private key and send it to the server
   // Get the private key of myself from localstorage
   const signMessage = async () => {
     if (!loadedPair) return;
+    if (!api_pbKey) {
+      // Recipient's key never loaded — most commonly because this room
+      // isn't actually registered server-side (see fetchKeys). Nothing to
+      // encrypt against, so fail loudly instead of letting
+      // openpgp.readKey(undefined) throw an opaque, uncaught error further
+      // down that leaves `sending` stuck true forever.
+      sendError = "Can't send — this room's key hasn't loaded (does it exist?).";
+      return;
+    }
     sending = true;
+    sendError = '';
 
+    try {
+      await signMessageInner(loadedPair);
+    } catch (e) {
+      console.error('Failed to send message', e);
+      sendError = 'Failed to send — see console for details.';
+    } finally {
+      sending = false;
+    }
+  };
+
+  const signMessageInner = async (loadedPair: IKeyPairs) => {
     const passphrase = PUBLIC_PGP_PASSPHRASE;
     const uniqueString = loadedPair.uniqueString;
     const publicKey = await openpgp.readKey({ armoredKey: api_pbKey });
@@ -74,25 +112,58 @@
 
     let profanityAllowed = false;
 
-    const respn = await fetch(apiUrl(`/api/profanity?rid=${encodeURIComponent(params)}`));
+    // Nothing to check when it's a voice/image-only send with no caption —
+    // but a voice note still needs this room setting looked up too.
+    if (message.trim() || voiceBlob) {
+      const respn = await fetch(apiUrl(`/api/profanity?rid=${encodeURIComponent(params)}`));
 
-    const re = await respn.json();
+      const re = await respn.json();
 
-    if (re.error) {
-      console.error(re.message);
-    } else {
-      profanityAllowed = re.body.profanityEnabled;
-      console.log(re);
+      if (re.status !== 200) {
+        console.error('Failed to fetch profanity setting:', re.body);
+      } else {
+        profanityAllowed = re.body.profanityEnabled;
+      }
     }
     let profane = false;
 
     if (!profanityAllowed) {
-      profane = await checkProfanity(message);
+      if (message.trim()) {
+        profane = await checkProfanity(message);
+      }
+
+      // Voice moderation: transcribe the pre-disguise recording on-device
+      // and run the same check text gets, reusing checkProfanity verbatim.
+      // Skipped if text already failed — no point loading the model then.
+      // Best-effort, not a hard gate: if the local model fails to load or
+      // run (offline, unsupported browser, first-download hiccup), we log
+      // and let the send through rather than make voice messages unsendable
+      // whenever the ML pipeline has a bad day.
+      if (!profane && voiceBlob && voiceRecorder) {
+        checkingVoiceModeration = true;
+        voiceModerationProgress = null;
+        try {
+          const samples = await voiceRecorder.getNeutralPcm();
+          if (samples && samples.length > 0) {
+            const transcript = await transcribePcm(samples, (p) => {
+              voiceModerationProgress = p;
+            });
+            if (transcript.trim()) {
+              profane = await checkProfanity(transcript);
+            }
+          }
+        } catch (e) {
+          console.error('Voice moderation check failed — allowing send', e);
+        } finally {
+          checkingVoiceModeration = false;
+          voiceModerationProgress = null;
+        }
+      }
     }
     if (profane) {
       profaneBlock = true;
       message = '';
-      sending = false;
+      voiceRecorder?.reset();
       setTimeout(() => {
         profaneBlock = false;
       }, 2000);
@@ -104,6 +175,21 @@
       encryptionKeys: publicKey,
       signingKeys: privateKey
     });
+
+    // Voice notes get the same encrypt-and-sign treatment as the text, not
+    // the plain/unsigned handling images get today — voice is far more
+    // identifying, so it gets real E2E confidentiality and the inbox's
+    // signature check (see /li/[room]) instead of a bare upload.
+    let audioData: { dataURI: string[]; duration: number } | undefined;
+    if (voiceBlob) {
+      const voiceBytes = new Uint8Array(await voiceBlob.arrayBuffer());
+      const encryptedVoice = await openpgp.encrypt({
+        message: await openpgp.createMessage({ binary: voiceBytes }),
+        encryptionKeys: publicKey,
+        signingKeys: privateKey
+      });
+      audioData = { dataURI: breakString(encryptedVoice, 1000), duration: voiceDurationSec };
+    }
 
     const response = await fetch(apiUrl('/api/pgp'), {
       method: 'PATCH',
@@ -117,6 +203,7 @@
           blurhash: 'LEHLk~WB2yk8pyo0adR*.7kCMdnj',
           nsfw: false
         },
+        audioData,
         r: uniqueString,
         p: params
       })
@@ -124,14 +211,12 @@
 
     const resp = await response.json();
 
-    if (resp.error) {
-      console.log(resp.message);
-    } else {
-      console.log(resp.message);
-      message = '';
-      imageBase64 = [];
+    if (resp.status !== 200) {
+      throw new Error(`Send failed: ${JSON.stringify(resp.body)}`);
     }
-    sending = false;
+    message = '';
+    imageBase64 = [];
+    voiceRecorder?.reset();
   };
 
   // get the public key of the other person from the url
@@ -141,6 +226,16 @@
     // the recipient's entire encrypted mailbox to read one key.
     const response = await fetch(apiUrl(`/api/pgp?r=${params}&lim=0`));
     const data = await response.json();
+    // A 404 here (room not registered — e.g. the sender's own genesis
+    // identity failed to register earlier) used to leave api_pbKey
+    // `undefined` with no indication why; signMessage would then crash deep
+    // inside openpgp.readKey with an opaque error. Surface it here instead.
+    if (data.status !== 200) {
+      console.error('Failed to fetch recipient key:', data.body);
+      sendError = "This room doesn't exist (yet) — check the link, or the recipient's identity may not have finished registering.";
+      disableSend = false;
+      return;
+    }
     api_pbKey = data.body.pbKey;
     disableSend = false;
   };
@@ -181,13 +276,22 @@
         }
       });
       const respTitle = await responseTitle.json();
-      console.log('resp', respTitle);
 
-      if (respTitle.error) {
-        console.log(respTitle.message);
+      // `.error` never exists on any response this app sends (see
+      // CLAUDE.md's `{ status, body }` envelope) — checking it always fell
+      // through to the "success" branch, so a 404 (room not registered)
+      // reached `respTitle.body.title` where `body` is a plain string,
+      // crashing on `.length` of undefined and aborting the rest of this
+      // onMount (fetchKeys below never ran, leaving api_pbKey unset).
+      if (respTitle.status !== 200) {
+        console.error('Failed to fetch room title:', respTitle.body);
+        roomTitle = params; // fall back to showing the raw rid
       } else {
         roomTitle = respTitle.body.title.length == 0 ? respTitle.body.rid : respTitle.body.title;
       }
+    } catch (e) {
+      console.error('Error fetching room title', e);
+      roomTitle = params;
     } finally {
       loadingRoom = false;
     }
@@ -246,8 +350,12 @@
       <button
         class=" border-light-900 dark:border-dark-600
 				relative h-fit border border-black p-7 transition-all
-				{!message || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
-        disabled={!message || message.trim().length === 0 || sending || checkingProfanity}
+				{!hasContent || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
+        disabled={!hasContent ||
+          sending ||
+          checkingProfanity ||
+          checkingVoiceModeration ||
+          voiceRendering}
         onclick={signMessage}
       >
         {#if checkingProfanity}
@@ -257,6 +365,19 @@
             class="bg-primary text-primary-foreground absolute -top-6 left-0 w-full"
           >
             Checking
+          </span>
+        {/if}
+        {#if checkingVoiceModeration}
+          <span
+            in:fly={{ y: 4 }}
+            out:fly={{ y: -4 }}
+            class="bg-primary text-primary-foreground absolute -top-6 left-0 w-full text-xs"
+          >
+            {#if voiceModerationProgress?.phase === 'loading-model'}
+              Checking voice… {voiceModerationProgress.percent.toFixed(0)}%
+            {:else}
+              Checking voice…
+            {/if}
           </span>
         {/if}
         {#if profaneBlock}
@@ -272,6 +393,12 @@
         {sending ? 'Sending' : 'Send'}
       </button>
     </span>
+
+    {#if sendError}
+      <span class="bg-destructive/10 text-destructive mb-2 block w-full p-2 text-sm">
+        {sendError}
+      </span>
+    {/if}
 
     <span class=" flex h-full w-full flex-row gap-2 border border-black p-3">
       {#if imageBase64.length}
@@ -300,6 +427,12 @@
           />
         </span>
       {/if}
+      <VoiceRecorder
+        bind:this={voiceRecorder}
+        bind:blob={voiceBlob}
+        bind:durationSec={voiceDurationSec}
+        bind:rendering={voiceRendering}
+      />
     </span>
   </div>
 </div>

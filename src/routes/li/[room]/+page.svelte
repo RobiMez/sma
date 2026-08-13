@@ -71,6 +71,46 @@
     }
   };
 
+  // Voice messages are decrypted lazily (see VoiceMessage.svelte), only once
+  // the recipient taps play, not during every poll like text — so this is
+  // exposed as a callback rather than folded into `unpack()`. It reuses the
+  // same cached private key and author-key cache text decryption uses, and
+  // applies the identical "no signature / wrong signer = spoof" rule.
+  const decryptAudio = async (
+    armoredCiphertext: string,
+    claimedAuthorRid: string
+  ): Promise<Uint8Array | null> => {
+    try {
+      const privateKey = await getPrivateKey();
+      if (!privateKey) return null;
+
+      const authorPbKeyArmored = await fetchAuthorPublicKey(claimedAuthorRid);
+      if (!authorPbKeyArmored) return null;
+      const authorPublicKey = await openpgp.readKey({ armoredKey: authorPbKeyArmored });
+
+      const readMsg = await openpgp.readMessage({ armoredMessage: armoredCiphertext });
+      const { data: decrypted, signatures } = await openpgp.decrypt({
+        message: readMsg,
+        decryptionKeys: privateKey,
+        verificationKeys: authorPublicKey,
+        format: 'binary',
+        config: { allowInsecureDecryptionWithSigningKeys: true }
+      });
+
+      if (!signatures || signatures.length === 0) return null;
+      try {
+        await signatures[0].verified;
+      } catch {
+        return null;
+      }
+
+      return decrypted as Uint8Array;
+    } catch (e) {
+      console.error('Failed to decrypt/verify voice message', e);
+      return null;
+    }
+  };
+
   let previousMessageCount = 0;
   let playSound = $state(false);
 
@@ -113,8 +153,9 @@
 
       const resp = await response.json();
 
-      if (resp.error) {
-        console.log(resp.message);
+      // Every response here is `{ status, body }`, never `{ error, message }`.
+      if (resp.status !== 200) {
+        console.error('Failed to poll inbox:', resp.body);
         return;
       }
 
@@ -186,6 +227,10 @@
               id: encryptedMessage.image?._id,
               blurhash: encryptedMessage.image?.blurhash,
               nsfw: encryptedMessage.image?.nsfw
+            },
+            audio: {
+              id: encryptedMessage.audio?._id,
+              duration: encryptedMessage.audio?.duration
             },
             r: claimedAuthorRid,
             timestamp: encryptedMessage.timestamp
@@ -306,7 +351,7 @@
     <div class="flex w-full flex-col p-4 pt-8">
       {#if unlocked}
         {#each [...decryptedMessages].reverse() as msg (msg.id)}
-          <Message {msg} />
+          <Message {msg} {decryptAudio} />
         {/each}
 
         {#if !decryptedMessages.length}

@@ -7,6 +7,10 @@ const MessageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Image'
   },
+  audio: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Audio'
+  },
   timestamp: { type: Date, default: Date.now }
 });
 
