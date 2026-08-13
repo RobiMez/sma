@@ -29,7 +29,8 @@
 
     const resp = await response.json();
 
-    if (resp.error) {
+    // Every response here is `{ status, body }`, never `{ error, message }`.
+    if (resp.status !== 200) {
       stats = { activeUsers: 0, identities: 0, totalMessages: 0 };
     } else {
       stats = resp.body;
