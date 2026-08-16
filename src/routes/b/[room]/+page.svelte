@@ -400,7 +400,10 @@
       </span>
     {/if}
 
-    <span class=" flex h-full w-full flex-row gap-2 border border-black p-3">
+    <!-- items-start so the short "Add image" tile doesn't stretch to match the
+         (much taller) expanded voice recorder next to it; flex-wrap so the two
+         stack instead of overflowing once a clip is recorded on a narrow screen. -->
+    <span class=" flex h-full w-full flex-row flex-wrap items-start gap-2 border border-black p-3">
       {#if imageBase64.length}
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
         <Button

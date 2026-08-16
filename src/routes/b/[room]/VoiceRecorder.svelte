@@ -123,10 +123,13 @@
 
 {#if blob}
   <span
-    class="bg-secondary/60 border-primary/30 flex flex-col gap-2 rounded-xs border p-2 sm:flex-row sm:items-center"
+    class="bg-secondary/60 border-primary/30 flex w-full min-w-0 flex-col gap-2 rounded-xs border p-2 sm:w-auto sm:flex-row sm:items-center"
   >
-    <audio src={previewUrl} controls class="h-8 max-w-[220px]"></audio>
-    <span class="flex max-w-[280px] flex-wrap gap-1">
+    <audio src={previewUrl} controls class="h-8 w-full sm:w-[220px]"></audio>
+    <!-- A plain wrap left "Monster" orphaned on a row of its own. Six short
+         labels go two even rows of three on a phone and a single row once
+         there's width for it. -->
+    <span class="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap">
       {#each VOICE_PRESETS as p (p.id)}
         <button
           type="button"
@@ -139,7 +142,7 @@
         </button>
       {/each}
     </span>
-    <Button onclick={clearRecording}>
+    <Button onclick={clearRecording} class="w-full sm:w-auto">
       <X /> <span>Discard</span>
     </Button>
   </span>
