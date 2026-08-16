@@ -131,6 +131,34 @@ export async function decodeRecording(blob: Blob): Promise<AudioBuffer> {
   }
 }
 
+// Apply the preset's pitch shift, on its own, at the recording's OWN sample
+// rate — then hand the result to the effects pass below.
+//
+// This is split out because doing the pitch shift straight into the 16kHz
+// render context silently truncated the recording. An AudioBufferSourceNode
+// with `playbackRate !== 1` whose buffer's sample rate differs from the
+// context's stops producing output early: with a 48kHz mic recording rendered
+// into a 16kHz context, the audio ended after `rate` of the intended duration
+// and the remainder came out silent. Measured at rate 0.65, a 5s recording
+// filled only the first 5.02s of a correctly-sized 7.69s buffer — the last
+// 35% of what the user said was replaced by silence, and the pitch was
+// correct throughout, so nothing about the output looked wrong. Only the
+// slow presets showed it (deep, robot, monster); rate >= 1 happened to escape
+// because the output buffer is shorter than the source. Rendering at the
+// buffer's own rate makes playbackRate behave, and plain resampling with
+// playbackRate 1 (the pass below) was never affected.
+async function renderPitchShift(decoded: AudioBuffer, rate: number): Promise<AudioBuffer> {
+  if (rate === 1) return decoded;
+  const outFrames = Math.max(1, Math.ceil(decoded.length / rate));
+  const ctx = new OfflineAudioContext(decoded.numberOfChannels, outFrames, decoded.sampleRate);
+  const source = ctx.createBufferSource();
+  source.buffer = decoded;
+  source.playbackRate.value = rate;
+  source.connect(ctx.destination);
+  source.start();
+  return await ctx.startRendering();
+}
+
 // Render `decoded` through the chosen preset and return a small mono WAV
 // blob ready to be encrypted and uploaded, plus its duration in seconds.
 export async function applyVoicePreset(
@@ -138,15 +166,15 @@ export async function applyVoicePreset(
   preset: VoicePreset
 ): Promise<{ blob: Blob; durationSec: number }> {
   const rate = PLAYBACK_RATE[preset];
-  // Reading through the buffer at `rate` covers `decoded.length` source
-  // frames in `decoded.length / rate` output frames — fewer for a sped-up
-  // (helium) rate, more for a slowed-down (deep) one.
-  const outFrames = Math.max(1, Math.ceil((decoded.length / rate) * (RENDER_SAMPLE_RATE / decoded.sampleRate)));
+  // Pitch first, at the source rate (see renderPitchShift). What comes back is
+  // already `decoded.length / rate` frames long, so this pass only has to
+  // resample it down to RENDER_SAMPLE_RATE — playbackRate stays 1 here.
+  const pitched = await renderPitchShift(decoded, rate);
+  const outFrames = Math.max(1, Math.ceil(pitched.duration * RENDER_SAMPLE_RATE));
   const offlineCtx = new OfflineAudioContext(1, outFrames, RENDER_SAMPLE_RATE);
 
   const source = offlineCtx.createBufferSource();
-  source.buffer = decoded;
-  source.playbackRate.value = rate;
+  source.buffer = pitched;
 
   // Chain the stages this preset uses, in order, ending at `node` — whatever
   // that is gets connected to the destination last.
