@@ -38,6 +38,8 @@
   let elapsedSec = $state(0);
   let preset: VoicePreset = $state('deep');
   let previewUrl: string | null = $state(null);
+  // Why the last recording attempt failed, '' when there's nothing to report.
+  let micError = $state('');
 
   let mediaRecorder: MediaRecorder | undefined;
   let mediaStream: MediaStream | undefined;
@@ -72,19 +74,59 @@
   async function startRecording() {
     if (!supported || recording) return;
     recordedChunks = [];
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(mediaStream, { mimeType: pickRecorderMimeType() });
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunks.push(e.data);
-    };
-    mediaRecorder.onstop = async () => {
-      mediaStream?.getTracks().forEach((t) => t.stop());
+    micError = '';
+
+    // Every failure below used to be an unhandled rejection: the mic prompt
+    // getting denied just left the button sitting there as if nothing had
+    // happened. Tell the sender what went wrong instead — this is the first
+    // thing a new user hits, so silence reads as "voice messages are broken".
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      console.error('Could not open the microphone', e);
+      const name = (e as DOMException)?.name;
+      micError =
+        name === 'NotAllowedError' || name === 'SecurityError'
+          ? 'Microphone blocked — allow mic access for this site, then try again.'
+          : 'No microphone available.';
+      return;
+    }
+
+    try {
+      mediaStream = stream;
+      mediaRecorder = new MediaRecorder(stream, { mimeType: pickRecorderMimeType() });
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+      mediaRecorder.onstop = async () => {
+        mediaStream?.getTracks().forEach((t) => t.stop());
+        mediaStream = undefined;
+        try {
+          const rawBlob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType });
+          decodedBuffer = await decodeRecording(rawBlob);
+          await renderPreset(preset);
+        } catch (e) {
+          // Decoding an empty or codec-mismatched clip throws here. Same rule
+          // as above: say so rather than silently returning to the idle button.
+          console.error('Could not process the recording', e);
+          micError = "That recording couldn't be processed — try again.";
+          clearRecording();
+        }
+      };
+      mediaRecorder.start();
+    } catch (e) {
+      // Constructing or starting the recorder can still fail even after the
+      // mic opened. Release it rather than leaving the browser's recording
+      // indicator lit with nothing actually recording.
+      console.error('Could not start the recorder', e);
+      stream.getTracks().forEach((t) => t.stop());
       mediaStream = undefined;
-      const rawBlob = new Blob(recordedChunks, { type: mediaRecorder?.mimeType });
-      decodedBuffer = await decodeRecording(rawBlob);
-      await renderPreset(preset);
-    };
-    mediaRecorder.start();
+      mediaRecorder = undefined;
+      micError = "This browser wouldn't start a recording.";
+      return;
+    }
+
     recording = true;
     elapsedSec = 0;
     elapsedTimer = setInterval(() => {
@@ -104,6 +146,7 @@
     revokePreview();
     blob = null;
     durationSec = 0;
+    elapsedSec = 0;
     decodedBuffer = undefined;
     recordedChunks = [];
   }
@@ -156,18 +199,23 @@
     Stop ({MAX_RECORD_SECONDS - elapsedSec}s left)
   </button>
 {:else}
-  <span
-    class="bg-secondary/60 border-primary/30 hover:bg-secondary/80 text-secondary-foreground rounded-xs border p-2 transition-all"
-  >
-    <button
-      type="button"
-      class="flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-      disabled={!supported}
-      title={supported ? 'Record a voice message' : "This browser doesn't support recording"}
-      onclick={startRecording}
+  <span class="flex flex-col gap-1">
+    <span
+      class="bg-secondary/60 border-primary/30 hover:bg-secondary/80 text-secondary-foreground rounded-xs border p-2 transition-all"
     >
-      <Microphone size="24" weight="duotone" />
-      <span class="text-sm">Add voice</span>
-    </button>
+      <button
+        type="button"
+        class="flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+        disabled={!supported}
+        title={supported ? 'Record a voice message' : "This browser doesn't support recording"}
+        onclick={startRecording}
+      >
+        <Microphone size="24" weight="duotone" />
+        <span class="text-sm">Add voice</span>
+      </button>
+    </span>
+    {#if micError}
+      <span class="text-destructive max-w-[220px] text-xs">{micError}</span>
+    {/if}
   </span>
 {/if}
