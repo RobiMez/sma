@@ -76,12 +76,6 @@ function writeAsciiString(view: DataView, offset: number, text: string) {
   for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
 }
 
-function readAsciiString(view: DataView, offset: number, length: number): string {
-  let s = '';
-  for (let i = 0; i < length; i++) s += String.fromCharCode(view.getUint8(offset + i));
-  return s;
-}
-
 // Minimal 16-bit PCM WAV encoder. `buffer` is already at the target sample
 // rate/channel count (OfflineAudioContext rendered it that way), so this is
 // just a header + interleave, no resampling.
@@ -124,60 +118,6 @@ function encodeWav(buffer: AudioBuffer): Blob {
   return new Blob([out], { type: 'audio/wav' });
 }
 
-// Inverse of encodeWav — reads a 16-bit PCM WAV (the exact shape encodeWav
-// produces, though this walks real chunk headers rather than assuming fixed
-// offsets) back into raw samples. Used by transcription, which wants a plain
-// Float32Array rather than a browser AudioBuffer; going through
-// AudioContext.decodeAudioData here would silently resample to whatever rate
-// the context picked, which is exactly what we don't want for a file whose
-// rate we already know and control.
-export async function decodeWavPcm(blob: Blob): Promise<{ samples: Float32Array; sampleRate: number }> {
-  const buf = await blob.arrayBuffer();
-  const view = new DataView(buf);
-
-  if (readAsciiString(view, 0, 4) !== 'RIFF' || readAsciiString(view, 8, 4) !== 'WAVE') {
-    throw new Error('Not a WAV file');
-  }
-
-  let offset = 12;
-  let sampleRate = 0;
-  let bitsPerSample = 16;
-  let numChannels = 1;
-  let dataOffset = -1;
-  let dataSize = 0;
-
-  while (offset + 8 <= view.byteLength) {
-    const chunkId = readAsciiString(view, offset, 4);
-    const chunkSize = view.getUint32(offset + 4, true);
-    const chunkStart = offset + 8;
-    if (chunkId === 'fmt ') {
-      numChannels = view.getUint16(chunkStart + 2, true);
-      sampleRate = view.getUint32(chunkStart + 4, true);
-      bitsPerSample = view.getUint16(chunkStart + 14, true);
-    } else if (chunkId === 'data') {
-      dataOffset = chunkStart;
-      dataSize = chunkSize;
-    }
-    // Chunks are word-aligned: an odd-sized chunk has a padding byte after it.
-    offset = chunkStart + chunkSize + (chunkSize % 2);
-  }
-
-  if (dataOffset === -1 || bitsPerSample !== 16) {
-    throw new Error('Unsupported WAV format');
-  }
-
-  const frameCount = Math.floor(dataSize / (2 * numChannels));
-  const samples = new Float32Array(frameCount);
-  for (let i = 0; i < frameCount; i++) {
-    // First channel only — encodeWav only ever writes mono, and the
-    // transcription model wants mono anyway.
-    const int16 = view.getInt16(dataOffset + i * numChannels * 2, true);
-    samples[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7fff;
-  }
-
-  return { samples, sampleRate };
-}
-
 // Decode once so switching presets in the picker doesn't re-touch the mic
 // recording or redo the (comparatively slow) decode step each time.
 export async function decodeRecording(blob: Blob): Promise<AudioBuffer> {
@@ -189,26 +129,6 @@ export async function decodeRecording(blob: Blob): Promise<AudioBuffer> {
   } finally {
     await ctx.close();
   }
-}
-
-// Render `decoded` to plain 16kHz mono PCM with none of the preset effects
-// applied — used to feed the sender-side moderation transcription (see
-// transcribe.ts), which wants the speaker's real, undisguised voice for an
-// accurate transcript. Transcribing the pitch-shifted/ring-modulated clip
-// that actually gets sent would tank accuracy: Whisper wasn't trained on
-// robot voices. This never leaves the caller — it's only ever fed into the
-// local model, same as the disguised render.
-export async function renderNeutralPcm16k(decoded: AudioBuffer): Promise<Float32Array> {
-  const outFrames = Math.max(1, Math.ceil(decoded.duration * RENDER_SAMPLE_RATE));
-  const offlineCtx = new OfflineAudioContext(1, outFrames, RENDER_SAMPLE_RATE);
-  const source = offlineCtx.createBufferSource();
-  source.buffer = decoded;
-  source.connect(offlineCtx.destination);
-  source.start();
-  const rendered = await offlineCtx.startRendering();
-  // .slice() for a plain ArrayBuffer-backed Float32Array — same reason as
-  // the WaveShaper curve above.
-  return rendered.getChannelData(0).slice();
 }
 
 // Render `decoded` through the chosen preset and return a small mono WAV

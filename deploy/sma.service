@@ -9,6 +9,14 @@ User=deploy
 WorkingDirectory=/opt/sma
 EnvironmentFile=/opt/sma/.env
 Environment=NODE_ENV=production
+# adapter-node rejects request bodies over 512K by default, which is far below
+# what PATCH /api/pgp already accepts (MAX_IMAGE_CHARS 3M + MAX_AUDIO_CHARS
+# 2.5M) and 24x below the 12m nginx in front of us allows. Left at the default
+# it 413s any image past ~380KB or voice note past ~10s, and because that
+# rejection never carries the app's { status, body } envelope the client could
+# only report it as a generic failure. Keep this above the caps the route
+# enforces and below nginx's client_max_body_size.
+Environment=BODY_SIZE_LIMIT=8M
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5

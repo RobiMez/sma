@@ -6,7 +6,6 @@
     VOICE_PRESETS,
     decodeRecording,
     applyVoicePreset,
-    renderNeutralPcm16k,
     pickRecorderMimeType,
     type VoicePreset
   } from '$lib/utils/voiceChanger';
@@ -154,13 +153,6 @@
   export function reset() {
     if (recording) stopRecording();
     clearRecording();
-  }
-
-  // For the parent's pre-send moderation check — the pre-disguise recording,
-  // not the preset-rendered `blob` that actually gets sent (see
-  // renderNeutralPcm16k for why). null if there's nothing recorded.
-  export function getNeutralPcm(): Promise<Float32Array | null> {
-    return decodedBuffer ? renderNeutralPcm16k(decodedBuffer) : Promise.resolve(null);
   }
 </script>
 
