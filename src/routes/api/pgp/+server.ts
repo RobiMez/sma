@@ -129,7 +129,12 @@ export async function GET({ url }) {
     path: 'messages',
     // $gte (not $gt) so a message sharing the cursor's exact timestamp can't
     // fall through the gap between two polls; clients dedup by _id.
-    match: sinceDate ? { timestamp: { $gte: sinceDate } } : {},
+    // editedAt is matched alongside it because an edited message keeps its
+    // original timestamp — without this arm, an edit to anything older than
+    // the client's cursor would never be handed to an already-open inbox.
+    match: sinceDate
+      ? { $or: [{ timestamp: { $gte: sinceDate } }, { editedAt: { $gte: sinceDate } }] }
+      : {},
     populate: [
       {
         path: 'image',
@@ -190,8 +195,7 @@ export async function PATCH({ request }) {
   const audioChunks: unknown[] = Array.isArray(audioData?.dataURI) ? audioData.dataURI : [];
   if (
     audioChunks.some((chunk) => typeof chunk !== 'string') ||
-    audioChunks.reduce((len: number, chunk) => len + (chunk as string).length, 0) >
-      MAX_AUDIO_CHARS
+    audioChunks.reduce((len: number, chunk) => len + (chunk as string).length, 0) > MAX_AUDIO_CHARS
   ) {
     return json({ status: 400, body: 'Invalid audio' });
   }

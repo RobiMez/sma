@@ -60,7 +60,10 @@ function ruleFor(method: string, pathname: string): Rule | null {
     (pathname === '/api/title' ||
       pathname === '/api/profanity' ||
       pathname === '/api/webhook' ||
-      pathname === '/api/voice')
+      pathname === '/api/voice' ||
+      // Both verbs: /api/sent's list is a POST, not a GET, because it's
+      // signature-authorized like the rest of this bucket.
+      pathname === '/api/sent')
   ) {
     return { bucket: 'mutate', limit: 30, windowMs: MINUTE };
   }
