@@ -44,11 +44,14 @@
     return cachedPrivateKey;
   };
 
-  // Messages are immutable, so each one only needs to be decrypted and
-  // verified once, ever. Keyed by server _id. Spoofed/undecryptable ids are
-  // remembered too so they aren't re-attempted every poll.
+  // Decrypt + verify each message once and cache it by server _id, so polls
+  // stay cheap. Messages aren't quite immutable any more — their author can
+  // edit the text (see /api/sent) — so the cached copy is only good while its
+  // `editedAt` matches what the server last reported. Spoofed/undecryptable
+  // ids are remembered the same way, so they aren't re-attempted every poll
+  // but *are* retried once if they change.
   const decryptedById = new Map<string, any>();
-  const skippedIds = new Set<string>();
+  const skippedIds = new Map<string, string | null>();
   // Newest timestamp processed so far — polls ask the server only for newer.
   let newestSeen: string | null = null;
 
@@ -163,12 +166,19 @@
 
       for (const encryptedMessage of incoming) {
         const id = encryptedMessage._id;
+        const editedAt: string | null = encryptedMessage.editedAt ?? null;
         // Advance the poll cursor over everything the server handed us,
         // including messages we skip — retrying those would fail again.
+        // An edit never moves this: it leaves `timestamp` alone, and the
+        // server matches it on `editedAt` instead (see GET /api/pgp).
         if (!newestSeen || new Date(encryptedMessage.timestamp) > new Date(newestSeen)) {
           newestSeen = encryptedMessage.timestamp;
         }
-        if (decryptedById.has(id) || skippedIds.has(id)) continue;
+        // Already handled at this exact revision — a changed editedAt means
+        // the text was rewritten and the cached plaintext is now wrong.
+        const cached = decryptedById.get(id);
+        if (cached && (cached.editedAt ?? null) === editedAt) continue;
+        if (!cached && skippedIds.has(id) && skippedIds.get(id) === editedAt) continue;
 
         try {
           const readMsg = await openpgp.readMessage({
@@ -188,7 +198,7 @@
               'Skipping message: no public key on record for claimed author',
               claimedAuthorRid
             );
-            skippedIds.add(id);
+            skippedIds.set(id, editedAt);
             continue;
           }
           const authorPublicKey = await openpgp.readKey({ armoredKey: authorPbKeyArmored });
@@ -205,7 +215,7 @@
 
           if (!signatures || signatures.length === 0) {
             console.warn('Skipping unsigned message from claimed author', claimedAuthorRid);
-            skippedIds.add(id);
+            skippedIds.set(id, editedAt);
             continue;
           }
           try {
@@ -216,7 +226,7 @@
               claimedAuthorRid,
               verifyError
             );
-            skippedIds.add(id);
+            skippedIds.set(id, editedAt);
             continue;
           }
 
@@ -233,11 +243,12 @@
               duration: encryptedMessage.audio?.duration
             },
             r: claimedAuthorRid,
-            timestamp: encryptedMessage.timestamp
+            timestamp: encryptedMessage.timestamp,
+            editedAt
           });
         } catch (error) {
           console.error('Error decrypting message', error);
-          skippedIds.add(id);
+          skippedIds.set(id, editedAt);
         }
       }
 

@@ -200,7 +200,17 @@
         />
       {/if}
     </div>
-    <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
+    <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
+      {#if msg.editedAt}
+        <!-- The sender can rewrite what they sent (see /api/sent); say so
+             rather than silently swapping the text under the recipient. -->
+        <span
+          class="text-muted-foreground text-xs italic"
+          title="Edited by the sender at {new Date(msg.editedAt).toLocaleString()}"
+        >
+          edited
+        </span>
+      {/if}
       <button
         class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
         onclick={() => (showExactTime = !showExactTime)}
@@ -262,7 +272,10 @@
           {/if}
 
           <MessageText text={msg.msg} {redactedIndices} />
-          <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
+          <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
+            {#if msg.editedAt}
+              <span class="text-muted-foreground text-xs italic">edited</span>
+            {/if}
             <button
               class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
               onclick={() => (showExactTime = !showExactTime)}

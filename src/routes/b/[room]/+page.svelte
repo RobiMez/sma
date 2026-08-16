@@ -12,22 +12,24 @@
   import ImageThumbnail from '../../li/[room]/Message/ImageThumbnail.svelte';
   import Textarea from '$lib/components/ui/textarea/textarea.svelte';
   import VoiceRecorder from './VoiceRecorder.svelte';
+  import SentMessages from './SentMessages.svelte';
 
   import { breakString } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import {
+    checkProfanity as runProfanityCheck,
+    fetchProfanityAllowed,
+    type IVectorResponse
+  } from '$lib/utils/profanity';
   import { apiUrl } from '$lib/api';
   import { X } from 'phosphor-svelte';
   import { Button } from '$lib/components/ui/button';
   import IdentityChip from '$lib/components/IdentityChip.svelte';
 
-  let api_pbKey: string;
+  // $state because SentMessages takes it as a prop and needs it to re-encrypt
+  // an edit — it lands asynchronously in onMount, after that child mounts.
+  let api_pbKey = $state('');
   let disableSend = false;
-
-  interface IVectorResponse {
-    flaggedFor?: string;
-    isProfanity: boolean;
-    score: number;
-  }
 
   let keyPairs: IKeyPairs[] | undefined;
   let loadedPair: IKeyPairs | null = $state(null);
@@ -48,6 +50,7 @@
   // into view on a room that doesn't accept voice.
   let voiceAllowed = $state(false);
   let voiceRecorder: VoiceRecorder | undefined = $state();
+  let sentMessages: SentMessages | undefined = $state();
   let profanityCheckResponse: IVectorResponse | undefined = $state();
   let profaneBlock = $state(false);
 
@@ -55,18 +58,13 @@
   // mandatory just because it used to be the only content type.
   let hasContent = $derived(message.trim().length > 0 || imageBase64.length > 0 || !!voiceBlob);
 
+  // Thin wrapper over the shared check (also used when editing a sent
+  // message) that drives this page's "Checking" indicator.
   const checkProfanity = async (message: string) => {
     checkingProfanity = true;
     try {
-      const res = await fetch('https://vector.profanity.dev', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      });
-
-      profanityCheckResponse = (await res.json()) as IVectorResponse;
+      profanityCheckResponse = await runProfanityCheck(message);
       return profanityCheckResponse.isProfanity;
-      // {"isProfanity":true,"score":0.99999964,"flaggedFor":"Fuck"}
     } finally {
       checkingProfanity = false;
     }
@@ -113,21 +111,21 @@
       passphrase
     });
 
+    // Encrypt to the sender as well as the recipient. PGP just adds a second
+    // session-key packet — the recipient's copy is untouched — but it's the
+    // difference between the sender holding a blob they can never open again
+    // and being able to read back (and edit) what they sent. Skipped when
+    // they're the same key, i.e. sending to your own room.
+    const myPublicKey = await openpgp.readKey({ armoredKey: loadedPair.pbKey });
+    const encryptionKeys = api_pbKey === loadedPair.pbKey ? [publicKey] : [publicKey, myPublicKey];
+
     let profanityAllowed = false;
 
     // Only the typed caption is checked, so there's nothing to look up for an
     // image- or voice-only send. The filter covers text only: voice notes are
     // not transcribed (see CLAUDE.md) and images were never inspected either.
     if (message.trim()) {
-      const respn = await fetch(apiUrl(`/api/profanity?rid=${encodeURIComponent(params)}`));
-
-      const re = await respn.json();
-
-      if (re.status !== 200) {
-        console.error('Failed to fetch profanity setting:', re.body);
-      } else {
-        profanityAllowed = re.body.profanityEnabled;
-      }
+      profanityAllowed = await fetchProfanityAllowed(params);
     }
     let profane = false;
 
@@ -146,7 +144,7 @@
 
     let cleartextMessage = await openpgp.encrypt({
       message: await openpgp.createMessage({ text: message }),
-      encryptionKeys: publicKey,
+      encryptionKeys,
       signingKeys: privateKey
     });
 
@@ -159,7 +157,7 @@
       const voiceBytes = new Uint8Array(await voiceBlob.arrayBuffer());
       const encryptedVoice = await openpgp.encrypt({
         message: await openpgp.createMessage({ binary: voiceBytes }),
-        encryptionKeys: publicKey,
+        encryptionKeys,
         signingKeys: privateKey
       });
       audioData = { dataURI: breakString(encryptedVoice, 1000), duration: voiceDurationSec };
@@ -209,6 +207,9 @@
     message = '';
     imageBase64 = [];
     voiceRecorder?.reset();
+    // Pull the new message into the sender's own history right away rather
+    // than making them reload to see (and edit) what they just sent.
+    await sentMessages?.refresh();
   };
 
   // get the public key of the other person from the url
@@ -436,5 +437,16 @@
         />
       {/if}
     </span>
+
+    <!-- Only this browser can read this list: it's decrypted with the loaded
+         identity's private key, which never leaves it. -->
+    {#if loadedPair && params}
+      <SentMessages
+        bind:this={sentMessages}
+        room={params}
+        {loadedPair}
+        recipientPbKey={api_pbKey}
+      />
+    {/if}
   </div>
 </div>
