@@ -183,6 +183,20 @@
       })
     });
 
+    // Rejections from the layers *around* SvelteKit — adapter-node's
+    // BODY_SIZE_LIMIT, a proxy — never carry the app's { status, body }
+    // envelope, so check the real HTTP status before trusting that shape.
+    // Reading `resp.status` off a 413's `{ message: 'Payload Too Large' }`
+    // yields undefined, which is how an oversized attachment used to surface
+    // as the same opaque "Send failed: undefined" as everything else.
+    if (!response.ok) {
+      sendError =
+        response.status === 413
+          ? 'That attachment is too large to send — try a shorter recording or a smaller image.'
+          : `Send failed (HTTP ${response.status}). Please try again.`;
+      throw new Error(`Send failed: HTTP ${response.status}`);
+    }
+
     const resp = await response.json();
 
     if (resp.status !== 200) {
