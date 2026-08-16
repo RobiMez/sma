@@ -16,7 +16,6 @@
 
   import { breakString } from '$lib/utils/utils';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
-  import { transcribePcm, type TranscribeProgress } from '$lib/utils/transcribe';
   import {
     checkProfanity as runProfanityCheck,
     fetchProfanityAllowed,
@@ -39,8 +38,6 @@
 
   let sending = $state(false);
   let checkingProfanity = $state(false);
-  let checkingVoiceModeration = $state(false);
-  let voiceModerationProgress: TranscribeProgress | null = $state(null);
 
   let message = $state('');
   let roomTitle = $state('');
@@ -124,45 +121,16 @@
 
     let profanityAllowed = false;
 
-    // Nothing to check when it's a voice/image-only send with no caption —
-    // but a voice note still needs this room setting looked up too.
-    if (message.trim() || voiceBlob) {
+    // Only the typed caption is checked, so there's nothing to look up for an
+    // image- or voice-only send. The filter covers text only: voice notes are
+    // not transcribed (see CLAUDE.md) and images were never inspected either.
+    if (message.trim()) {
       profanityAllowed = await fetchProfanityAllowed(params);
     }
     let profane = false;
 
-    if (!profanityAllowed) {
-      if (message.trim()) {
-        profane = await checkProfanity(message);
-      }
-
-      // Voice moderation: transcribe the pre-disguise recording on-device
-      // and run the same check text gets, reusing checkProfanity verbatim.
-      // Skipped if text already failed — no point loading the model then.
-      // Best-effort, not a hard gate: if the local model fails to load or
-      // run (offline, unsupported browser, first-download hiccup), we log
-      // and let the send through rather than make voice messages unsendable
-      // whenever the ML pipeline has a bad day.
-      if (!profane && voiceBlob && voiceRecorder) {
-        checkingVoiceModeration = true;
-        voiceModerationProgress = null;
-        try {
-          const samples = await voiceRecorder.getNeutralPcm();
-          if (samples && samples.length > 0) {
-            const transcript = await transcribePcm(samples, (p) => {
-              voiceModerationProgress = p;
-            });
-            if (transcript.trim()) {
-              profane = await checkProfanity(transcript);
-            }
-          }
-        } catch (e) {
-          console.error('Voice moderation check failed — allowing send', e);
-        } finally {
-          checkingVoiceModeration = false;
-          voiceModerationProgress = null;
-        }
-      }
+    if (!profanityAllowed && message.trim()) {
+      profane = await checkProfanity(message);
     }
     if (profane) {
       profaneBlock = true;
@@ -212,6 +180,20 @@
         p: params
       })
     });
+
+    // Rejections from the layers *around* SvelteKit — adapter-node's
+    // BODY_SIZE_LIMIT, a proxy — never carry the app's { status, body }
+    // envelope, so check the real HTTP status before trusting that shape.
+    // Reading `resp.status` off a 413's `{ message: 'Payload Too Large' }`
+    // yields undefined, which is how an oversized attachment used to surface
+    // as the same opaque "Send failed: undefined" as everything else.
+    if (!response.ok) {
+      sendError =
+        response.status === 413
+          ? 'That attachment is too large to send — try a shorter recording or a smaller image.'
+          : `Send failed (HTTP ${response.status}). Please try again.`;
+      throw new Error(`Send failed: HTTP ${response.status}`);
+    }
 
     const resp = await response.json();
 
@@ -384,11 +366,7 @@
         class=" border-light-900 dark:border-dark-600
 				relative h-fit border border-black p-7 transition-all
 				{!hasContent || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
-        disabled={!hasContent ||
-          sending ||
-          checkingProfanity ||
-          checkingVoiceModeration ||
-          voiceRendering}
+        disabled={!hasContent || sending || checkingProfanity || voiceRendering}
         onclick={signMessage}
       >
         {#if checkingProfanity}
@@ -398,19 +376,6 @@
             class="bg-primary text-primary-foreground absolute -top-6 left-0 w-full"
           >
             Checking
-          </span>
-        {/if}
-        {#if checkingVoiceModeration}
-          <span
-            in:fly={{ y: 4 }}
-            out:fly={{ y: -4 }}
-            class="bg-primary text-primary-foreground absolute -top-6 left-0 w-full text-xs"
-          >
-            {#if voiceModerationProgress?.phase === 'loading-model'}
-              Checking voice… {voiceModerationProgress.percent.toFixed(0)}%
-            {:else}
-              Checking voice…
-            {/if}
           </span>
         {/if}
         {#if profaneBlock}

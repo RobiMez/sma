@@ -15,3 +15,7 @@ vite.config.ts.timestamp-*
 
 # Sentry Config File
 .sentryclirc
+
+# Playwright artifacts
+test-results/
+playwright-report/

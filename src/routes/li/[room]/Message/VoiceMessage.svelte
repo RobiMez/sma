@@ -4,8 +4,6 @@
   import SpeakerHigh from 'phosphor-svelte/lib/SpeakerHigh';
   import Spinner from 'phosphor-svelte/lib/Spinner';
   import WarningCircle from 'phosphor-svelte/lib/WarningCircle';
-  import ClosedCaptioning from 'phosphor-svelte/lib/ClosedCaptioning';
-  import { transcribeVoiceClip, type TranscribeProgress } from '$lib/utils/transcribe';
 
   // Lazy: the list poll (`GET /api/pgp`) excludes the audio ciphertext (see
   // the `-dataURI` populate in that route) so it stays small, same reason
@@ -23,12 +21,6 @@
   // same-named local as legacy store auto-subscription ($state) and errors.
   let loadState: 'idle' | 'loading' | 'ready' | 'error' = $state('idle');
   let objectUrl: string | undefined = $state();
-  let wavBlob: Blob | undefined;
-
-  let transcribeState: 'idle' | 'loading-model' | 'transcribing' | 'done' | 'error' =
-    $state('idle');
-  let modelProgress = $state(0);
-  let transcript = $state('');
 
   async function load() {
     if (loadState === 'loading' || loadState === 'ready') return;
@@ -51,36 +43,11 @@
       // .slice() (not the raw Uint8Array) so its buffer is typed as a plain
       // ArrayBuffer — Blob's constructor type doesn't accept the more
       // general ArrayBufferLike a decrypted openpgp Uint8Array carries.
-      wavBlob = new Blob([decrypted.slice()], { type: 'audio/wav' });
-      objectUrl = URL.createObjectURL(wavBlob);
+      objectUrl = URL.createObjectURL(new Blob([decrypted.slice()], { type: 'audio/wav' }));
       loadState = 'ready';
     } catch (e) {
       console.error('Failed to load voice message', e);
       loadState = 'error';
-    }
-  }
-
-  // Entirely on-device (see transcribe.ts) — nothing here is sent anywhere.
-  // Only reachable once the clip is decrypted, so there's always a `wavBlob`.
-  async function transcribe() {
-    if (!wavBlob || transcribeState === 'loading-model' || transcribeState === 'transcribing') {
-      return;
-    }
-    transcribeState = 'loading-model';
-    modelProgress = 0;
-    try {
-      const text = await transcribeVoiceClip(wavBlob, (p: TranscribeProgress) => {
-        if (p.phase === 'loading-model') {
-          modelProgress = p.percent;
-        } else {
-          transcribeState = 'transcribing';
-        }
-      });
-      transcript = text || '(no speech detected)';
-      transcribeState = 'done';
-    } catch (e) {
-      console.error('Failed to transcribe voice message', e);
-      transcribeState = 'error';
     }
   }
 
@@ -90,38 +57,7 @@
 </script>
 
 {#if loadState === 'ready' && objectUrl}
-  <span class="flex flex-col gap-1">
-    <span class="flex items-center gap-2">
-      <audio src={objectUrl} controls class="h-8 max-w-[220px]"></audio>
-      {#if transcribeState === 'idle'}
-        <button
-          type="button"
-          class="border-primary/40 bg-background flex items-center gap-1 border px-2 py-1 text-xs"
-          onclick={transcribe}
-          title="Transcribe on-device (English) — nothing is uploaded"
-        >
-          <ClosedCaptioning size={16} weight="duotone" /> Transcribe
-        </button>
-      {:else if transcribeState === 'loading-model'}
-        <span class="text-muted-foreground flex items-center gap-1 text-xs">
-          <Spinner class="animate-spin" size={16} /> Downloading model… {modelProgress}%
-        </span>
-      {:else if transcribeState === 'transcribing'}
-        <span class="text-muted-foreground flex items-center gap-1 text-xs">
-          <Spinner class="animate-spin" size={16} /> Transcribing…
-        </span>
-      {:else if transcribeState === 'error'}
-        <span class="text-destructive flex items-center gap-1 text-xs">
-          <WarningCircle size={16} /> Transcription failed
-        </span>
-      {/if}
-    </span>
-    {#if transcribeState === 'done'}
-      <span class="text-muted-foreground border-primary/20 border-l-2 pl-2 text-xs italic">
-        “{transcript}”
-      </span>
-    {/if}
-  </span>
+  <audio src={objectUrl} controls class="h-8 max-w-[220px]"></audio>
 {:else if loadState === 'error'}
   <span
     class="text-destructive flex items-center gap-1 text-xs"

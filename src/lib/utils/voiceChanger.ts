@@ -76,12 +76,6 @@ function writeAsciiString(view: DataView, offset: number, text: string) {
   for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
 }
 
-function readAsciiString(view: DataView, offset: number, length: number): string {
-  let s = '';
-  for (let i = 0; i < length; i++) s += String.fromCharCode(view.getUint8(offset + i));
-  return s;
-}
-
 // Minimal 16-bit PCM WAV encoder. `buffer` is already at the target sample
 // rate/channel count (OfflineAudioContext rendered it that way), so this is
 // just a header + interleave, no resampling.
@@ -124,60 +118,6 @@ function encodeWav(buffer: AudioBuffer): Blob {
   return new Blob([out], { type: 'audio/wav' });
 }
 
-// Inverse of encodeWav — reads a 16-bit PCM WAV (the exact shape encodeWav
-// produces, though this walks real chunk headers rather than assuming fixed
-// offsets) back into raw samples. Used by transcription, which wants a plain
-// Float32Array rather than a browser AudioBuffer; going through
-// AudioContext.decodeAudioData here would silently resample to whatever rate
-// the context picked, which is exactly what we don't want for a file whose
-// rate we already know and control.
-export async function decodeWavPcm(blob: Blob): Promise<{ samples: Float32Array; sampleRate: number }> {
-  const buf = await blob.arrayBuffer();
-  const view = new DataView(buf);
-
-  if (readAsciiString(view, 0, 4) !== 'RIFF' || readAsciiString(view, 8, 4) !== 'WAVE') {
-    throw new Error('Not a WAV file');
-  }
-
-  let offset = 12;
-  let sampleRate = 0;
-  let bitsPerSample = 16;
-  let numChannels = 1;
-  let dataOffset = -1;
-  let dataSize = 0;
-
-  while (offset + 8 <= view.byteLength) {
-    const chunkId = readAsciiString(view, offset, 4);
-    const chunkSize = view.getUint32(offset + 4, true);
-    const chunkStart = offset + 8;
-    if (chunkId === 'fmt ') {
-      numChannels = view.getUint16(chunkStart + 2, true);
-      sampleRate = view.getUint32(chunkStart + 4, true);
-      bitsPerSample = view.getUint16(chunkStart + 14, true);
-    } else if (chunkId === 'data') {
-      dataOffset = chunkStart;
-      dataSize = chunkSize;
-    }
-    // Chunks are word-aligned: an odd-sized chunk has a padding byte after it.
-    offset = chunkStart + chunkSize + (chunkSize % 2);
-  }
-
-  if (dataOffset === -1 || bitsPerSample !== 16) {
-    throw new Error('Unsupported WAV format');
-  }
-
-  const frameCount = Math.floor(dataSize / (2 * numChannels));
-  const samples = new Float32Array(frameCount);
-  for (let i = 0; i < frameCount; i++) {
-    // First channel only — encodeWav only ever writes mono, and the
-    // transcription model wants mono anyway.
-    const int16 = view.getInt16(dataOffset + i * numChannels * 2, true);
-    samples[i] = int16 < 0 ? int16 / 0x8000 : int16 / 0x7fff;
-  }
-
-  return { samples, sampleRate };
-}
-
 // Decode once so switching presets in the picker doesn't re-touch the mic
 // recording or redo the (comparatively slow) decode step each time.
 export async function decodeRecording(blob: Blob): Promise<AudioBuffer> {
@@ -191,24 +131,32 @@ export async function decodeRecording(blob: Blob): Promise<AudioBuffer> {
   }
 }
 
-// Render `decoded` to plain 16kHz mono PCM with none of the preset effects
-// applied — used to feed the sender-side moderation transcription (see
-// transcribe.ts), which wants the speaker's real, undisguised voice for an
-// accurate transcript. Transcribing the pitch-shifted/ring-modulated clip
-// that actually gets sent would tank accuracy: Whisper wasn't trained on
-// robot voices. This never leaves the caller — it's only ever fed into the
-// local model, same as the disguised render.
-export async function renderNeutralPcm16k(decoded: AudioBuffer): Promise<Float32Array> {
-  const outFrames = Math.max(1, Math.ceil(decoded.duration * RENDER_SAMPLE_RATE));
-  const offlineCtx = new OfflineAudioContext(1, outFrames, RENDER_SAMPLE_RATE);
-  const source = offlineCtx.createBufferSource();
+// Apply the preset's pitch shift, on its own, at the recording's OWN sample
+// rate — then hand the result to the effects pass below.
+//
+// This is split out because doing the pitch shift straight into the 16kHz
+// render context silently truncated the recording. An AudioBufferSourceNode
+// with `playbackRate !== 1` whose buffer's sample rate differs from the
+// context's stops producing output early: with a 48kHz mic recording rendered
+// into a 16kHz context, the audio ended after `rate` of the intended duration
+// and the remainder came out silent. Measured at rate 0.65, a 5s recording
+// filled only the first 5.02s of a correctly-sized 7.69s buffer — the last
+// 35% of what the user said was replaced by silence, and the pitch was
+// correct throughout, so nothing about the output looked wrong. Only the
+// slow presets showed it (deep, robot, monster); rate >= 1 happened to escape
+// because the output buffer is shorter than the source. Rendering at the
+// buffer's own rate makes playbackRate behave, and plain resampling with
+// playbackRate 1 (the pass below) was never affected.
+async function renderPitchShift(decoded: AudioBuffer, rate: number): Promise<AudioBuffer> {
+  if (rate === 1) return decoded;
+  const outFrames = Math.max(1, Math.ceil(decoded.length / rate));
+  const ctx = new OfflineAudioContext(decoded.numberOfChannels, outFrames, decoded.sampleRate);
+  const source = ctx.createBufferSource();
   source.buffer = decoded;
-  source.connect(offlineCtx.destination);
+  source.playbackRate.value = rate;
+  source.connect(ctx.destination);
   source.start();
-  const rendered = await offlineCtx.startRendering();
-  // .slice() for a plain ArrayBuffer-backed Float32Array — same reason as
-  // the WaveShaper curve above.
-  return rendered.getChannelData(0).slice();
+  return await ctx.startRendering();
 }
 
 // Render `decoded` through the chosen preset and return a small mono WAV
@@ -218,15 +166,15 @@ export async function applyVoicePreset(
   preset: VoicePreset
 ): Promise<{ blob: Blob; durationSec: number }> {
   const rate = PLAYBACK_RATE[preset];
-  // Reading through the buffer at `rate` covers `decoded.length` source
-  // frames in `decoded.length / rate` output frames — fewer for a sped-up
-  // (helium) rate, more for a slowed-down (deep) one.
-  const outFrames = Math.max(1, Math.ceil((decoded.length / rate) * (RENDER_SAMPLE_RATE / decoded.sampleRate)));
+  // Pitch first, at the source rate (see renderPitchShift). What comes back is
+  // already `decoded.length / rate` frames long, so this pass only has to
+  // resample it down to RENDER_SAMPLE_RATE — playbackRate stays 1 here.
+  const pitched = await renderPitchShift(decoded, rate);
+  const outFrames = Math.max(1, Math.ceil(pitched.duration * RENDER_SAMPLE_RATE));
   const offlineCtx = new OfflineAudioContext(1, outFrames, RENDER_SAMPLE_RATE);
 
   const source = offlineCtx.createBufferSource();
-  source.buffer = decoded;
-  source.playbackRate.value = rate;
+  source.buffer = pitched;
 
   // Chain the stages this preset uses, in order, ending at `node` — whatever
   // that is gets connected to the destination last.
