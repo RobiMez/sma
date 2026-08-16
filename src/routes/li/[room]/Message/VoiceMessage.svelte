@@ -111,9 +111,17 @@
           <Spinner class="animate-spin" size={16} /> Transcribing…
         </span>
       {:else if transcribeState === 'error'}
-        <span class="text-destructive flex items-center gap-1 text-xs">
-          <WarningCircle size={16} /> Transcription failed
-        </span>
+        <!-- Clickable: a failed load is usually transient (offline, a dropped
+             chunk), and transcribe.ts no longer caches the failure, so there's
+             a real retry to offer rather than making the recipient reload. -->
+        <button
+          type="button"
+          class="text-destructive flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+          onclick={transcribe}
+          title="Transcription failed — click to try again"
+        >
+          <WarningCircle size={16} /> Transcription failed — retry
+        </button>
       {/if}
     </span>
     {#if transcribeState === 'done'}

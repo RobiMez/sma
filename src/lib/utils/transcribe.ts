@@ -75,7 +75,7 @@ const PROGRESS_THROTTLE_MS = 120;
 function loadPipeline(onProgress?: (p: TranscribeProgress) => void) {
   if (!pipelinePromise) {
     let lastEmit = 0;
-    pipelinePromise = import('@huggingface/transformers').then(({ pipeline }) =>
+    const attempt = import('@huggingface/transformers').then(({ pipeline }) =>
       pipeline('automatic-speech-recognition', MODEL_ID, {
         dtype: 'q8',
         session_options: { graphOptimizationLevel: 'disabled' },
@@ -88,6 +88,18 @@ function loadPipeline(onProgress?: (p: TranscribeProgress) => void) {
         }
       })
     );
+    pipelinePromise = attempt;
+    // Memoizing the promise is the point — the ~39MB download should happen
+    // once per page. But memoizing a *rejected* one meant a single transient
+    // failure (offline, a dropped chunk, a first-download hiccup) permanently
+    // disabled transcription for the rest of the page's life: every later
+    // call re-awaited the same stored rejection and failed instantly, with a
+    // reload as the only way out. Forget a failed attempt so the next caller
+    // genuinely retries. Attaching this here also keeps a failure from
+    // surfacing as an unhandled rejection when nobody is awaiting yet.
+    attempt.catch(() => {
+      if (pipelinePromise === attempt) pipelinePromise = null;
+    });
   }
   return pipelinePromise;
 }
