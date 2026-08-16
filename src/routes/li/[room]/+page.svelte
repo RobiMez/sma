@@ -345,6 +345,7 @@
         bind:unpacking
         bind:pollingInterval
         isProfanityEnabled={data.profanityFilterEnabled}
+        isVoiceEnabled={data.voiceEnabled}
       />
     </div>
 

@@ -9,6 +9,7 @@
     playSound = $bindable(),
     pollingInterval = $bindable(),
     profanityEnabled = $bindable(),
+    voiceEnabled = $bindable(),
     webhookUrl = $bindable()
   } = $props();
 </script>
@@ -16,7 +17,13 @@
 <span class="flex flex-col gap-2">
   <CopyLink />
   <span class="flex flex-row gap-2">
-    <SettingsModal {unpack} bind:pollingInterval bind:profanityEnabled bind:webhookUrl />
+    <SettingsModal
+      {unpack}
+      bind:pollingInterval
+      bind:profanityEnabled
+      bind:voiceEnabled
+      bind:webhookUrl
+    />
     <Mute bind:playSound />
   </span>
 </span>

@@ -12,10 +12,12 @@
     playSound = $bindable(),
     unpacking = $bindable(),
     pollingInterval = $bindable(),
-    isProfanityEnabled
+    isProfanityEnabled,
+    isVoiceEnabled = false
   } = $props();
 
   let profanityEnabled = $state(isProfanityEnabled);
+  let voiceEnabled = $state(isVoiceEnabled);
   let webhookUrl = $state('');
   let rid = page.params.room;
   let roomTitle = $state(rid);
@@ -38,6 +40,7 @@
       bind:playSound
       bind:pollingInterval
       bind:profanityEnabled
+      bind:voiceEnabled
       bind:webhookUrl
     />
   </div>
