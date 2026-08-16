@@ -341,9 +341,17 @@
         w-full border border-black p-8"
         maxlength={1000}
         onkeydown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            signMessage();
-          }
+          if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+          // Enter-to-send is a desktop-only convenience: there Shift+Enter is
+          // right there when you want a newline. A touch keyboard has no
+          // comfortable modifier, so Enter is the only "new line" affordance
+          // people reach for — and sending on it fires off half-written
+          // messages. On a coarse pointer, let Enter do the obvious thing and
+          // leave sending to the Send button.
+          if (window.matchMedia('(pointer: coarse)').matches) return;
+          // Without this the textarea also inserts the newline we just sent on.
+          e.preventDefault();
+          signMessage();
         }}
       />
 
