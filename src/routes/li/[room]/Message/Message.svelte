@@ -8,15 +8,18 @@
   import Copy from 'phosphor-svelte/lib/Copy';
   import Check from 'phosphor-svelte/lib/Check';
   import XCircle from 'phosphor-svelte/lib/XCircle';
+  import Spinner from 'phosphor-svelte/lib/Spinner';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button';
   import IdentityChip from '$lib/components/IdentityChip.svelte';
   import MessageText from './MessageText.svelte';
+  import VoiceMessage from './VoiceMessage.svelte';
   interface Props {
     msg: any;
+    decryptAudio?: (armored: string, authorRid: string) => Promise<Uint8Array | null>;
   }
 
-  let { msg }: Props = $props();
+  let { msg, decryptAudio }: Props = $props();
 
   let showExactTime = $state(false);
   let now = $state(new Date());
@@ -53,6 +56,32 @@
     return relative;
   });
   let messageElement: HTMLDivElement | undefined = $state(undefined);
+  let preparingCapture = $state(false);
+
+  // The dialog below mounts its own BlurhashThumbnail instance (a second,
+  // independent one from the inline thumbnail in the message list), which
+  // kicks off its own /api/images fetch on mount. If domToPng captures
+  // before that resolves, the <img> it finds still has an empty src and the
+  // screenshot comes out with the image portion blank. Wait for every <img>
+  // under the capture target to actually finish loading first.
+  async function waitForImagesToLoad(el: HTMLElement, timeoutMs = 8000): Promise<void> {
+    const pending = Array.from(el.querySelectorAll('img')).filter(
+      (img) => !img.complete || !img.src
+    );
+    if (!pending.length) return;
+    await Promise.race([
+      Promise.all(
+        pending.map(
+          (img) =>
+            new Promise<void>((resolve) => {
+              img.addEventListener('load', () => resolve(), { once: true });
+              img.addEventListener('error', () => resolve(), { once: true });
+            })
+        )
+      ),
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+    ]);
+  }
 
   const downloadImage = async () => {
     try {
@@ -60,6 +89,9 @@
         console.error('No cardElement found');
         return;
       }
+
+      preparingCapture = true;
+      await waitForImagesToLoad(messageElement);
 
       // Use domToPng directly on the cardElement
       const dataUrl = await domToPng(messageElement, {
@@ -77,6 +109,8 @@
       link.remove();
     } catch (error) {
       console.error('Failed to download image using dom-to-png:', error);
+    } finally {
+      preparingCapture = false;
     }
   };
 
@@ -90,6 +124,9 @@
         }, 2000);
         return;
       }
+
+      preparingCapture = true;
+      await waitForImagesToLoad(messageElement);
 
       // Use domToPng to convert the element to an image
       const dataUrl = await domToPng(messageElement, {
@@ -118,6 +155,8 @@
       setTimeout(() => {
         copyState = 'idle';
       }, 2000);
+    } finally {
+      preparingCapture = false;
     }
   };
 
@@ -144,13 +183,23 @@
       </span>
     {/if}
 
-    <MessageText
-      text={msg.msg}
-      {redactMode}
-      showHighlights={redactMode}
-      {redactedIndices}
-      onWordClick={toggleWordRedaction}
-    />
+    <div class="flex w-full min-w-0 flex-col gap-2">
+      <MessageText
+        text={msg.msg}
+        {redactMode}
+        showHighlights={redactMode}
+        {redactedIndices}
+        onWordClick={toggleWordRedaction}
+      />
+      {#if msg.audio?.id && decryptAudio}
+        <VoiceMessage
+          audioId={msg.audio.id}
+          authorRid={msg.r}
+          duration={msg.audio.duration}
+          {decryptAudio}
+        />
+      {/if}
+    </div>
     <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center">
       <button
         class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
@@ -232,9 +281,11 @@
           onclick={() => {
             copyToClipboard();
           }}
-          disabled={copyState !== 'idle'}
+          disabled={copyState !== 'idle' || preparingCapture}
         >
-          {#if copyState === 'copied'}
+          {#if preparingCapture}
+            <Spinner class="animate-spin" size={20} />
+          {:else if copyState === 'copied'}
             <Check size={20} />
           {:else if copyState === 'error'}
             <XCircle size={20} />
@@ -244,11 +295,16 @@
         </Button>
         <Button
           class="aspect-square"
+          disabled={preparingCapture}
           onclick={() => {
             downloadImage();
           }}
         >
-          <FileArrowDown size={20} />
+          {#if preparingCapture}
+            <Spinner class="animate-spin" size={20} />
+          {:else}
+            <FileArrowDown size={20} />
+          {/if}
         </Button>
       </div>
     </Dialog.Footer>

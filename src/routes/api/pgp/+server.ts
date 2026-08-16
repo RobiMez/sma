@@ -3,6 +3,7 @@ import * as openpgp from 'openpgp';
 import Listener from '../../../models/listener.schema';
 import Message from '../../../models/messages.schema';
 import Image from '../../../models/file.schema';
+import Audio from '../../../models/audio.schema';
 import { isSafeWebhookUrl } from '$lib/server/webhookGuard';
 import { notifyRoom } from '$lib/server/wsRegistry.js';
 
@@ -17,6 +18,11 @@ const RID_PATTERN = /^[\w-]{8,64}$/;
 const MAX_MESSAGE_CHARS = 16_384;
 // Client caps image files at 1.5MB; base64 + chunking overhead lands under this.
 const MAX_IMAGE_CHARS = 3_000_000;
+// Client caps recordings at 30s; the "deep" preset slows playback (and so
+// stretches duration) to ~38s of 16kHz mono WAV (~1.2MB) before PGP armor
+// (~1.7M chars armored). This leaves headroom over that worst case.
+const MAX_AUDIO_CHARS = 2_500_000;
+const MAX_AUDIO_DURATION_SEC = 120;
 const MAX_PBKEY_CHARS = 16_384;
 
 async function sendWebhookNotification(webhookUrl: string, message: any) {
@@ -62,10 +68,27 @@ async function saveImage(imageData: { dataURI: string[]; blurhash: string; nsfw:
   return image;
 }
 
-async function createMessage(messageText: string, imageId: string | null, author: string) {
+async function saveAudio(audioData: { dataURI: string[]; duration: number }) {
+  if (!audioData.dataURI.length) return null;
+
+  const audio = new Audio({
+    dataURI: audioData.dataURI,
+    duration: audioData.duration
+  });
+  await audio.save();
+  return audio;
+}
+
+async function createMessage(
+  messageText: string,
+  imageId: string | null,
+  audioId: string | null,
+  author: string
+) {
   const message = new Message({
     message: messageText,
     image: imageId,
+    audio: audioId,
     author
   });
   await message.save();
@@ -107,11 +130,21 @@ export async function GET({ url }) {
     // $gte (not $gt) so a message sharing the cursor's exact timestamp can't
     // fall through the gap between two polls; clients dedup by _id.
     match: sinceDate ? { timestamp: { $gte: sinceDate } } : {},
-    populate: {
-      path: 'image',
-      model: 'Image',
-      select: '-dataURI'
-    }
+    populate: [
+      {
+        path: 'image',
+        model: 'Image',
+        select: '-dataURI'
+      },
+      {
+        // Ciphertext excluded here for the same reason as the image: a poll
+        // returning up to `lim` full clips would balloon the response. The
+        // client fetches + decrypts the real thing from /api/audio on play.
+        path: 'audio',
+        model: 'Audio',
+        select: '-dataURI'
+      }
+    ]
   });
   if (user) {
     return json({ status: 200, body: user });
@@ -121,11 +154,14 @@ export async function GET({ url }) {
 }
 
 export async function PATCH({ request }) {
-  const { message, imageData, r: author, p: recipientId } = await request.json();
+  const { message, imageData, audioData, r: author, p: recipientId } = await request.json();
 
   // Everything here comes from an unauthenticated client: enforce shapes so
   // objects can't reach Mongoose queries, and keep payload sizes bounded.
-  if (typeof message !== 'string' || !message || message.length > MAX_MESSAGE_CHARS) {
+  // Empty text is allowed at this point — a voice note or image can stand on
+  // its own; the "must have SOME content" check happens once image/audio are
+  // parsed below too.
+  if (typeof message !== 'string' || message.length > MAX_MESSAGE_CHARS) {
     return json({ status: 400, body: 'Invalid message' });
   }
   if (typeof author !== 'string' || !RID_PATTERN.test(author)) {
@@ -151,9 +187,43 @@ export async function PATCH({ request }) {
     nsfw: !!imageData?.nsfw
   };
 
+  const audioChunks: unknown[] = Array.isArray(audioData?.dataURI) ? audioData.dataURI : [];
+  if (
+    audioChunks.some((chunk) => typeof chunk !== 'string') ||
+    audioChunks.reduce((len: number, chunk) => len + (chunk as string).length, 0) >
+      MAX_AUDIO_CHARS
+  ) {
+    return json({ status: 400, body: 'Invalid audio' });
+  }
+  const sanitizedAudio = {
+    dataURI: audioChunks as string[],
+    duration:
+      typeof audioData?.duration === 'number' && Number.isFinite(audioData.duration)
+        ? Math.min(Math.max(audioData.duration, 0), MAX_AUDIO_DURATION_SEC)
+        : 0
+  };
+
+  if (!message && sanitizedImage.dataURI.length === 0 && sanitizedAudio.dataURI.length === 0) {
+    return json({ status: 400, body: 'Message must include text, an image, or a voice note' });
+  }
+
   try {
+    // Voice notes are opt-in per room, and this one is actually enforceable:
+    // the server can't police message text (it only ever sees ciphertext), but
+    // it can see perfectly well that an audio blob is attached. Check before
+    // saving so a rejected clip never lands in the Audio collection. Done
+    // inside the try because it's the first DB call on this path.
+    if (sanitizedAudio.dataURI.length > 0) {
+      const recipient = await Listener.findOne({ rid: recipientId }, { voiceEnabled: 1 });
+      if (!recipient) return json({ status: 404, body: 'Listener not found' });
+      if (!recipient.voiceEnabled) {
+        return json({ status: 403, body: 'This room does not accept voice messages' });
+      }
+    }
+
     const image = await saveImage(sanitizedImage);
-    const newMessage = await createMessage(message, image?._id ?? null, author);
+    const audio = await saveAudio(sanitizedAudio);
+    const newMessage = await createMessage(message, image?._id ?? null, audio?._id ?? null, author);
     const listener = await updateListenerWithMessage(recipientId, newMessage._id);
 
     if (listener?.webhookUrl) {

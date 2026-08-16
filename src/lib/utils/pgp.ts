@@ -41,10 +41,17 @@ export const ResetPgpIdentity = async () => {
 
   if (!resp) return;
 
-  if (resp.error) {
-    console.log(resp.message);
-  } else {
-    console.log(resp.message);
-    return data;
+  // The server never sends an `.error` field — every response here is
+  // `{ status, body }` (see CLAUDE.md). Checking `.error` was always false,
+  // so a failed registration (e.g. the DB unreachable) was silently treated
+  // as success and the resulting identity got saved to localStorage anyway
+  // — an identity the server has no record of, permanently unable to
+  // receive messages until re-registered. Check the real status field.
+  if (resp.status !== 200) {
+    console.error('Failed to register PGP identity:', resp.body);
+    return;
   }
+
+  console.log(resp.body);
+  return data;
 };

@@ -57,7 +57,10 @@ function ruleFor(method: string, pathname: string): Rule | null {
   // ultimately 403s, so cap them regardless of outcome.
   if (
     method !== 'GET' &&
-    (pathname === '/api/title' || pathname === '/api/profanity' || pathname === '/api/webhook')
+    (pathname === '/api/title' ||
+      pathname === '/api/profanity' ||
+      pathname === '/api/webhook' ||
+      pathname === '/api/voice')
   ) {
     return { bucket: 'mutate', limit: 30, windowMs: MINUTE };
   }

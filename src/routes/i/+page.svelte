@@ -48,18 +48,27 @@
         class=" flex items-center justify-center gap-4 rounded-xs p-2 text-sm whitespace-nowrap"
         onclick={async () => {
           loading = true;
-          const newPgp = await ResetPgpIdentity();
-          if (!newPgp) return;
+          try {
+            const newPgp = await ResetPgpIdentity();
+            if (!newPgp) {
+              // Registration failed server-side (see ResetPgpIdentity) —
+              // nothing to save. Previously this `return` skipped resetting
+              // `loading`, leaving the button stuck spinning forever.
+              console.error('Failed to create a new identity — see network tab for details.');
+              return;
+            }
 
-          saveToLS(
-            newPgp?.privateKey,
-            newPgp?.publicKey,
-            newPgp?.revocationCertificate,
-            newPgp?.uniqueString
-          );
+            saveToLS(
+              newPgp.privateKey,
+              newPgp.publicKey,
+              newPgp.revocationCertificate,
+              newPgp.uniqueString
+            );
 
-          keyPairs = await getAllFromLS();
-          loading = false;
+            keyPairs = await getAllFromLS();
+          } finally {
+            loading = false;
+          }
         }}
       >
         {#if loading}

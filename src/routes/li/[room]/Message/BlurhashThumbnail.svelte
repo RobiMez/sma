@@ -24,9 +24,9 @@
       // Parse the JSON response
       const resp = await response.json();
 
-      // If there's an error in the response, log the message
-      if (resp.error) {
-        console.log(resp.message);
+      // Every response here is `{ status, body }`, never `{ error, message }`.
+      if (resp.status !== 200) {
+        console.error('Failed to fetch image:', resp.body);
       } else {
         imageBase64 = resp.body.dataURI.join('');
       }
