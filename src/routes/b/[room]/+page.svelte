@@ -47,6 +47,9 @@
   let voiceBlob: Blob | null = $state(null);
   let voiceDurationSec = $state(0);
   let voiceRendering = $state(false);
+  // Opt-in per room (see onMount) — starts false so the recorder never flashes
+  // into view on a room that doesn't accept voice.
+  let voiceAllowed = $state(false);
   let voiceRecorder: VoiceRecorder | undefined = $state();
   let profanityCheckResponse: IVectorResponse | undefined = $state();
   let profaneBlock = $state(false);
@@ -94,7 +97,10 @@
       await signMessageInner(loadedPair);
     } catch (e) {
       console.error('Failed to send message', e);
-      sendError = 'Failed to send — see console for details.';
+      // Only fall back to the generic message — a rejection the sender can
+      // actually act on (e.g. the room doesn't take voice notes) sets a
+      // specific one on the way out.
+      if (!sendError) sendError = 'Failed to send — see console for details.';
     } finally {
       sending = false;
     }
@@ -212,6 +218,10 @@
     const resp = await response.json();
 
     if (resp.status !== 200) {
+      // The 4xx bodies here are plain human-readable strings ("This room does
+      // not accept voice messages", ...) — show that rather than a generic
+      // failure the sender can't do anything about.
+      if (typeof resp.body === 'string') sendError = resp.body;
       throw new Error(`Send failed: ${JSON.stringify(resp.body)}`);
     }
     message = '';
@@ -296,6 +306,20 @@
       loadingRoom = false;
     }
 
+    // Voice notes are opt-in per room. This only decides whether to offer the
+    // recorder at all — the send path enforces it server-side too, so a stale
+    // or failed read here can't sneak a clip into a room that said no. Fail
+    // closed: if we can't tell, don't offer it.
+    try {
+      const voiceResp = await fetch(apiUrl(`/api/voice?rid=${encodeURIComponent(params)}`)).then(
+        (r) => r.json()
+      );
+      voiceAllowed = voiceResp.status === 200 && voiceResp.body?.voiceEnabled === true;
+    } catch (e) {
+      console.error('Failed to fetch voice setting', e);
+      voiceAllowed = false;
+    }
+
     if (params) {
       await fetchKeys();
     }
@@ -341,9 +365,17 @@
         w-full border border-black p-8"
         maxlength={1000}
         onkeydown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            signMessage();
-          }
+          if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
+          // Enter-to-send is a desktop-only convenience: there Shift+Enter is
+          // right there when you want a newline. A touch keyboard has no
+          // comfortable modifier, so Enter is the only "new line" affordance
+          // people reach for — and sending on it fires off half-written
+          // messages. On a coarse pointer, let Enter do the obvious thing and
+          // leave sending to the Send button.
+          if (window.matchMedia('(pointer: coarse)').matches) return;
+          // Without this the textarea also inserts the newline we just sent on.
+          e.preventDefault();
+          signMessage();
         }}
       />
 
@@ -400,7 +432,10 @@
       </span>
     {/if}
 
-    <span class=" flex h-full w-full flex-row gap-2 border border-black p-3">
+    <!-- items-start so the short "Add image" tile doesn't stretch to match the
+         (much taller) expanded voice recorder next to it; flex-wrap so the two
+         stack instead of overflowing once a clip is recorded on a narrow screen. -->
+    <span class=" flex h-full w-full flex-row flex-wrap items-start gap-2 border border-black p-3">
       {#if imageBase64.length}
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
         <Button
@@ -427,12 +462,14 @@
           />
         </span>
       {/if}
-      <VoiceRecorder
-        bind:this={voiceRecorder}
-        bind:blob={voiceBlob}
-        bind:durationSec={voiceDurationSec}
-        bind:rendering={voiceRendering}
-      />
+      {#if voiceAllowed}
+        <VoiceRecorder
+          bind:this={voiceRecorder}
+          bind:blob={voiceBlob}
+          bind:durationSec={voiceDurationSec}
+          bind:rendering={voiceRendering}
+        />
+      {/if}
     </span>
   </div>
 </div>

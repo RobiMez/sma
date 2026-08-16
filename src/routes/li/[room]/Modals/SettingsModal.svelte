@@ -9,6 +9,7 @@
   import { GearSix } from 'phosphor-svelte';
   import PollingDurationSelector from './SettingsModal/PollingDurationSelector.svelte';
   import ProfanityToggle from './SettingsModal/ProfanityToggle.svelte';
+  import VoiceToggle from './SettingsModal/VoiceToggle.svelte';
   import { page } from '$app/state';
   import WebhookSettings from './SettingsModal/WebhookSettings.svelte';
 
@@ -17,6 +18,7 @@
     showModal = $bindable(false),
     pollingInterval = $bindable(),
     profanityEnabled = $bindable(),
+    voiceEnabled = $bindable(),
     webhookUrl = $bindable()
   } = $props();
 
@@ -44,6 +46,7 @@
 
     <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
     <ProfanityToggle {rid} bind:profanityEnabled />
+    <VoiceToggle {rid} bind:voiceEnabled />
     <WebhookSettings {rid} bind:webhookUrl />
 
     <Dialog.Footer>

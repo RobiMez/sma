@@ -208,6 +208,19 @@ export async function PATCH({ request }) {
   }
 
   try {
+    // Voice notes are opt-in per room, and this one is actually enforceable:
+    // the server can't police message text (it only ever sees ciphertext), but
+    // it can see perfectly well that an audio blob is attached. Check before
+    // saving so a rejected clip never lands in the Audio collection. Done
+    // inside the try because it's the first DB call on this path.
+    if (sanitizedAudio.dataURI.length > 0) {
+      const recipient = await Listener.findOne({ rid: recipientId }, { voiceEnabled: 1 });
+      if (!recipient) return json({ status: 404, body: 'Listener not found' });
+      if (!recipient.voiceEnabled) {
+        return json({ status: 403, body: 'This room does not accept voice messages' });
+      }
+    }
+
     const image = await saveImage(sanitizedImage);
     const audio = await saveAudio(sanitizedAudio);
     const newMessage = await createMessage(message, image?._id ?? null, audio?._id ?? null, author);
