@@ -37,6 +37,8 @@ An "identity" is a curve25519 PGP keypair generated in the browser (`src/lib/uti
 
 On identity creation, only `{ pbKey, rid }` is POSTed to `/api/pgp`, which creates a `Listener` document. `getAllFromLS()` auto-generates a genesis identity if none exists, so first page load silently registers a listener.
 
+**`createShortHash` has exactly one implementation and must keep having one.** An rid is a name that gets minted once (`utils/pgp.ts`) and re-derived much later to unlock the inbox (`/li/[room]`); if the two derivations disagree by even one character, that identity is locked out of its own room forever, and there is no error anywhere to say so — `CheckIfUnlockable()` simply returns false and the page renders its header above an empty void. This has already happened once: `/li/[room]/+page.svelte` carried a copy-pasted second copy that had drifted to `.replace('+', '-')` with a **string** pattern, which replaces only the first match, so any hash containing two or more `+`/`/` was re-derived wrong. That is ~2.7% of all identities — including the reported `9WKgh__MaN6t`, which came back as `9WKgh_/MaN6t`. Import the helper from `$lib/utils/hashing`; don't reimplement it, and note that `src/lib/utils/hashing.test.ts` pins the output against fixtures rather than round-tripping, because a round-trip passes happily while both sides are wrong together.
+
 ### Message flow
 
 - `/b/[room]` — public send page (the shareable link). Fetches the recipient's public key by `rid`, encrypts the message to **both that key and the sender's own** (see "Editing sent messages" below), and **signs with the sender's private key**, then PATCHes `/api/pgp` with `{ message, imageData, audioData, r: senderRid, p: recipientRid }`. Below the composer it also lists what this identity has already sent to this room, with an inline editor and any replies the room owner wrote back.
@@ -122,6 +124,17 @@ The same machinery covers "prove you're this sender", not just "prove you own th
 When adding a new owner-only endpoint, gate it with `verifySignedAction` and call it from the client with `signedFetch` — do not trust a plain rid. Public reads (title, profanity flag for senders) stay unsigned GETs. User-supplied webhook URLs must pass `isSafeWebhookUrl` (`src/lib/server/webhookGuard.ts`) both on save and again at fire time (SSRF guard). Unit tests for the auth and SSRF logic live in `src/lib/server/*.test.ts`.
 
 `POST /api/pgp` (listener registration) rejects duplicate rids (409) and validates the armored `pbKey`; `rid` is a unique index on the `Listener` schema. The message-send `PATCH /api/pgp` type-checks and size-caps all fields so unvalidated objects can't reach Mongoose queries (NoSQL injection).
+
+### Error reporting (Sentry), and what it is not allowed to see
+
+`@sentry/sveltekit`, initialised in both `hooks.client.ts` and `hooks.server.ts`, gated on `PUBLIC_SENTRY_DSN` — no DSN, no SDK, which is the default locally and in CI so dev noise stays out of the project. The DSN is a public write-only ingest key and is meant to ship in the client bundle; `SENTRY_AUTH_TOKEN` is separate and only enables source-map upload, which is also what gates the Vite plugin (see `vite.config.ts` — the plugin does nothing useful without a token and drags Babel into the module graph, burying every build in circular-dependency warnings).
+
+Error reporting sits awkwardly on an app whose entire premise is that plaintext never leaves the browser, so two rules in `src/lib/sentry.ts` are load-bearing:
+
+- **Session Replay is never enabled, and DOM breadcrumbs are off.** Replay records the DOM, and by the time a message is on screen in `/li/[room]` it has already been decrypted — turning it on would hand Sentry exactly the plaintext the server is designed never to receive. DOM breadcrumbs describe the element a user clicked, which on that page means from inside a message bubble.
+- **Everything else goes through `scrubEvent` first** (`beforeSend` + `beforeSendTransaction`). It strips armored PGP blocks — openpgp.js quotes its input, so a failed `decrypt` can carry ciphertext or a private key into the exception text — and replaces room ids in paths and query strings, since an rid is the name of a room and a URL rides along with every event. Route *patterns* (`/li/[room]`) are deliberately kept: they name nobody and are what makes grouping useful. The scrub is a blanket walk over every string in the event rather than a list of known fields, because the SDK invents new places to put strings faster than an allowlist keeps up and the failure mode is leaking plaintext.
+
+Note what Sentry does **not** buy you here: the unlock bug above threw nothing. It returned `false` and rendered an empty page, so no error reporter would ever have seen it. Silent-wrong-answer bugs need tests or an explicit failure state in the UI, not instrumentation.
 
 ### Two deploy targets + WebSocket live updates
 
