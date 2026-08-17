@@ -1,3 +1,4 @@
+import { sentrySvelteKit } from '@sentry/sveltekit';
 import { sveltekit } from '@sveltejs/kit/vite';
 import raw from 'vite-raw-plugin';
 import { WebSocketServer } from 'ws';
@@ -46,6 +47,26 @@ export default defineConfig({
     }
   },
   plugins: [
+    // Only the release build that can actually upload source maps loads this.
+    // Without a token the plugin does nothing useful — it says as much — while
+    // still dragging Babel into the module graph, which buries every `pnpm
+    // build` and `pnpm test` under a screen of @babel circular-dependency
+    // warnings. Error capture itself lives in the hooks and does not depend on
+    // this plugin, so gating it costs nothing locally.
+    ...(process.env.SENTRY_AUTH_TOKEN
+      ? [
+          sentrySvelteKit({
+            // The build plugin reports its own usage stats to Sentry by
+            // default. Opt out — nothing else here sends telemetry.
+            telemetry: false,
+            sourceMapsUploadOptions: {
+              org: 'robi-codes',
+              project: 'sma',
+              telemetry: false
+            }
+          })
+        ]
+      : []),
     raw({
       fileRegex: /\.md$/
     }),
