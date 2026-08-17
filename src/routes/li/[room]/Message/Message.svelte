@@ -1,6 +1,7 @@
 <script lang="ts">
   import prettyMilliseconds from 'pretty-ms';
   import { onMount } from 'svelte';
+  import { slide } from 'svelte/transition';
   import BlurhashThumbnail from './BlurhashThumbnail.svelte';
   import { domToPng } from 'modern-screenshot';
   import FileArrowDown from 'phosphor-svelte/lib/FileArrowDown';
@@ -9,17 +10,26 @@
   import Check from 'phosphor-svelte/lib/Check';
   import XCircle from 'phosphor-svelte/lib/XCircle';
   import Spinner from 'phosphor-svelte/lib/Spinner';
+  import ArrowBendUpLeft from 'phosphor-svelte/lib/ArrowBendUpLeft';
+  import ClipboardText from 'phosphor-svelte/lib/ClipboardText';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { Button } from '$lib/components/ui/button';
+  import Textarea from '$lib/components/ui/textarea/textarea.svelte';
   import IdentityChip from '$lib/components/IdentityChip.svelte';
   import MessageText from './MessageText.svelte';
   import VoiceMessage from './VoiceMessage.svelte';
   interface Props {
     msg: any;
     decryptAudio?: (armored: string, authorRid: string) => Promise<Uint8Array | null>;
+    /** Encrypt + post a reply scoped to this message; see /li/[room]/+page.svelte. */
+    sendReply?: (
+      messageId: string,
+      senderRid: string,
+      text: string
+    ) => Promise<{ ok: boolean; error?: string }>;
   }
 
-  let { msg, decryptAudio }: Props = $props();
+  let { msg, decryptAudio, sendReply }: Props = $props();
 
   let showExactTime = $state(false);
   let now = $state(new Date());
@@ -27,6 +37,60 @@
   let copyState = $state<'idle' | 'copied' | 'error'>('idle');
   let redactMode = $state(false);
   let redactedIndices = $state(new Set<number>());
+
+  let replying = $state(false);
+  let replyDraft = $state('');
+  let replySending = $state(false);
+  let replyError = $state('');
+
+  // Plain-text copy, distinct from the dialog's "copy as image" — the text is
+  // already decrypted in memory here, so this is just a clipboard write.
+  let copyTextState = $state<'idle' | 'copied' | 'error'>('idle');
+
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(msg.msg ?? '');
+      copyTextState = 'copied';
+    } catch (error) {
+      console.error('Failed to copy message text:', error);
+      copyTextState = 'error';
+    }
+    setTimeout(() => {
+      copyTextState = 'idle';
+    }, 2000);
+  };
+
+  const replies = $derived((msg.replies ?? []) as { id: string; text: string; timestamp: string }[]);
+
+  const submitReply = async () => {
+    if (!sendReply || replySending || !replyDraft.trim()) return;
+    replySending = true;
+    replyError = '';
+    try {
+      const result = await sendReply(msg.id, msg.r, replyDraft);
+      if (!result.ok) {
+        // Keep the draft on failure — a rejected reply the sender has to
+        // retype is a worse outcome than the failure itself.
+        replyError = result.error ?? 'Could not send the reply.';
+        return;
+      }
+      replyDraft = '';
+      replying = false;
+    } finally {
+      replySending = false;
+    }
+  };
+
+  const formatReplyTime = (iso: string) => {
+    const date = new Date(iso ?? 0);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const toggleRedactMode = () => {
     redactMode = !redactMode;
@@ -60,15 +124,30 @@
 
   // The dialog below mounts its own BlurhashThumbnail instance (a second,
   // independent one from the inline thumbnail in the message list), which
-  // kicks off its own /api/images fetch on mount. If domToPng captures
-  // before that resolves, the <img> it finds still has an empty src and the
-  // screenshot comes out with the image portion blank. Wait for every <img>
-  // under the capture target to actually finish loading first.
+  // kicks off its own /api/images fetch on mount. If domToPng captures before
+  // that resolves, the <img> it finds still has no data and the screenshot
+  // comes out with the image portion blank — domToPng snapshots whatever is in
+  // the DOM right now, it doesn't wait for async content on its own.
+  //
+  // The subtlety that made an earlier version of this not work: an <img> that
+  // is *waiting* on its data looks finished to the obvious check. With no src
+  // attribute the `src` **property** reads back as the document URL (truthy)
+  // and `complete` is `true` by spec, so `!complete || !src` was false and the
+  // thumbnail got filtered out of the wait list entirely. Poll the src
+  // *attribute* until the data URI is actually in place, and only then wait
+  // for decode.
   async function waitForImagesToLoad(el: HTMLElement, timeoutMs = 8000): Promise<void> {
-    const pending = Array.from(el.querySelectorAll('img')).filter(
-      (img) => !img.complete || !img.src
-    );
+    const deadline = Date.now() + timeoutMs;
+    const images = () => Array.from(el.querySelectorAll('img'));
+    const filled = (img: HTMLImageElement) => (img.getAttribute('src') ?? '').length > 0;
+
+    while (Date.now() < deadline && images().some((img) => !filled(img))) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    const pending = images().filter((img) => filled(img) && !img.complete);
     if (!pending.length) return;
+
     await Promise.race([
       Promise.all(
         pending.map(
@@ -79,7 +158,7 @@
             })
         )
       ),
-      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+      new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, deadline - Date.now())))
     ]);
   }
 
@@ -169,7 +248,10 @@
   });
 </script>
 
-<div class=" group -m-2 flex w-full flex-row justify-between px-4 py-6 pr-3 pb-2" id="message">
+<!-- flex-col, not flex-row: the reply thread hangs below the message bubble as
+     a sibling, so it can't be swallowed by the bubble's absolutely-positioned
+     timestamp in the corner. -->
+<div class=" group -m-2 flex w-full flex-col px-4 py-6 pr-3 pb-2" id="message">
   <div class="border-border bg-muted relative flex w-full flex-row justify-between border p-3">
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -222,6 +304,33 @@
     <span
       class="absolute -top-5 right-4 flex flex-row gap-1 transition-all lg:opacity-0 lg:group-hover:opacity-100"
     >
+      {#if sendReply}
+        <button
+          class="border-primary flex h-7 w-7 items-center justify-center border text-sm transition-all
+            {replying ? 'bg-primary text-primary-foreground' : 'bg-background'}"
+          onclick={() => {
+            replying = !replying;
+            replyError = '';
+          }}
+          title={replying ? 'Cancel reply' : 'Reply to this message'}
+        >
+          <ArrowBendUpLeft size={20} />
+        </button>
+      {/if}
+      <button
+        class="border-primary bg-background flex h-7 w-7 items-center justify-center border text-sm disabled:opacity-40"
+        onclick={copyText}
+        disabled={!msg.msg}
+        title={msg.msg ? 'Copy text' : 'No text to copy'}
+      >
+        {#if copyTextState === 'copied'}
+          <Check size={20} />
+        {:else if copyTextState === 'error'}
+          <XCircle size={20} />
+        {:else}
+          <ClipboardText size={20} />
+        {/if}
+      </button>
       <button
         class="border-primary flex h-7 w-7 items-center justify-center border text-sm transition-all
           {redactMode ? 'bg-primary text-primary-foreground' : 'bg-background'}"
@@ -241,6 +350,56 @@
       </button>
     </span>
   </div>
+
+  <!-- Only this browser can read these: they were encrypted to the sender and
+       to us, and every one shown here had its signature verified upstream. -->
+  {#if replies.length || replying}
+    <div class="border-primary/30 mt-1 ml-6 flex flex-col gap-1 border-l pl-3">
+      {#each replies as reply (reply.id)}
+        <div class="border-primary/20 bg-secondary/20 border p-2">
+          <p class="text-sm break-words whitespace-pre-wrap">{reply.text}</p>
+          <span class="text-muted-foreground text-xs">
+            you replied · {formatReplyTime(reply.timestamp)}
+          </span>
+        </div>
+      {/each}
+
+      {#if replying}
+        <div transition:slide={{ duration: 150 }} class="flex flex-col gap-2 pt-1">
+          <Textarea
+            bind:value={replyDraft}
+            maxlength={1000}
+            placeholder="Reply to this message..."
+            class="w-full border border-black p-2"
+          />
+          {#if replyError}
+            <span class="bg-destructive/10 text-destructive p-2 text-sm">{replyError}</span>
+          {/if}
+          <div class="flex items-center gap-2">
+            <Button onclick={submitReply} disabled={replySending || !replyDraft.trim()}>
+              {#if replySending}
+                <Spinner class="size-4 animate-spin" weight="duotone" />
+                Sending
+              {:else}
+                Send reply
+              {/if}
+            </Button>
+            <Button
+              variant="ghost"
+              onclick={() => {
+                replying = false;
+                replyError = '';
+              }}
+              disabled={replySending}
+            >
+              Cancel
+            </Button>
+            <span class="text-muted-foreground ml-auto text-xs">{replyDraft.length}/1000</span>
+          </div>
+        </div>
+      {/if}
+    </div>
+  {/if}
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>

@@ -129,11 +129,18 @@ export async function GET({ url }) {
     path: 'messages',
     // $gte (not $gt) so a message sharing the cursor's exact timestamp can't
     // fall through the gap between two polls; clients dedup by _id.
-    // editedAt is matched alongside it because an edited message keeps its
-    // original timestamp — without this arm, an edit to anything older than
-    // the client's cursor would never be handed to an already-open inbox.
+    // editedAt and repliedAt are matched alongside it because neither an edit
+    // nor a reply moves the message's original timestamp — without these arms,
+    // a change to anything older than the client's cursor would never be
+    // handed to an already-open inbox.
     match: sinceDate
-      ? { $or: [{ timestamp: { $gte: sinceDate } }, { editedAt: { $gte: sinceDate } }] }
+      ? {
+          $or: [
+            { timestamp: { $gte: sinceDate } },
+            { editedAt: { $gte: sinceDate } },
+            { repliedAt: { $gte: sinceDate } }
+          ]
+        }
       : {},
     populate: [
       {
