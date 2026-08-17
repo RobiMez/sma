@@ -1,7 +1,19 @@
+import * as Sentry from '@sentry/sveltekit';
 import { dbConnect } from '$lib/db';
 import { json, type Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 import { RateLimiter } from '$lib/server/rateLimit';
+import { sharedSentryOptions } from '$lib/sentry';
+
+// Same opt-in as the client, and the same DSN — it's a public ingest key.
+if (publicEnv.PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: publicEnv.PUBLIC_SENTRY_DSN,
+    ...sharedSentryOptions
+  });
+}
 
 dbConnect();
 
@@ -76,7 +88,7 @@ function ruleFor(method: string, pathname: string): Rule | null {
   return null;
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+const appHandle: Handle = async ({ event, resolve }) => {
   const isApi = event.url.pathname.startsWith('/api/');
   const cors = isApi ? allowedOrigin(event.request.headers.get('origin')) : null;
 
@@ -120,3 +132,10 @@ export const handle: Handle = async ({ event, resolve }) => {
   }
   return response;
 };
+
+// Sentry first so a request that the app handler rejects (429, CORS preflight)
+// still gets traced, and so errors thrown further down are attributed to a
+// request rather than to nothing.
+export const handle: Handle = sequence(Sentry.sentryHandle(), appHandle);
+
+export const handleError = Sentry.handleErrorWithSentry();
