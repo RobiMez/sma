@@ -1,6 +1,6 @@
 <script lang="ts">
   import * as openpgp from 'openpgp';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { slide } from 'svelte/transition';
   import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
 
@@ -13,6 +13,7 @@
   import Textarea from '$lib/components/ui/textarea/textarea.svelte';
   import { Button } from '$lib/components/ui/button';
 
+  import { apiUrl, wsUrl } from '$lib/api';
   import { signedFetch } from '$lib/utils/signedRequest';
   import { checkProfanity, fetchProfanityAllowed } from '$lib/utils/profanity';
   import type { IKeyPairs } from '$lib/types';
@@ -28,6 +29,12 @@
 
   let { room, loadedPair, recipientPbKey }: Props = $props();
 
+  interface SentReply {
+    id: string;
+    text: string;
+    timestamp: string;
+  }
+
   interface SentEntry {
     id: string;
     text: string;
@@ -37,11 +44,34 @@
     editedAt: string | null;
     image: { id?: string } | null;
     audio: { id?: string; duration?: number } | null;
+    /** What the room owner wrote back, scoped to this message. */
+    replies: SentReply[];
   }
 
   let entries: SentEntry[] = $state([]);
   let loading = $state(true);
   let loadError = $state('');
+
+  // The parent passes the room owner's key down, but it arrives asynchronously
+  // and may still be empty when this list first loads — and a reply can't be
+  // verified without it. Resolve it here in that case; it's the same public
+  // read the parent does, on the same rid.
+  let ownerPbKey = $state('');
+  const getOwnerKey = async (): Promise<string> => {
+    if (recipientPbKey) ownerPbKey = recipientPbKey;
+    if (ownerPbKey) return ownerPbKey;
+
+    try {
+      const resp = await fetch(apiUrl(`/api/pgp?r=${encodeURIComponent(room)}&lim=0`)).then((r) =>
+        r.json()
+      );
+      if (resp.status === 200 && resp.body?.pbKey) ownerPbKey = resp.body.pbKey;
+      else console.error('Failed to fetch room key:', resp.body);
+    } catch (e) {
+      console.error('Failed to fetch room key', e);
+    }
+    return ownerPbKey;
+  };
 
   let editingId: string | null = $state(null);
   let draft = $state('');
@@ -86,6 +116,15 @@
       const privateKey = await getPrivateKey();
       const myPublicKey = await openpgp.readKey({ armoredKey: loadedPair.pbKey });
 
+      // Replies are verified against the *room owner's* key, not ours. That's
+      // the whole guarantee: without it, anyone who could write to the
+      // database — including the server — could plant a "reply from the room
+      // owner" that reads as genuine.
+      const ownerKeyArmored = await getOwnerKey();
+      const ownerPublicKey = ownerKeyArmored
+        ? await openpgp.readKey({ armoredKey: ownerKeyArmored })
+        : null;
+
       const decrypted: SentEntry[] = [];
       for (const raw of resp.body.messages ?? []) {
         let text = '';
@@ -116,6 +155,33 @@
           locked = true;
         }
 
+        // A locked message can still carry readable replies: the reply was
+        // encrypted fresh, to this identity, at reply time — so the room
+        // owner can answer even a message from before encrypt-to-self existed.
+        const replies: SentReply[] = [];
+        for (const rawReply of raw.replies ?? []) {
+          if (!ownerPublicKey) break;
+          try {
+            const { data, signatures } = await openpgp.decrypt({
+              message: await openpgp.readMessage({ armoredMessage: rawReply.message }),
+              decryptionKeys: privateKey,
+              verificationKeys: ownerPublicKey,
+              config: { allowInsecureDecryptionWithSigningKeys: true }
+            });
+
+            if (!signatures?.length) continue;
+            await signatures[0].verified;
+
+            replies.push({
+              id: rawReply._id,
+              text: String(data),
+              timestamp: rawReply.timestamp
+            });
+          } catch (e) {
+            console.warn('Skipping reply that failed to decrypt or verify', rawReply?._id, e);
+          }
+        }
+
         decrypted.push({
           id: raw._id,
           text,
@@ -123,7 +189,8 @@
           timestamp: raw.timestamp,
           editedAt: raw.editedAt ?? null,
           image: raw.image?._id ? { id: raw.image._id } : null,
-          audio: raw.audio?._id ? { id: raw.audio._id, duration: raw.audio.duration } : null
+          audio: raw.audio?._id ? { id: raw.audio._id, duration: raw.audio.duration } : null,
+          replies
         });
       }
 
@@ -133,6 +200,7 @@
       loadError = 'Could not load your sent messages.';
     } finally {
       loading = false;
+      lastLoadAt = Date.now();
     }
   };
 
@@ -180,13 +248,18 @@
       // make the edit unreadable to one of us, or make the inbox reject it
       // as a spoof.
       const privateKey = await getPrivateKey();
-      const recipientKey = await openpgp.readKey({ armoredKey: recipientPbKey });
+      const recipientKeyArmored = await getOwnerKey();
+      if (!recipientKeyArmored) {
+        editError = "Can't save — this room's key hasn't loaded.";
+        return;
+      }
+      const recipientKey = await openpgp.readKey({ armoredKey: recipientKeyArmored });
       const myPublicKey = await openpgp.readKey({ armoredKey: loadedPair.pbKey });
 
       const armored = (await openpgp.encrypt({
         message: await openpgp.createMessage({ text: draft }),
         encryptionKeys:
-          recipientPbKey === loadedPair.pbKey ? [recipientKey] : [recipientKey, myPublicKey],
+          recipientKeyArmored === loadedPair.pbKey ? [recipientKey] : [recipientKey, myPublicKey],
         signingKeys: privateKey
       })) as string;
 
@@ -227,7 +300,86 @@
     });
   };
 
-  onMount(load);
+  // A reply can land while the sender is sitting on this page, so the list has
+  // to update on its own — a reply you only see by reloading is half a
+  // feature. Every identity is a registered listener, so this sender's own rid
+  // already has a WebSocket room; /api/reply pings it after storing a reply.
+  // Same mechanism the inbox uses, pointed the other way down the
+  // conversation, with a slow poll as the fallback when the socket won't open.
+  const POLL_MS = 20_000;
+  // The ping also fires when somebody sends a message to this identity's OWN
+  // room, which is a wasted refetch here. /api/sent costs a server-side PGP
+  // verify and shares the signed-mutation rate-limit budget, so coalesce
+  // bursts instead of spending it on them.
+  const MIN_GAP_MS = 2_000;
+
+  let ws: WebSocket | undefined;
+  let pollTimer: ReturnType<typeof setInterval> | undefined;
+  let wsRetry = 0;
+  let destroyed = false;
+  let lastLoadAt = 0;
+  let refreshQueued = false;
+
+  const refreshSoon = () => {
+    if (destroyed || refreshQueued) return;
+    // Never mid-save: replacing `entries` under an in-flight edit would swap
+    // the row out from under the request that's still resolving.
+    if (savingId) return;
+    refreshQueued = true;
+    setTimeout(
+      () => {
+        refreshQueued = false;
+        if (!destroyed && !savingId) load();
+      },
+      Math.max(0, MIN_GAP_MS - (Date.now() - lastLoadAt))
+    );
+  };
+
+  const startPolling = () => {
+    stopPolling();
+    pollTimer = setInterval(refreshSoon, POLL_MS);
+  };
+
+  const stopPolling = () => {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = undefined;
+  };
+
+  const connectWs = () => {
+    if (destroyed || typeof window === 'undefined' || !loadedPair?.uniqueString) return;
+    try {
+      ws = new WebSocket(wsUrl(`/ws?rid=${encodeURIComponent(loadedPair.uniqueString)}`));
+    } catch (e) {
+      console.warn('WS connect failed, polling for replies instead', e);
+      startPolling();
+      return;
+    }
+
+    ws.onopen = () => {
+      wsRetry = 0;
+      stopPolling();
+    };
+    ws.onmessage = () => refreshSoon();
+    ws.onclose = () => {
+      if (destroyed) return;
+      startPolling();
+      wsRetry = Math.min(wsRetry + 1, 6);
+      setTimeout(connectWs, 1000 * wsRetry);
+    };
+    ws.onerror = () => ws?.close();
+  };
+
+  onMount(() => {
+    load();
+    startPolling();
+    connectWs();
+  });
+
+  onDestroy(() => {
+    destroyed = true;
+    stopPolling();
+    ws?.close();
+  });
 </script>
 
 <div class="mt-6 w-full border border-black">
@@ -316,13 +468,29 @@
               <button
                 class="border-primary bg-background hover:bg-secondary/60 flex h-7 shrink-0 items-center gap-1.5 border px-2 text-xs transition-all disabled:opacity-40"
                 onclick={() => startEdit(entry)}
-                disabled={!recipientPbKey}
-                title={recipientPbKey ? 'Edit this message' : "Recipient's key hasn't loaded yet"}
+                disabled={!ownerPbKey}
+                title={ownerPbKey ? 'Edit this message' : "Recipient's key hasn't loaded yet"}
               >
                 <PencilSimple class="size-4" weight="duotone" />
                 Edit
               </button>
             {/if}
+          </div>
+        {/if}
+
+        <!-- Outside the edit/display branch on purpose: what the room owner
+             wrote back shouldn't vanish while you're rewriting the message it
+             answers. -->
+        {#if entry.replies.length}
+          <div class="border-primary/30 mt-2 flex flex-col gap-1 border-l pl-3">
+            {#each entry.replies as reply (reply.id)}
+              <div class="border-primary/20 bg-secondary/20 border p-2">
+                <p class="text-sm break-words whitespace-pre-wrap">{reply.text}</p>
+                <span class="text-muted-foreground text-xs">
+                  reply from this room · {formatTime(reply.timestamp)}
+                </span>
+              </div>
+            {/each}
           </div>
         {/if}
       </li>
