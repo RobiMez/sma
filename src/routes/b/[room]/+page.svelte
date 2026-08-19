@@ -43,6 +43,7 @@
   let roomTitle = $state('');
   let loadingRoom = $state(true);
   let imageBase64: string[] = $state([]);
+  let imageError = $state('');
   let voiceBlob: Blob | null = $state(null);
   let voiceDurationSec = $state(0);
   let voiceRendering = $state(false);
@@ -206,6 +207,7 @@
     }
     message = '';
     imageBase64 = [];
+    imageError = '';
     voiceRecorder?.reset();
     // Pull the new message into the sender's own history right away rather
     // than making them reload to see (and edit) what they just sent.
@@ -233,28 +235,53 @@
     disableSend = false;
   };
 
-  // On file change generate the base64 and load preview
-  function handleFileInput(event: any) {
-    const file = event.target.files[0];
+  // Stays under the server's MAX_IMAGE_CHARS (3M base64 chars ≈ 2.25MB of
+  // bytes), so anything accepted here also survives PATCH /api/pgp.
+  const MAX_IMAGE_MB = 2;
 
-    if (file) {
-      // Create a FileReader object to read the selected file
-      const reader = new FileReader();
-
-      // limit size to 1.5MB
-      if (file.size / (1024 * 1024) > 2) {
-        alert('Size limit exceeded: 1.5MB MAX');
-        return;
-      }
-
-      reader.onload = function (e) {
-        let imageBase64Str = (e.target?.result ?? '') as string;
-        imageBase64 = breakString(imageBase64Str, 1000);
-      };
-
-      // Read the selected file as a data URL
-      reader.readAsDataURL(file);
+  // Generate the base64 and load the preview. Shared by the file picker and
+  // the clipboard paste path — both end up holding a File and want the same
+  // size cap and chunking.
+  function loadImageFile(file: File) {
+    if (file.size / (1024 * 1024) > MAX_IMAGE_MB) {
+      imageError = `That image is too large — ${MAX_IMAGE_MB}MB max.`;
+      return;
     }
+    imageError = '';
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      let imageBase64Str = (e.target?.result ?? '') as string;
+      imageBase64 = breakString(imageBase64Str, 1000);
+    };
+
+    // Read the selected file as a data URL
+    reader.readAsDataURL(file);
+  }
+
+  function handleFileInput(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) loadImageFile(file);
+  }
+
+  // Screenshots and copied images land on the clipboard as files, so a paste
+  // can fill the attachment slot the picker otherwise would. Bound on the
+  // window (paste bubbles up from the textarea) so it works whether or not the
+  // message field has focus — this page has no other input to steal it from.
+  function handlePaste(event: ClipboardEvent) {
+    const items = Array.from(event.clipboardData?.items ?? []);
+
+    // A text/plain entry means this is really a text paste that happens to
+    // carry an image alongside it (copying a rich snippet does this). Let the
+    // textarea have it rather than swallowing the text and attaching a picture
+    // the sender didn't ask for.
+    if (items.some((i) => i.kind === 'string' && i.type === 'text/plain')) return;
+
+    const file = items.find((i) => i.kind === 'file' && i.type.startsWith('image/'))?.getAsFile();
+    if (!file) return;
+
+    event.preventDefault();
+    loadImageFile(file);
   }
 
   onMount(async () => {
@@ -308,6 +335,8 @@
     }
   });
 </script>
+
+<svelte:window onpaste={handlePaste} />
 
 <div
   class="container mx-auto flex min-h-screen w-full max-w-4xl grow flex-col items-center justify-start p-2 pt-8"
@@ -407,6 +436,7 @@
         <Button
           onclick={() => {
             imageBase64 = [];
+            imageError = '';
           }}
         >
           <X /> <span> Clear image </span>
@@ -418,6 +448,7 @@
           <label for="image-input" class="flex cursor-pointer items-center gap-2">
             <ImageSquare size="24" weight="duotone" />
             <span class="text-sm">Add image </span>
+            <span class="text-muted-foreground hidden text-xs sm:inline">or paste one</span>
           </label>
           <input
             id="image-input"
@@ -426,6 +457,11 @@
             accept="image/*"
             onchange={handleFileInput}
           />
+        </span>
+      {/if}
+      {#if imageError}
+        <span class="bg-destructive/10 text-destructive w-full p-2 text-sm">
+          {imageError}
         </span>
       {/if}
       {#if voiceAllowed}
