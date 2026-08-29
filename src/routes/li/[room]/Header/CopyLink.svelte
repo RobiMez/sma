@@ -17,8 +17,10 @@
   }
 </script>
 
-<Button onclick={copyLink} class="h-auto p-0">
-  <span class="p-4">
+<!-- Fills the leftover width in the phone-width button row; in the desktop
+     column it is stretched to the column's width instead. -->
+<Button onclick={copyLink} aria-label="Copy room link" class="h-auto flex-1 p-0 sm:flex-none">
+  <span class="flex items-center justify-center p-4">
     {#if copied}
       <span in:scale={{ start: 0.9 }} class="flex items-center justify-center gap-2">
         <span>

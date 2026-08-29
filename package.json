@@ -24,6 +24,7 @@
     "@lucide/svelte": "^0.515.0",
     "@openpgp/web-stream-tools": "0.0.11-patch-0",
     "@playwright/test": "^1.61.0",
+    "@sentry/sveltekit": "^10.70.0",
     "@sveltejs/adapter-auto": "^3.3.1",
     "@sveltejs/adapter-node": "^5.5.7",
     "@sveltejs/adapter-vercel": "^6.3.4",

@@ -14,9 +14,10 @@
   } = $props();
 </script>
 
-<span class="flex flex-col gap-2">
+<!-- A row under the title on a phone, the column beside it everywhere else. -->
+<span class="flex shrink-0 flex-row gap-2 sm:flex-col">
   <CopyLink />
-  <span class="flex flex-row gap-2">
+  <span class="flex shrink-0 flex-row gap-2">
     <SettingsModal
       {unpack}
       bind:pollingInterval

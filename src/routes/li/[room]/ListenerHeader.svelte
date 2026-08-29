@@ -24,7 +24,9 @@
 </script>
 
 {#if roomTitle && loadedPair && rid}
-  <div class="flex w-full flex-row gap-2 border p-1 pb-1">
+  <!-- Side by side once there's room for it; stacked on a phone, where the
+       button column was taking nearly half the width away from the title. -->
+  <div class="flex w-full min-w-0 flex-col gap-2 border p-1 pb-1 sm:flex-row">
     <ListenerHeaderTitle
       bind:roomTitle
       bind:pollingInterval

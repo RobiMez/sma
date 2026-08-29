@@ -4,6 +4,7 @@
   import * as openpgp from 'openpgp';
   import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
+  import { createShortHash } from '$lib/utils/hashing';
   import { apiUrl, wsUrl } from '$lib/api';
   import { signedFetch } from '$lib/utils/signedRequest';
 
@@ -278,22 +279,17 @@
   let previousMessageCount = 0;
   let playSound = $state(false);
 
-  async function createShortHash(input: string, length: number): Promise<string> {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(input);
-    const hash = await window.crypto.subtle.digest('SHA-256', data);
-    const hashString = btoa(String.fromCharCode(...new Uint8Array(hash)));
-
-    const base64url = hashString.replace('+', '-').replace('/', '_').replace(/=+$/, '');
-    return base64url.substring(0, length);
-  }
-
+  // Must be the *same* hash the identity was registered under (see
+  // utils/pgp.ts), not a re-implementation. A local copy used to live here and
+  // had drifted: it passed plain strings to `.replace`, which swaps only the
+  // first match, so a hash containing two or more `+`/`/` came back with the
+  // second one untranslated. ~2.7% of identities hash that way, and every one
+  // of them was permanently locked out of its own inbox — `unlocked` stayed
+  // false, so the page rendered its header over an empty void.
   const CheckIfUnlockable = async () => {
     if (!loadedPair) return false;
-    console.log(' checking unlock ');
 
     const hash = await createShortHash(loadedPair.prKey + loadedPair.pbKey, 12);
-    console.log('hash', hash, loadedPair.uniqueString);
     return hash === rid && loadedPair.uniqueString === rid;
   };
 
