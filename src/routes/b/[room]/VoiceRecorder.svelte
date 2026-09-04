@@ -87,7 +87,7 @@
       const name = (e as DOMException)?.name;
       micError =
         name === 'NotAllowedError' || name === 'SecurityError'
-          ? 'Microphone blocked — allow mic access for this site, then try again.'
+          ? 'Microphone blocked. Allow mic access for this site, then try again.'
           : 'No microphone available.';
       return;
     }
@@ -109,7 +109,7 @@
           // Decoding an empty or codec-mismatched clip throws here. Same rule
           // as above: say so rather than silently returning to the idle button.
           console.error('Could not process the recording', e);
-          micError = "That recording couldn't be processed — try again.";
+          micError = "That recording couldn't be processed. Try again.";
           clearRecording();
         }
       };

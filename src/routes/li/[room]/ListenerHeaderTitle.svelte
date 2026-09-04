@@ -172,13 +172,13 @@
     {#if wsConnected}
       <span
         class="bg-primary flex items-center justify-center gap-1 rounded-sm px-2 py-0.5 text-xs whitespace-nowrap"
-        title="Live updates over WebSocket — no polling"
+        title="Live updates over WebSocket, no polling"
         ><Broadcast /> WebSocket connected
       </span>
     {:else}
       <span
         class="bg-primary flex items-center justify-center gap-1 rounded-sm px-2 py-0.5 text-xs"
-        title="Polling — WebSocket not connected"
+        title="Polling (WebSocket not connected)"
         ><ClockCountdown /> {pollingInterval} s
       </span>
     {/if}

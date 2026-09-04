@@ -54,7 +54,7 @@
               // Registration failed server-side (see ResetPgpIdentity) —
               // nothing to save. Previously this `return` skipped resetting
               // `loading`, leaving the button stuck spinning forever.
-              console.error('Failed to create a new identity — see network tab for details.');
+              console.error('Failed to create a new identity. See network tab for details.');
               return;
             }
 

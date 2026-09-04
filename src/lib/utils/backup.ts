@@ -84,7 +84,7 @@ export const deserializeBackup = async (
 
   let keyPairs: IdentityMap;
   if (envelope.encrypted) {
-    if (!password) throw new Error('This backup is password-protected — enter its password');
+    if (!password) throw new Error('This backup is password-protected. Enter its password');
     try {
       const message = await openpgp.readMessage({ armoredMessage: envelope.data as string });
       const { data: decrypted } = await openpgp.decrypt({ message, passwords: [password] });

@@ -93,8 +93,8 @@
     <Dialog.Header>
       <Dialog.Title>Back up your identities</Dialog.Title>
       <Dialog.Description>
-        Downloads all identities in this browser as a file. These contain your private keys — anyone
-        with the file can read messages sent to you, so protect it with a password.
+        Downloads all identities in this browser as a file. These contain your private keys, and
+        anyone with the file can read messages sent to you, so protect it with a password.
       </Dialog.Description>
     </Dialog.Header>
 

@@ -61,7 +61,7 @@
 {:else if loadState === 'error'}
   <span
     class="text-destructive flex items-center gap-1 text-xs"
-    title="Signature didn't verify against the claimed sender — possibly spoofed"
+    title="Signature didn't verify against the claimed sender, possibly spoofed"
   >
     <WarningCircle size={16} /> Voice message failed to verify
   </span>
