@@ -24,16 +24,30 @@ const readRoomFlag = async (
 export const load = (async ({ params, fetch }) => {
   const rid = encodeURIComponent(params.room);
 
-  // Independent reads — fetch them together rather than paying two serial
+  // Independent reads — fetch them together rather than paying serial
   // round trips before the inbox renders.
-  const [profanity, voice] = await Promise.all([
+  const [profanity, voice, limits] = await Promise.all([
     readRoomFlag(fetch, `/api/profanity?rid=${rid}`),
-    readRoomFlag(fetch, `/api/voice?rid=${rid}`)
+    readRoomFlag(fetch, `/api/voice?rid=${rid}`),
+    readRoomFlag(fetch, `/api/limits?rid=${rid}`)
   ]);
 
   return {
     profanityFilterEnabled: profanity?.profanityEnabled === true,
     // Voice is opt-in: anything other than an explicit `true` means off.
-    voiceEnabled: voice?.voiceEnabled === true
+    voiceEnabled: voice?.voiceEnabled === true,
+    // Same permissive defaults the schema uses, so a failed read shows the
+    // settings controls in their true resting state rather than a lie.
+    roomLimits: {
+      paused: limits?.paused === true,
+      imagesEnabled: limits?.imagesEnabled !== false,
+      maxMessageLength: typeof limits?.maxMessageLength === 'number' ? limits.maxMessageLength : 0,
+      rateLimitCount: typeof limits?.rateLimitCount === 'number' ? limits.rateLimitCount : 0,
+      rateLimitPeriod:
+        typeof limits?.rateLimitPeriod === 'string' &&
+        ['minute', 'hour', 'day'].includes(limits.rateLimitPeriod)
+          ? limits.rateLimitPeriod
+          : 'hour'
+    }
   };
 }) satisfies PageServerLoad;

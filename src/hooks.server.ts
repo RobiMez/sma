@@ -61,6 +61,7 @@ function ruleFor(method: string, pathname: string): Rule | null {
       pathname === '/api/profanity' ||
       pathname === '/api/webhook' ||
       pathname === '/api/voice' ||
+      pathname === '/api/limits' ||
       // Both verbs: /api/sent's list is a POST, not a GET, because it's
       // signature-authorized like the rest of this bucket.
       pathname === '/api/sent' ||

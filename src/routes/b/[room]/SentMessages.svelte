@@ -25,9 +25,11 @@
     loadedPair: IKeyPairs;
     /** Recipient's armored public key; an edit is re-encrypted to it. */
     recipientPbKey: string;
+    /** The room's message length cap — an edit obeys the same limit a send does. */
+    maxLen?: number;
   }
 
-  let { room, loadedPair, recipientPbKey }: Props = $props();
+  let { room, loadedPair, recipientPbKey, maxLen = 1000 }: Props = $props();
 
   interface SentReply {
     id: string;
@@ -221,7 +223,7 @@
     editError = '';
 
     if (!draft.trim() && !entry.image && !entry.audio) {
-      editError = "A message can't be empty — delete isn't a thing here, but you can rewrite it.";
+      editError = "A message can't be empty. Delete isn't a thing here, but you can rewrite it.";
       return;
     }
     if (draft === entry.text) {
@@ -238,7 +240,7 @@
         const verdict = await checkProfanity(draft);
         if (verdict.isProfanity) {
           const flagged = verdict.flaggedFor ? ` (${verdict.flaggedFor})` : '';
-          editError = `🤬 Profanity${flagged} — this room doesn't allow it.`;
+          editError = `🤬 Profanity${flagged}. This room doesn't allow it.`;
           return;
         }
       }
@@ -250,7 +252,7 @@
       const privateKey = await getPrivateKey();
       const recipientKeyArmored = await getOwnerKey();
       if (!recipientKeyArmored) {
-        editError = "Can't save — this room's key hasn't loaded.";
+        editError = "Can't save: this room's key hasn't loaded.";
         return;
       }
       const recipientKey = await openpgp.readKey({ armoredKey: recipientKeyArmored });
@@ -283,7 +285,7 @@
       draft = '';
     } catch (e) {
       console.error('Failed to edit message', e);
-      editError = 'Could not save the edit — see console for details.';
+      editError = 'Could not save the edit. See console for details.';
     } finally {
       savingId = null;
     }
@@ -399,7 +401,7 @@
     <span class="bg-destructive/10 text-destructive block p-3 text-sm">{loadError}</span>
   {:else if !loading && !entries.length}
     <p class="text-muted-foreground p-4 text-sm">
-      Nothing yet. Messages you send to this room show up here — only on this device, and only for
+      Nothing yet. Messages you send to this room show up here, only on this device, and only for
       this identity.
     </p>
   {/if}
@@ -409,7 +411,7 @@
       <li class="border-primary/10 border-b p-3 last:border-b-0">
         {#if editingId === entry.id}
           <div transition:slide={{ duration: 150 }} class="flex flex-col gap-2">
-            <Textarea bind:value={draft} maxlength={1000} class="w-full border border-black p-3" />
+            <Textarea bind:value={draft} maxlength={maxLen} class="w-full border border-black p-3" />
             {#if editError}
               <span class="bg-destructive/10 text-destructive p-2 text-sm">{editError}</span>
             {/if}
@@ -425,7 +427,7 @@
               <Button variant="ghost" onclick={cancelEdit} disabled={savingId === entry.id}>
                 Cancel
               </Button>
-              <span class="text-muted-foreground ml-auto text-xs">{draft.length}/1000</span>
+              <span class="text-muted-foreground ml-auto text-xs">{draft.length}/{maxLen}</span>
             </div>
           </div>
         {:else}
@@ -437,7 +439,7 @@
                   title="Sent before this browser kept a copy you can open"
                 >
                   <LockKey class="size-4" weight="duotone" />
-                  Can't be shown — sent without a copy for you
+                  Can't be shown (sent without a copy for you)
                 </span>
               {:else if entry.text}
                 <p class="text-sm break-words whitespace-pre-wrap">{entry.text}</p>

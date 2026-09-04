@@ -1,29 +1,26 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-
   import X from 'phosphor-svelte/lib/X';
 
   import * as Dialog from '$lib/components/ui/dialog';
 
   import { Button } from '$lib/components/ui/button';
   import { GearSix } from 'phosphor-svelte';
-  import PollingDurationSelector from './SettingsModal/PollingDurationSelector.svelte';
   import ProfanityToggle from './SettingsModal/ProfanityToggle.svelte';
   import VoiceToggle from './SettingsModal/VoiceToggle.svelte';
+  import ImagesToggle from './SettingsModal/ImagesToggle.svelte';
+  import LimitsSettings from './SettingsModal/LimitsSettings.svelte';
   import { page } from '$app/state';
   import WebhookSettings from './SettingsModal/WebhookSettings.svelte';
 
   let {
-    unpack,
     showModal = $bindable(false),
-    pollingInterval = $bindable(),
     profanityEnabled = $bindable(),
     voiceEnabled = $bindable(),
-    webhookUrl = $bindable()
+    webhookUrl = $bindable(),
+    roomLimits = $bindable()
   } = $props();
 
   let rid = page.params.room ?? '';
-  onMount(async () => {});
 </script>
 
 <Button onclick={() => (showModal = true)} class="h-auto p-0" variant="default">
@@ -44,9 +41,19 @@
       </Dialog.Description>
     </Dialog.Header>
 
-    <PollingDurationSelector bind:pollingInterval onIntervalChange={unpack} />
     <ProfanityToggle {rid} bind:profanityEnabled />
-    <VoiceToggle {rid} bind:voiceEnabled />
+    <hr />
+    <!-- Two content types, one row: each column wrapper keeps the component's
+         multiple root elements (h3 + control) from becoming grid items. -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex flex-col gap-2">
+        <VoiceToggle {rid} bind:voiceEnabled />
+      </div>
+      <div class="flex flex-col gap-2">
+        <ImagesToggle {rid} bind:limits={roomLimits} />
+      </div>
+    </div>
+    <LimitsSettings {rid} bind:limits={roomLimits} />
     <WebhookSettings {rid} bind:webhookUrl />
 
     <Dialog.Footer>

@@ -29,7 +29,6 @@
   };
 </script>
 
-<hr />
 <h3 class="text-sm">Voice messages</h3>
 <div class="flex items-center justify-start gap-2">
   <ToggleGroup.Root

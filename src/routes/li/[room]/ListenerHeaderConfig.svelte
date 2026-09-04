@@ -5,12 +5,11 @@
   import SettingsModal from './Modals/SettingsModal.svelte';
 
   let {
-    unpack,
     playSound = $bindable(),
-    pollingInterval = $bindable(),
     profanityEnabled = $bindable(),
     voiceEnabled = $bindable(),
-    webhookUrl = $bindable()
+    webhookUrl = $bindable(),
+    roomLimits = $bindable()
   } = $props();
 </script>
 
@@ -18,11 +17,10 @@
   <CopyLink />
   <span class="flex flex-row gap-2">
     <SettingsModal
-      {unpack}
-      bind:pollingInterval
       bind:profanityEnabled
       bind:voiceEnabled
       bind:webhookUrl
+      bind:roomLimits
     />
     <Mute bind:playSound />
   </span>

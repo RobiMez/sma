@@ -205,7 +205,7 @@
       // server stored — it's a proven one.
       const senderPbKeyArmored = await fetchAuthorPublicKey(senderRid);
       if (!senderPbKeyArmored) {
-        return { ok: false, error: "No public key on record for this sender — can't reply." };
+        return { ok: false, error: "Can't reply: no public key on record for this sender." };
       }
       const senderPublicKey = await openpgp.readKey({ armoredKey: senderPbKeyArmored });
 
@@ -271,7 +271,7 @@
       return { ok: true };
     } catch (e) {
       console.error('Failed to send reply', e);
-      return { ok: false, error: 'Could not send the reply — see console for details.' };
+      return { ok: false, error: 'Could not send the reply. See console for details.' };
     }
   };
 
@@ -515,7 +515,6 @@
   {#if roomTitle && loadedPair && rid}
     <div class="flex w-full flex-row gap-2 p-1 pb-1">
       <ListenerHeader
-        {unpack}
         {loadedPair}
         {wsConnected}
         bind:playSound
@@ -523,6 +522,7 @@
         bind:pollingInterval
         isProfanityEnabled={data.profanityFilterEnabled}
         isVoiceEnabled={data.voiceEnabled}
+        initialLimits={data.roomLimits}
       />
     </div>
 

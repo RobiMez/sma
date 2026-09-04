@@ -5,6 +5,7 @@ import Message from '../../../models/messages.schema';
 import Image from '../../../models/file.schema';
 import Audio from '../../../models/audio.schema';
 import { isSafeWebhookUrl } from '$lib/server/webhookGuard';
+import { checkSendGate, checkRoomRate } from '$lib/server/roomLimits';
 import { notifyRoom } from '$lib/server/wsRegistry.js';
 
 interface Listener {
@@ -219,17 +220,40 @@ export async function PATCH({ request }) {
   }
 
   try {
-    // Voice notes are opt-in per room, and this one is actually enforceable:
-    // the server can't police message text (it only ever sees ciphertext), but
-    // it can see perfectly well that an audio blob is attached. Check before
-    // saving so a rejected clip never lands in the Audio collection. Done
-    // inside the try because it's the first DB call on this path.
-    if (sanitizedAudio.dataURI.length > 0) {
-      const recipient = await Listener.findOne({ rid: recipientId }, { voiceEnabled: 1 });
-      if (!recipient) return json({ status: 404, body: 'Listener not found' });
-      if (!recipient.voiceEnabled) {
-        return json({ status: 403, body: 'This room does not accept voice messages' });
+    // Per-room limits, checked before anything is written so a rejected send
+    // never lands a doc anywhere (this also stops the old behavior where a
+    // send to a nonexistent room created an orphan Message first). The server
+    // can't police message text — it only ever sees ciphertext — but paused,
+    // an attached image/audio blob, and gross ciphertext size are all plainly
+    // visible, so those it enforces for real (see roomLimits.ts).
+    const recipient = await Listener.findOne(
+      { rid: recipientId },
+      {
+        paused: 1,
+        imagesEnabled: 1,
+        voiceEnabled: 1,
+        maxMessageLength: 1,
+        rateLimitCount: 1,
+        rateLimitPeriod: 1
       }
+    );
+    if (!recipient) return json({ status: 404, body: 'Listener not found' });
+
+    const gate = checkSendGate(recipient, {
+      hasImage: sanitizedImage.dataURI.length > 0,
+      hasAudio: sanitizedAudio.dataURI.length > 0,
+      ciphertextLength: message.length
+    });
+    if (!gate.ok) return json({ status: gate.status, body: gate.message });
+
+    // Last, after every other check: consulting the window counts this send
+    // against the room's hourly budget, and a send rejected above shouldn't.
+    const rate = checkRoomRate(recipientId, recipient.rateLimitCount, recipient.rateLimitPeriod);
+    if (rate && !rate.allowed) {
+      return json({
+        status: 429,
+        body: 'This room has hit its message limit for now. Try again later.'
+      });
     }
 
     const image = await saveImage(sanitizedImage);

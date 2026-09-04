@@ -3,6 +3,7 @@ import Listener from '../../../models/listener.schema';
 import Message from '../../../models/messages.schema';
 import { verifySignedAction } from '$lib/server/signedAction';
 import { parseEditParams, parseRoomParam, checkEditable } from '$lib/server/messageEdit';
+import { ciphertextCapFor } from '$lib/server/roomLimits';
 import { notifyRoom } from '$lib/server/wsRegistry.js';
 
 // The sender's own history, newest first. Deliberately bounded: each entry
@@ -73,8 +74,20 @@ export async function PATCH({ request }) {
     // it hands us the rid to ping over the WebSocket without scanning every
     // listener, and it stops a message id from one room being edited through
     // another room's endpoint.
-    const roomDoc = await Listener.findOne({ rid: room, messages: id }, { rid: 1 });
+    const roomDoc = await Listener.findOne(
+      { rid: room, messages: id },
+      { rid: 1, maxMessageLength: 1 }
+    );
     if (!roomDoc) return json({ status: 404, body: 'Message not found in this room' });
+
+    // The room's length limit applies to edits too, else it's a dead letter:
+    // send 10 compliant chars, then edit in the essay. Same approximate
+    // ciphertext-cap enforcement as the send path — the server can't count
+    // plaintext, only bound what no compliant message could exceed.
+    const maxLen = roomDoc.maxMessageLength ?? 0;
+    if (maxLen > 0 && newMessage.length > ciphertextCapFor(maxLen)) {
+      return json({ status: 403, body: `This room caps messages at ${maxLen} characters` });
+    }
 
     const message = await Message.findById(id);
     const editable = checkEditable(message, verdict.listener.rid, newMessage);

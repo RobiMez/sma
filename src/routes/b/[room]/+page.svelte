@@ -50,6 +50,22 @@
   // Opt-in per room (see onMount) — starts false so the recorder never flashes
   // into view on a room that doesn't accept voice.
   let voiceAllowed = $state(false);
+  // Per-room limits (see onMount). All of these are the UI half only — the
+  // send path re-enforces each one server-side — so they default to the
+  // permissive value: a failed read must not lock a working room's composer.
+  let roomPaused = $state(false);
+  let imagesAllowed = $state(true);
+  let maxMessageLength = $state(0); // 0 = no owner cap
+  // The composer's hard ceiling is 1000 either way; an owner cap lowers it.
+  let effectiveMaxLength = $derived(
+    maxMessageLength > 0 ? Math.min(maxMessageLength, 1000) : 1000
+  );
+  // The attachments strip earns its border only when it has something to
+  // show: an attached image (or its error), the attach tile, or the recorder.
+  // A room with images off and voice off would otherwise render an empty box.
+  let showAttachRow = $derived(
+    !roomPaused && (imageBase64.length > 0 || !!imageError || imagesAllowed || voiceAllowed)
+  );
   let voiceRecorder: VoiceRecorder | undefined = $state();
   let sentMessages: SentMessages | undefined = $state();
   let profanityCheckResponse: IVectorResponse | undefined = $state();
@@ -83,7 +99,7 @@
       // encrypt against, so fail loudly instead of letting
       // openpgp.readKey(undefined) throw an opaque, uncaught error further
       // down that leaves `sending` stuck true forever.
-      sendError = "Can't send — this room's key hasn't loaded (does it exist?).";
+      sendError = "Can't send: this room's key hasn't loaded (does it exist?).";
       return;
     }
     sending = true;
@@ -96,7 +112,7 @@
       // Only fall back to the generic message — a rejection the sender can
       // actually act on (e.g. the room doesn't take voice notes) sets a
       // specific one on the way out.
-      if (!sendError) sendError = 'Failed to send — see console for details.';
+      if (!sendError) sendError = 'Failed to send. See console for details.';
     } finally {
       sending = false;
     }
@@ -191,7 +207,7 @@
     if (!response.ok) {
       sendError =
         response.status === 413
-          ? 'That attachment is too large to send — try a shorter recording or a smaller image.'
+          ? 'That attachment is too large to send. Try a shorter recording or a smaller image.'
           : `Send failed (HTTP ${response.status}). Please try again.`;
       throw new Error(`Send failed: HTTP ${response.status}`);
     }
@@ -227,7 +243,7 @@
     // inside openpgp.readKey with an opaque error. Surface it here instead.
     if (data.status !== 200) {
       console.error('Failed to fetch recipient key:', data.body);
-      sendError = "This room doesn't exist (yet) — check the link, or the recipient's identity may not have finished registering.";
+      sendError = "This room doesn't exist (yet). Check the link, or the recipient's identity may not have finished registering.";
       disableSend = false;
       return;
     }
@@ -244,7 +260,7 @@
   // size cap and chunking.
   function loadImageFile(file: File) {
     if (file.size / (1024 * 1024) > MAX_IMAGE_MB) {
-      imageError = `That image is too large — ${MAX_IMAGE_MB}MB max.`;
+      imageError = `That image is too large (${MAX_IMAGE_MB}MB max).`;
       return;
     }
     imageError = '';
@@ -269,6 +285,10 @@
   // window (paste bubbles up from the textarea) so it works whether or not the
   // message field has focus — this page has no other input to steal it from.
   function handlePaste(event: ClipboardEvent) {
+    // Rooms that turned images off shouldn't accept one through the side door
+    // either — let the paste fall through to the textarea as plain text.
+    if (!imagesAllowed) return;
+
     const items = Array.from(event.clipboardData?.items ?? []);
 
     // A text/plain entry means this is really a text paste that happens to
@@ -330,6 +350,27 @@
       voiceAllowed = false;
     }
 
+    // The room's abuse limits: paused, images on/off, message length cap.
+    // Unlike voice these fail OPEN — their defaults are the permissive state,
+    // and every one of them is enforced again server-side, so a failed read
+    // here degrades to a rejected send with a clear error, not a wrongly
+    // locked composer.
+    try {
+      const limitsResp = await fetch(apiUrl(`/api/limits?rid=${encodeURIComponent(params)}`)).then(
+        (r) => r.json()
+      );
+      if (limitsResp.status === 200) {
+        roomPaused = limitsResp.body?.paused === true;
+        imagesAllowed = limitsResp.body?.imagesEnabled !== false;
+        maxMessageLength =
+          typeof limitsResp.body?.maxMessageLength === 'number'
+            ? limitsResp.body.maxMessageLength
+            : 0;
+      }
+    } catch (e) {
+      console.error('Failed to fetch room limits', e);
+    }
+
     if (params) {
       await fetchKeys();
     }
@@ -367,7 +408,14 @@
       </span>
     </div>
   </div>
-  <span class="w-full pt-2 text-left text-sm font-light">{message.length}/1000</span>
+  {#if roomPaused}
+    <span class="bg-destructive/10 text-destructive mt-2 block w-full p-3 text-sm">
+      This room is paused. The owner isn't accepting messages right now.
+    </span>
+  {/if}
+  <span class="w-full pt-2 text-left text-sm font-light"
+    >{message.length}/{effectiveMaxLength}</span
+  >
   <div class="mb-2 w-full">
     <span class="relative mb-2 flex h-full w-full flex-row items-end gap-2 pt-2 pb-4">
       <Textarea
@@ -375,7 +423,8 @@
         placeholder="Enter your message here, then press send. "
         class="placeholder:text-md h-full
         w-full border border-black p-8"
-        maxlength={1000}
+        disabled={roomPaused}
+        maxlength={effectiveMaxLength}
         onkeydown={(e) => {
           if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
           // Enter-to-send is a desktop-only convenience: there Shift+Enter is
@@ -395,7 +444,7 @@
         class=" border-light-900 dark:border-dark-600
 				relative h-fit border border-black p-7 transition-all
 				{!hasContent || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
-        disabled={!hasContent || sending || checkingProfanity || voiceRendering}
+        disabled={!hasContent || sending || checkingProfanity || voiceRendering || roomPaused}
         onclick={signMessage}
       >
         {#if checkingProfanity}
@@ -429,8 +478,13 @@
 
     <!-- items-start so the short "Add image" tile doesn't stretch to match the
          (much taller) expanded voice recorder next to it; flex-wrap so the two
-         stack instead of overflowing once a clip is recorded on a narrow screen. -->
-    <span class=" flex h-full w-full flex-row flex-wrap items-start gap-2 border border-black p-3">
+         stack instead of overflowing once a clip is recorded on a narrow screen.
+         Hidden entirely while the room is paused (dead controls) or when the
+         room's limits leave it nothing to offer (empty box). -->
+    <span
+      class=" flex h-full w-full flex-row flex-wrap items-start gap-2 border border-black p-3"
+      class:hidden={!showAttachRow}
+    >
       {#if imageBase64.length}
         <ImageThumbnail imageBase64={imageBase64.join('')} variant="md" />
         <Button
@@ -441,7 +495,7 @@
         >
           <X /> <span> Clear image </span>
         </Button>
-      {:else}
+      {:else if imagesAllowed}
         <span
           class="bg-secondary/60 border-primary/30 hover:bg-secondary/80 text-secondary-foreground bottom-0 left-2 rounded-xs border p-2 transition-all"
         >
@@ -482,6 +536,7 @@
         room={params}
         {loadedPair}
         recipientPbKey={api_pbKey}
+        maxLen={effectiveMaxLength}
       />
     {/if}
   </div>
