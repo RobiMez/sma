@@ -174,7 +174,9 @@
 
       // Use domToPng directly on the cardElement
       const dataUrl = await domToPng(messageElement, {
-        backgroundColor: 'var(--background)',
+        // Resolved, not 'var(--background)': this is painted onto a canvas,
+        // where a CSS variable is not a colour and silently yields nothing.
+        backgroundColor: getComputedStyle(messageElement).backgroundColor,
         scale: 4 // Optional: Increase scale for higher resolution
       });
 
@@ -209,7 +211,9 @@
 
       // Use domToPng to convert the element to an image
       const dataUrl = await domToPng(messageElement, {
-        backgroundColor: 'var(--background)',
+        // Resolved, not 'var(--background)': this is painted onto a canvas,
+        // where a CSS variable is not a colour and silently yields nothing.
+        backgroundColor: getComputedStyle(messageElement).backgroundColor,
         scale: 4
       });
 
@@ -251,104 +255,120 @@
 <!-- flex-col, not flex-row: the reply thread hangs below the message bubble as
      a sibling, so it can't be swallowed by the bubble's absolutely-positioned
      timestamp in the corner. -->
-<div class=" group -m-2 flex w-full flex-col px-4 py-6 pr-3 pb-2" id="message">
-  <div class="border-border bg-muted relative flex w-full flex-row justify-between border p-3">
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <span class="absolute -top-1 left-[-5px] flex flex-row text-sm">
-      <IdentityChip rid={msg.r} bg="background" variant="tab" />
-    </span>
+<!-- -my-2, not -m-2: the negative margin exists purely for the vertical
+     maths below, and on the horizontal axis it shifted the whole card 8px
+     left of its container, so message rows sat at 8px on the left and 24px
+     on the right while every other row sat at 16px on both.
 
-    {#if msg.image && msg.image.id && msg.image.blurhash}
-      <span class="border-primary absolute -top-5 left-32 h-7 w-7 border text-sm">
-        <BlurhashThumbnail imageId={msg.image.id} />
+     pb-2.5 is load-bearing, not a round number. The identity chip and the
+     hover toolbar both hang 19px above their card's top edge, so the gap
+     between cards has to be 18px for a chip's top border to land exactly on
+     the previous card's bottom border. At 20px they missed by 1px and left a
+     hairline of page background between them, which read as a seam rather
+     than as a tab welded to the stack. 10 + 24 - 16 (margin) = 18.
+
+     Uniform on every row: the spacing is invisible either way, so every row
+     reserves it. -->
+<div class=" group -my-2 flex w-full flex-col px-4 py-6 pb-2.5" id="message">
+  <div class="relative w-full min-w-0">
+    <div class="border-border bg-muted relative flex w-full flex-row justify-between border p-4">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <span class="absolute -top-1 left-[-5px] flex flex-row items-center gap-1 text-sm">
+        <IdentityChip rid={msg.r} bg="background" variant="tab" />
       </span>
-    {/if}
 
-    <div class="flex w-full min-w-0 flex-col gap-2">
-      <MessageText
-        text={msg.msg}
-        {redactMode}
-        showHighlights={redactMode}
-        {redactedIndices}
-        onWordClick={toggleWordRedaction}
-      />
-      {#if msg.audio?.id && decryptAudio}
-        <VoiceMessage
-          audioId={msg.audio.id}
-          authorRid={msg.r}
-          duration={msg.audio.duration}
-          {decryptAudio}
-        />
-      {/if}
-    </div>
-    <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
-      {#if msg.editedAt}
-        <!-- The sender can rewrite what they sent (see /api/sent); say so
-             rather than silently swapping the text under the recipient. -->
-        <span
-          class="text-muted-foreground text-xs italic"
-          title="Edited by the sender at {new Date(msg.editedAt).toLocaleString()}"
-        >
-          edited
+      {#if msg.image && msg.image.id && msg.image.blurhash}
+        <span class="border-border absolute -top-5 left-32 h-7 w-7 border text-sm">
+          <BlurhashThumbnail imageId={msg.image.id} />
         </span>
       {/if}
-      <button
-        class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
-        onclick={() => (showExactTime = !showExactTime)}
-        title={showExactTime ? "Click to see relative time" : "Click to see exact time"}
-      >
-        {time}
-      </button>
-    </div>
-    <span
-      class="absolute -top-5 right-4 flex flex-row gap-1 transition-all lg:opacity-0 lg:group-hover:opacity-100"
-    >
-      {#if sendReply}
-        <button
-          class="border-primary flex h-7 w-7 items-center justify-center border text-sm transition-all
-            {replying ? 'bg-primary text-primary-foreground' : 'bg-background'}"
-          onclick={() => {
-            replying = !replying;
-            replyError = '';
-          }}
-          title={replying ? 'Cancel reply' : 'Reply to this message'}
-        >
-          <ArrowBendUpLeft size={20} />
-        </button>
-      {/if}
-      <button
-        class="border-primary bg-background flex h-7 w-7 items-center justify-center border text-sm disabled:opacity-40"
-        onclick={copyText}
-        disabled={!msg.msg}
-        title={msg.msg ? 'Copy text' : 'No text to copy'}
-      >
-        {#if copyTextState === 'copied'}
-          <Check size={20} />
-        {:else if copyTextState === 'error'}
-          <XCircle size={20} />
-        {:else}
-          <ClipboardText size={20} />
+
+      <div class="flex w-full min-w-0 flex-col gap-2">
+        <MessageText
+          text={msg.msg}
+          {redactMode}
+          showHighlights={redactMode}
+          {redactedIndices}
+          onWordClick={toggleWordRedaction}
+        />
+        {#if msg.audio?.id && decryptAudio}
+          <VoiceMessage
+            audioId={msg.audio.id}
+            authorRid={msg.r}
+            duration={msg.audio.duration}
+            {decryptAudio}
+          />
         {/if}
-      </button>
-      <button
-        class="border-primary flex h-7 w-7 items-center justify-center border text-sm transition-all
-          {redactMode ? 'bg-primary text-primary-foreground' : 'bg-background'}"
-        onclick={toggleRedactMode}
-        title={redactMode ? 'Exit redact mode' : 'Redact words'}
+      </div>
+      <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
+        {#if msg.editedAt}
+          <!-- The sender can rewrite what they sent (see /api/sent); say so
+               rather than silently swapping the text under the recipient. -->
+          <span
+            class="text-muted-foreground text-xs italic"
+            title="Edited by the sender at {new Date(msg.editedAt).toLocaleString()}"
+          >
+            edited
+          </span>
+        {/if}
+        <button
+          class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
+          onclick={() => (showExactTime = !showExactTime)}
+          title={showExactTime ? "Click to see relative time" : "Click to see exact time"}
+        >
+          {time}
+        </button>
+      </div>
+      <span
+        class="absolute -top-5 right-4 flex flex-row gap-1 transition-all lg:opacity-0 lg:group-hover:opacity-100"
       >
-        <Eraser size={20} />
-      </button>
-      <button
-        class="border-primary bg-background flex h-7 w-7 items-center justify-center border text-sm"
-        onclick={() => {
-          dialogOpen = !dialogOpen;
-        }}
-        title="Save image"
-      >
-        <FileArrowDown size={20} />
-      </button>
-    </span>
+        {#if sendReply}
+          <button
+            class="border-border flex h-7 w-7 items-center justify-center border text-sm transition-all
+              {replying ? 'bg-primary text-primary-foreground' : 'bg-background'}"
+            onclick={() => {
+              replying = !replying;
+              replyError = '';
+            }}
+            title={replying ? 'Cancel reply' : 'Reply to this message'}
+          >
+            <ArrowBendUpLeft size={20} />
+          </button>
+        {/if}
+        <button
+          class="border-border bg-background flex h-7 w-7 items-center justify-center border text-sm disabled:opacity-40"
+          onclick={copyText}
+          disabled={!msg.msg}
+          title={msg.msg ? 'Copy text' : 'No text to copy'}
+        >
+          {#if copyTextState === 'copied'}
+            <Check size={20} />
+          {:else if copyTextState === 'error'}
+            <XCircle size={20} />
+          {:else}
+            <ClipboardText size={20} />
+          {/if}
+        </button>
+        <button
+          class="border-border flex h-7 w-7 items-center justify-center border text-sm transition-all
+            {redactMode ? 'bg-primary text-primary-foreground' : 'bg-background'}"
+          onclick={toggleRedactMode}
+          title={redactMode ? 'Exit redact mode' : 'Redact words'}
+        >
+          <Eraser size={20} />
+        </button>
+        <button
+          class="border-border bg-background flex h-7 w-7 items-center justify-center border text-sm"
+          onclick={() => {
+            dialogOpen = !dialogOpen;
+          }}
+          title="Save image"
+        >
+          <FileArrowDown size={20} />
+        </button>
+      </span>
+    </div>
   </div>
 
   <!-- Only this browser can read these: they were encrypted to the sender and
@@ -370,7 +390,7 @@
             bind:value={replyDraft}
             maxlength={1000}
             placeholder="Reply to this message..."
-            class="w-full border border-black p-2"
+            class="w-full border border-border p-2"
           />
           {#if replyError}
             <span class="bg-destructive/10 text-destructive p-2 text-sm">{replyError}</span>
@@ -408,40 +428,42 @@
       <Dialog.Title>Download image</Dialog.Title>
     </Dialog.Header>
     <div
-      class="m-auto mt-4 flex aspect-square w-full max-w-full min-w-0 items-center justify-center overflow-hidden border border-black"
+      class="bg-background m-auto mt-4 flex aspect-square w-full max-w-full min-w-0 items-center justify-center overflow-hidden border border-border"
       bind:this={messageElement}
     >
       <div
-        class=" group m-auto flex w-full min-w-0 flex-row justify-between px-4 py-6 pr-3 pb-2"
+        class=" group m-auto flex w-full min-w-0 flex-row justify-between px-4 py-6 pr-4 pb-3"
         id="message"
       >
-        <div
-          class="border-primary bg-muted relative flex w-full min-w-0 flex-row justify-between border p-3"
-        >
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <span class="absolute -top-1 left-[-5px] flex flex-row text-sm">
-            <IdentityChip rid={msg.r} bg="background" variant="tab" />
-          </span>
-
-          {#if msg.image && msg.image.id && msg.image.blurhash}
-            <span class="border-primary absolute -top-5 left-32 h-7 w-7 border text-sm">
-              <BlurhashThumbnail imageId={msg.image.id} />
+        <div class="relative w-full min-w-0">
+          <div
+            class="border-border bg-muted relative flex w-full min-w-0 flex-row justify-between border p-4"
+          >
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <span class="absolute -top-1 left-[-5px] flex flex-row text-sm">
+              <IdentityChip rid={msg.r} bg="background" variant="tab" />
             </span>
-          {/if}
 
-          <MessageText text={msg.msg} {redactedIndices} />
-          <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
-            {#if msg.editedAt}
-              <span class="text-muted-foreground text-xs italic">edited</span>
+            {#if msg.image && msg.image.id && msg.image.blurhash}
+              <span class="border-border absolute -top-5 left-32 h-7 w-7 border text-sm">
+                <BlurhashThumbnail imageId={msg.image.id} />
+              </span>
             {/if}
-            <button
-              class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
-              onclick={() => (showExactTime = !showExactTime)}
-              title={showExactTime ? 'Click to show relative time' : 'Click to show exact time'}
-            >
-              {time}
-            </button>
+
+            <MessageText text={msg.msg} {redactedIndices} />
+            <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
+              {#if msg.editedAt}
+                <span class="text-muted-foreground text-xs italic">edited</span>
+              {/if}
+              <button
+                class="text-xs hover:opacity-70 transition-opacity cursor-pointer"
+                onclick={() => (showExactTime = !showExactTime)}
+                title={showExactTime ? 'Click to show relative time' : 'Click to show exact time'}
+              >
+                {time}
+              </button>
+            </div>
           </div>
         </div>
       </div>

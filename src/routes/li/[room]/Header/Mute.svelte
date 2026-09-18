@@ -65,8 +65,8 @@
   });
 </script>
 
-<Button onclick={toggleSound} class="h-auto p-0">
-  <span class="flex aspect-square size-18 flex-col items-center justify-center">
+<Button onclick={toggleSound} variant="ghost" class="border-border h-full rounded-none border-l p-0">
+  <span class="flex h-full w-full flex-col items-center justify-center gap-0.5 px-5 py-2">
     <span>
       {#if soundEnabled}
         <SpeakerHigh size={20} weight="duotone" />
@@ -74,7 +74,7 @@
         <SpeakerSlash size={20} weight="duotone" />
       {/if}
     </span>
-    <span class="hidden text-xs whitespace-nowrap md:text-sm lg:flex">
+    <span class="flex text-xs whitespace-nowrap md:text-sm">
       {soundEnabled ? 'Mute' : 'Unmute'}
     </span>
   </span>

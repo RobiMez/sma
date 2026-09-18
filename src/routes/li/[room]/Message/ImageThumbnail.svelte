@@ -17,7 +17,7 @@
 
 <div>
   <button
-    class={`${variant == 'md' ? 'w-48' : 'w-24'} border-black rounded-xs border`}
+    class={`${variant == 'md' ? 'w-48' : 'w-24'} border-border rounded-xs border`}
     onclick={toggleModal}
   >
     <img src={imageBase64} alt="Lorem" />

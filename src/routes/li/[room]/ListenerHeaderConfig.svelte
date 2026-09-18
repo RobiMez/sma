@@ -13,9 +13,15 @@
   } = $props();
 </script>
 
-<span class="flex flex-col gap-2">
-  <CopyLink />
-  <span class="flex flex-row gap-2">
+<!-- The controls row, built like the nav bar: cells butted together with a
+     shared rule, no gaps, no box. Copy link takes the free space because it is
+     the primary action here and the only one a room owner needs before anyone
+     has written to them. -->
+<span class="border-border flex w-full flex-row items-stretch border-b">
+  <span class="border-border flex-1 border-r">
+    <CopyLink />
+  </span>
+  <span class="flex flex-row items-stretch">
     <SettingsModal
       bind:profanityEnabled
       bind:voiceEnabled

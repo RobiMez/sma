@@ -26,14 +26,14 @@
     <button onclick={() => (powerUser = false)}>
       <XCircle size={24} />
     </button>
-    <div class="border-black relative border p-2">
+    <div class="border-border relative border p-2">
       <small class="keydisplayHeader">Private Key</small>
       <h1 class="keyDisplayBlur">
         {loadedPair.prKey ?? ''}
       </h1>
     </div>
 
-    <div class="border-black relative border p-2">
+    <div class="border-border relative border p-2">
       <small class="keydisplayHeader">Public Key</small>
       <h1 class="keyDisplay">{loadedPair.pbKey ?? ''}</h1>
     </div>

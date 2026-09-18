@@ -69,14 +69,18 @@
   };
 </script>
 
-<div class="flex flex-row gap-2">
-  <Button variant="secondary" class="gap-2 text-sm" onclick={() => (exportOpen = true)}>
+<!-- `contents` dissolves this wrapper, so the two buttons become direct flex
+     items of the row in +page.svelte. Without it each component would be one flex item
+     and the band would read as two groups of buttons rather than one row of
+     cells. -->
+<div class="contents">
+  <button type="button" class="border-border hover:bg-secondary flex cursor-pointer items-center gap-2 border-r px-4 py-3 text-sm transition-colors" onclick={() => (exportOpen = true)}>
     <DownloadSimple weight="duotone" />
     Backup
-  </Button>
-  <Button
-    variant="secondary"
-    class="gap-2 text-sm"
+  </button>
+  <button
+    type="button"
+    class="border-border hover:bg-secondary flex cursor-pointer items-center gap-2 border-r px-4 py-3 text-sm transition-colors"
     onclick={() => {
       resetImport();
       importOpen = true;
@@ -84,7 +88,7 @@
   >
     <UploadSimple weight="duotone" />
     Restore
-  </Button>
+  </button>
 </div>
 
 <!-- Export -->
@@ -141,7 +145,7 @@
 
     <div class="flex flex-col gap-3 py-2">
       <label
-        class="border-primary hover:bg-muted flex cursor-pointer items-center justify-center gap-2 border border-dashed p-4 text-sm"
+        class="border-border hover:bg-muted flex cursor-pointer items-center justify-center gap-2 border border-dashed p-4 text-sm"
       >
         <UploadSimple weight="duotone" />
         {importFileName || 'Choose backup file'}

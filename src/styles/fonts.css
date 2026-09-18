@@ -1,0 +1,17 @@
+/* Lexend, served from static/fonts rather than fonts.googleapis.com.
+
+   SELF-HOSTED, and that is a fix as much as a housekeeping change. The app
+   used to pull Lexend from Google on every page load, which handed Google the
+   IP and the referring room link of everyone who opened a share link. On an
+   app whose whole premise is that nobody can tell who wrote what, that was
+   the loudest thing on the page. Serving the file ourselves ends it.
+
+   Latin subset only. The full Google file carries Cyrillic, Greek and
+   Vietnamese ranges this app has no use for, at several times the size. */
+
+@font-face {
+  font-family: 'Lexend';
+  src: url('/fonts/lexend.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}

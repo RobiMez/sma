@@ -1,4 +1,5 @@
 <script lang="ts">
+  import VoicePlayer from '$lib/components/VoicePlayer.svelte';
   import Microphone from 'phosphor-svelte/lib/Microphone';
   import Stop from 'phosphor-svelte/lib/Stop';
   import X from 'phosphor-svelte/lib/X';
@@ -160,7 +161,7 @@
   <span
     class="bg-secondary/60 border-primary/30 flex w-full min-w-0 flex-col gap-2 rounded-xs border p-2 sm:w-auto sm:flex-row sm:items-center"
   >
-    <audio src={previewUrl} controls class="h-8 w-full sm:w-[220px]"></audio>
+    <VoicePlayer src={previewUrl} class="w-full sm:w-[240px]" />
     <!-- A plain wrap left "Monster" orphaned on a row of its own. Six short
          labels go two even rows of three on a phone and a single row once
          there's width for it. -->
@@ -193,11 +194,11 @@
 {:else}
   <span class="flex flex-col gap-1">
     <span
-      class="bg-secondary/60 border-primary/30 hover:bg-secondary/80 text-secondary-foreground rounded-xs border p-2 transition-all"
+      class="border-border hover:bg-secondary border-r transition-colors"
     >
       <button
         type="button"
-        class="flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+        class="flex items-center gap-2 px-4 py-3 disabled:cursor-not-allowed disabled:opacity-50"
         disabled={!supported}
         title={supported ? 'Record a voice message' : "This browser doesn't support recording"}
         onclick={startRecording}

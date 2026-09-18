@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fade, scale } from 'svelte/transition';
+  import { fade } from 'svelte/transition';
 
   import IdentityPill from './IdentityPill.svelte';
 
@@ -7,6 +7,7 @@
   import { getAllFromLS, getLoadedPairFromLS, loadPair } from '$lib/utils/localStorage';
 
   import type { IKeyPairs } from '$lib/types';
+  import type { RoomSummary } from '$lib/config/rooms';
   import { Button } from '$lib/components/ui/button';
 
   import UserCheck from 'phosphor-svelte/lib/UserCheck';
@@ -16,9 +17,11 @@
   interface Props {
     loadedPair: IKeyPairs | undefined;
     keyPairs: IKeyPairs[];
+    /** Keyed by rid; empty until the batch read lands, and after it fails. */
+    summaries?: Record<string, RoomSummary>;
   }
 
-  let { loadedPair = $bindable(), keyPairs = $bindable() }: Props = $props();
+  let { loadedPair = $bindable(), keyPairs = $bindable(), summaries = {} }: Props = $props();
 
   let isOpen = $state(false);
   let selectedIdentity: IKeyPairs | null = $state(null);
@@ -44,15 +47,27 @@
   };
 </script>
 
-<div class=" flex w-full flex-col items-center justify-center">
-  <div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-    {#each keyPairs as identity, i}
-      <div transition:scale={{ delay: 100 + 50 * i, start: 0.9 }} class="inline-flex">
-        <IdentityPill {identity} {loadedPair} onClick={handleOpenModal} />
-      </div>
-    {/each}
-    
-  </div>
+<!-- Brutalist grid, same construction as the style shop: the container draws
+     the left rule, each cell draws its own right and bottom, so neighbours
+     share one hairline instead of each carrying a box in a gap-4 field.
+
+     fade rather than the scale it used to pop in with: scaling a cell scales
+     its borders too, and a grid whose hairlines grow into place is a grid that
+     looks broken for 150ms. -->
+<div class="border-border grid w-full grid-cols-1 border-l sm:grid-cols-2 lg:grid-cols-3">
+  {#each keyPairs as identity, i (identity.uniqueString)}
+    <div
+      transition:fade={{ delay: 40 * i, duration: 150 }}
+      class="border-border border-r border-b"
+    >
+      <IdentityPill
+        {identity}
+        {loadedPair}
+        summary={summaries[identity.uniqueString]}
+        onClick={handleOpenModal}
+      />
+    </div>
+  {/each}
 </div>
 
 <Dialog.Root bind:open={isOpen}>

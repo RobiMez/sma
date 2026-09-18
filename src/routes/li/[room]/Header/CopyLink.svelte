@@ -17,14 +17,16 @@
   }
 </script>
 
-<Button onclick={copyLink} class="h-auto p-0">
-  <span class="p-4">
+<!-- h-full, not h-auto: this sits beside two size-18 (72px) squares, and its
+     p-4 made it 56px, so the row of three came out uneven. -->
+<Button onclick={copyLink} class="h-full w-full rounded-none p-0">
+  <span class="flex h-full w-full items-center justify-center p-4">
     {#if copied}
       <span in:scale={{ start: 0.9 }} class="flex items-center justify-center gap-2">
         <span>
           <CheckFat size={20} weight="duotone" />
         </span>
-        <span class="hidden text-xs whitespace-nowrap sm:flex md:text-sm">
+        <span class="text-xs whitespace-nowrap md:text-sm">
           {copied ? 'Copied!' : 'Copy link'}
         </span>
       </span>
@@ -33,7 +35,7 @@
         <span>
           <ShareNetwork size={20} weight="duotone" />
         </span>
-        <span class="hidden text-xs whitespace-nowrap sm:flex md:text-sm">
+        <span class="text-xs whitespace-nowrap md:text-sm">
           {copied ? 'Copied!' : 'Copy link'}
         </span>
       </span>

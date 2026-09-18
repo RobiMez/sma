@@ -6,6 +6,7 @@
   import { getAllFromLS, getLoadedPairFromLS } from '$lib/utils/localStorage';
   import { apiUrl, wsUrl } from '$lib/api';
   import { signedFetch } from '$lib/utils/signedRequest';
+  import { invalidateAll } from '$app/navigation';
 
   import Message from './Message/Message.svelte';
 
@@ -468,8 +469,24 @@
       stopPolling();
       unpack();
     };
-    ws.onmessage = () => {
-      // Any ping means "your inbox changed" — pull immediately.
+    ws.onmessage = (event) => {
+      // Two kinds of ping now. A message ping means the inbox changed; a
+      // settings ping means the room's own state did, which for this page is
+      // the look it wears. They are handled separately because unpack() is
+      // the expensive one: it refetches and decrypts, and a palette change
+      // has nothing to do with messages.
+      let type = 'message';
+      try {
+        type = JSON.parse(event.data)?.type ?? 'message';
+      } catch {
+        // Unparseable payload: treat it as the old bare ping it used to be.
+      }
+      if (type === 'settings') {
+        // Re-runs +page.server.ts, so a settings change made on another
+        // device or in another tab reaches this one.
+        invalidateAll();
+        return;
+      }
       unpack();
     };
     ws.onclose = () => {
@@ -510,10 +527,12 @@
 <audio preload="auto" src="/notify.wav" style="display: none;"></audio>
 
 <div
-  class="container mx-auto flex min-h-screen w-full max-w-4xl grow flex-col items-center justify-start p-1 pt-12"
+  class="container mx-auto flex w-full max-w-4xl grow flex-col items-center justify-start"
 >
   {#if roomTitle && loadedPair && rid}
-    <div class="flex w-full flex-row gap-2 p-1 pb-1">
+    <!-- No padding here: the header's own rows run to the column edges and
+         set their content inset with px-4, the same as every other row. -->
+    <div class="flex w-full flex-row">
       <ListenerHeader
         {loadedPair}
         {wsConnected}
@@ -526,7 +545,10 @@
       />
     </div>
 
-    <div class="flex w-full flex-col p-4 pt-8">
+    <!-- Vertical only. Horizontal padding here would inset the section
+         headers and message rows past the header rows above them, which is
+         what had the three of them landing on three different edges. -->
+    <div class="flex w-full flex-col py-4">
       {#if unlocked}
         {#each [...decryptedMessages].reverse() as msg (msg.id)}
           <Message {msg} {decryptAudio} {sendReply} />
@@ -534,7 +556,7 @@
 
         {#if !decryptedMessages.length}
           <span
-            class="border-primary bg-secondary/5 flex flex-col items-center justify-center gap-4 border border-dashed p-12"
+            class="border-border bg-secondary/5 flex flex-col items-center justify-center gap-4 border border-dashed p-12"
           >
             <FolderDashed class="size-18 md:size-32 " weight="duotone" />
             <h3 class="text-md font-light md:text-xl">No messages sent to your inbox yet</h3>

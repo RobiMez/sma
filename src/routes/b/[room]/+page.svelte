@@ -1,10 +1,12 @@
 <script lang="ts">
+  import HeaderRow from '$lib/components/HeaderRow.svelte';
   import * as openpgp from 'openpgp';
   import { fly } from 'svelte/transition';
   import type { IKeyPairs } from '$lib/types';
 
   import { page } from '$app/state';
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import { PUBLIC_PGP_PASSPHRASE } from '$env/static/public';
 
   import ImageSquare from 'phosphor-svelte/lib/ImagesSquare';
@@ -21,7 +23,7 @@
     fetchProfanityAllowed,
     type IVectorResponse
   } from '$lib/utils/profanity';
-  import { apiUrl } from '$lib/api';
+  import { apiUrl, wsUrl } from '$lib/api';
   import { X } from 'phosphor-svelte';
   import { Button } from '$lib/components/ui/button';
   import IdentityChip from '$lib/components/IdentityChip.svelte';
@@ -304,10 +306,11 @@
     loadImageFile(file);
   }
 
-  onMount(async () => {
-    keyPairs = await getAllFromLS();
-    loadedPair = (await getLoadedPairFromLS()) ?? null;
-
+  // Everything the room's owner controls that this page renders. Split out of
+  // onMount so it can be called again: an owner who pauses the room, turns
+  // voice off or renames it while someone is typing should not need that
+  // person to reload before it takes effect.
+  const loadRoomSettings = async () => {
     try {
       const responseTitle = await fetch(apiUrl(`/api/title?rid=${encodeURIComponent(params)}`), {
         method: 'GET',
@@ -371,58 +374,150 @@
       console.error('Failed to fetch room limits', e);
     }
 
+    await invalidateAll();
+  };
+
+  // Settings arrive over the same socket the inbox and the sent list use,
+  // subscribed to the ROOM's rid rather than this sender's. That is a
+  // deliberate second subscription: SentMessages listens on the sender's own
+  // rid for replies, and the two feeds answer different questions.
+  //
+  // Only `settings` is acted on. The room's socket also carries a `message`
+  // ping every time anyone writes to it, and a sender has no business
+  // re-reading half a dozen endpoints because a stranger sent something.
+  // Hearing that ping at all reveals nothing new either way: the room's
+  // ciphertext, and therefore its message count and timings, is already
+  // readable by anyone holding the share link.
+  //
+  // No polling fallback here, unlike the message paths. A missed settings
+  // change costs a stale composer until the next reload, and every one of
+  // these limits is enforced again server-side, so the worst case is a send
+  // rejected with a clear reason rather than anything slipping through.
+  const SETTINGS_GAP_MS = 1_000;
+  let settingsWs: WebSocket | undefined;
+  let settingsRetry = 0;
+  let settingsQueued = false;
+  let pageDestroyed = false;
+
+  const reloadSettingsSoon = () => {
+    if (pageDestroyed || settingsQueued) return;
+    settingsQueued = true;
+    setTimeout(() => {
+      settingsQueued = false;
+      if (!pageDestroyed) loadRoomSettings();
+    }, SETTINGS_GAP_MS);
+  };
+
+  const connectSettingsWs = () => {
+    if (pageDestroyed || typeof window === 'undefined' || !params) return;
+    try {
+      settingsWs = new WebSocket(wsUrl(`/ws?rid=${encodeURIComponent(params)}`));
+    } catch (e) {
+      console.warn('Settings socket unavailable, room settings will not live update', e);
+      return;
+    }
+
+    settingsWs.onopen = () => {
+      settingsRetry = 0;
+    };
+    settingsWs.onmessage = (event) => {
+      try {
+        if (JSON.parse(event.data)?.type === 'settings') reloadSettingsSoon();
+      } catch {
+        // A payload we cannot parse is not a reason to refetch.
+      }
+    };
+    settingsWs.onclose = () => {
+      if (pageDestroyed) return;
+      settingsRetry = Math.min(settingsRetry + 1, 6);
+      setTimeout(connectSettingsWs, 1000 * settingsRetry);
+    };
+    settingsWs.onerror = () => settingsWs?.close();
+  };
+
+  onMount(async () => {
+    keyPairs = await getAllFromLS();
+    loadedPair = (await getLoadedPairFromLS()) ?? null;
+
+    await loadRoomSettings();
+    connectSettingsWs();
+
     if (params) {
       await fetchKeys();
     }
+  });
+
+  onDestroy(() => {
+    pageDestroyed = true;
+    settingsWs?.close();
   });
 </script>
 
 <svelte:window onpaste={handlePaste} />
 
 <div
-  class="container mx-auto flex min-h-screen w-full max-w-4xl grow flex-col items-center justify-start p-2 pt-8"
+  class="container mx-auto flex w-full max-w-4xl grow flex-col items-center justify-start"
 >
-  <div class="bg-background border-primary flex w-full flex-row border">
-    <div
-      class="md:text-md relative flex w-full items-center justify-baseline p-4 text-left text-sm font-semibold lg:text-xl"
-    >
-      Send to
-      <span class=" flex items-center justify-center gap-2 rounded-xs p-1 font-light">
-        {#if loadingRoom}
-          <span
-            class="text-muted-foreground border-muted-foreground/40 text-md inline-flex animate-pulse items-center gap-1.5 border border-dashed px-2 tracking-wider uppercase italic md:text-xl"
-            aria-live="polite"
-          >
-            <Spinner class="size-4 animate-spin md:size-5" weight="duotone" />
-            loading
-          </span>
-        {:else if roomTitle}
-          <h2 class="text-md md:text-xl">
-            [ {roomTitle} ]
-          </h2>
-          <span class="text-muted-foreground text-md font-light italic md:text-xl">as</span>
-        {/if}
-        {#if loadedPair}
+  <HeaderRow variant="page">
+    Send to
+    <!-- Two groups, not one line: the room's name, then who you are sending
+         as. A narrow phone breaks between them instead of running the
+         identity chip off the right edge. The chip is whitespace-nowrap by
+         design (a truncated rid is not an identity), so it can only wrap,
+         never shrink, and "as" has to travel with it: wrapping four loose
+         siblings strands "as" at the end of the line above. -->
+    <span class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-light">
+      {#if loadingRoom}
+        <span
+          class="text-muted-foreground border-muted-foreground/40 text-md inline-flex animate-pulse items-center gap-1.5 border border-dashed px-2 tracking-wider uppercase italic md:text-xl"
+          aria-live="polite"
+        >
+          <Spinner class="size-4 animate-spin md:size-5" weight="duotone" />
+          loading
+        </span>
+      {:else if roomTitle}
+        <h2 class="text-md whitespace-nowrap md:text-xl">
+          [ {roomTitle} ]
+        </h2>
+      {/if}
+      {#if loadedPair}
+        <span class="flex shrink-0 items-center gap-2">
+          <!-- "as" belongs to the chip, so it lives in here. It used to sit
+               in the title branch, where it also rendered before an identity
+               had loaded, qualifying nothing. -->
+          {#if !loadingRoom && roomTitle}
+            <span class="text-muted-foreground text-md font-light italic md:text-xl">as</span>
+          {/if}
           <IdentityChip rid={loadedPair.uniqueString} classString="translate-y-[3px] ml-[3px]" />
-        {/if}
-      </span>
-    </div>
-  </div>
+        </span>
+      {/if}
+    </span>
+  </HeaderRow>
   {#if roomPaused}
-    <span class="bg-destructive/10 text-destructive mt-2 block w-full p-3 text-sm">
+    <span class="bg-destructive/10 text-destructive mt-2 block w-full px-4 py-3 text-sm">
       This room is paused. The owner isn't accepting messages right now.
     </span>
   {/if}
-  <span class="w-full pt-2 text-left text-sm font-light"
+  <span class="w-full px-4 pt-2 text-left text-sm font-light"
     >{message.length}/{effectiveMaxLength}</span
   >
   <div class="mb-2 w-full">
-    <span class="relative mb-2 flex h-full w-full flex-row items-end gap-2 pt-2 pb-4">
+    <!-- Send drops onto its own row on a narrow phone. The button is a fixed
+         97px and the textarea carries p-8, so side by side the composer's
+         usable measure is whatever is left: 259px of text at a 480px viewport,
+         179px at 400px, 99px at 320px, which is where the placeholder starts
+         wrapping one word per line. 480px is the width below which that stops
+         being a text box. Stretched rather than end-aligned when stacked,
+         since align-items runs horizontally in a column and "end" would pin
+         Send to the right edge instead of filling the row. -->
+    <span
+      class="relative mb-2 flex h-full w-full flex-col items-stretch gap-2 px-4 pt-2 pb-4 min-[480px]:flex-row min-[480px]:items-end"
+    >
       <Textarea
         bind:value={message}
         placeholder="Enter your message here, then press send. "
         class="placeholder:text-md h-full
-        w-full border border-black p-8"
+        w-full border border-border p-8"
         disabled={roomPaused}
         maxlength={effectiveMaxLength}
         onkeydown={(e) => {
@@ -442,7 +537,7 @@
 
       <button
         class=" border-light-900 dark:border-dark-600
-				relative h-fit border border-black p-7 transition-all
+				relative h-fit border border-border p-7 transition-all
 				{!hasContent || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
         disabled={!hasContent || sending || checkingProfanity || voiceRendering || roomPaused}
         onclick={signMessage}
@@ -471,18 +566,23 @@
     </span>
 
     {#if sendError}
-      <span class="bg-destructive/10 text-destructive mb-2 block w-full p-2 text-sm">
+      <span class="bg-destructive/10 text-destructive mb-2 block w-full px-4 py-2 text-sm">
         {sendError}
       </span>
     {/if}
 
-    <!-- items-start so the short "Add image" tile doesn't stretch to match the
-         (much taller) expanded voice recorder next to it; flex-wrap so the two
-         stack instead of overflowing once a clip is recorded on a narrow screen.
-         Hidden entirely while the room is paused (dead controls) or when the
-         room's limits leave it nothing to offer (empty box). -->
+
+    <!-- A cell row, like the header rows: no box around it, no padding on the
+         row, no gaps, each control carrying its own padding and a divider.
+         border-t only, never border-b: every band below this one draws its own
+         top rule, and carrying both put 2px of hairline between them.
+         items-start still, so the short "Add image" cell doesn't stretch to
+         match the (much taller) expanded voice recorder beside it; flex-wrap
+         so the two stack instead of overflowing once a clip is recorded on a
+         narrow screen. Hidden entirely while the room is paused (dead
+         controls) or when the room's limits leave it nothing to offer. -->
     <span
-      class=" flex h-full w-full flex-row flex-wrap items-start gap-2 border border-black p-3"
+      class="border-border flex h-full w-full flex-row flex-wrap items-start border-t"
       class:hidden={!showAttachRow}
     >
       {#if imageBase64.length}
@@ -496,10 +596,8 @@
           <X /> <span> Clear image </span>
         </Button>
       {:else if imagesAllowed}
-        <span
-          class="bg-secondary/60 border-primary/30 hover:bg-secondary/80 text-secondary-foreground bottom-0 left-2 rounded-xs border p-2 transition-all"
-        >
-          <label for="image-input" class="flex cursor-pointer items-center gap-2">
+        <span class="border-border hover:bg-secondary border-r transition-colors">
+          <label for="image-input" class="flex cursor-pointer items-center gap-2 px-4 py-3">
             <ImageSquare size="24" weight="duotone" />
             <span class="text-sm">Add image </span>
             <span class="text-muted-foreground hidden text-xs sm:inline">or paste one</span>
@@ -514,7 +612,7 @@
         </span>
       {/if}
       {#if imageError}
-        <span class="bg-destructive/10 text-destructive w-full p-2 text-sm">
+        <span class="bg-destructive/10 text-destructive w-full px-4 py-2 text-sm">
           {imageError}
         </span>
       {/if}

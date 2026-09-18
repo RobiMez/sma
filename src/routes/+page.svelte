@@ -23,7 +23,7 @@
 </script>
 
 <div
-  class="container mx-auto flex max-h-fit min-h-screen max-w-2xl grow flex-col items-center justify-center gap-8 p-8"
+  class="container mx-auto flex max-h-fit max-w-2xl grow flex-col items-center justify-center gap-8 p-8"
 >
   <span class="flex flex-col items-center justify-center gap-2">
     <h1

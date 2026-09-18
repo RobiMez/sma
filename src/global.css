@@ -1,13 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@100;200;300;400;500;600;700;800;900&display=swap');
-@import "tailwindcss";
+/* Fonts are served from static/fonts, not from fonts.googleapis.com. The
+   import that used to be here handed Google the IP and the referring room
+   link of every visitor who opened a share link, which is a strange thing for
+   an anonymous messaging app to do on every page load. */
+@import './styles/fonts.css';
+@import 'tailwindcss';
 
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-
   --radius: 0rem;
+
+  /* Body and headings are separate tokens so a future face swap can take the
+     headings without touching message text. Both resolve to Lexend. */
+  --font-body: 'Lexend', system-ui, sans-serif;
+  --font-heading: 'Lexend', system-ui, sans-serif;
 
   --color-forest-50: oklch(88.53% 0.00658 197.86);
   --color-forest-100: oklch(82.734% 0.00774 197.677);
@@ -56,7 +64,10 @@
   --accent-foreground: oklch(0.21 0.006 285.885);
 
   --destructive: oklch(48.752% 0.10551 19.391);
-  --border: var(--color-sand-600);
+  /* sand-200, not sand-600: a hairline wants to sit just off the surface, and
+     600 was 37 points of lightness below sand-50, which reads as ink. 200 is
+     ~10 below, the same step the dark theme uses in the other direction. */
+  --border: var(--color-sand-200);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.705 0.015 286.067);
 
@@ -92,7 +103,7 @@
 
   --secondary: oklch(0.274 0.006 286.033);
   --secondary-foreground: oklch(0.985 0 0);
-  
+
   --muted: var(--color-forest-800);
   --muted-foreground: oklch(0.705 0.015 286.067);
 
@@ -100,7 +111,11 @@
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
 
-  --border: var(--color-forest-600);
+  /* Negative border. forest-600 is LIGHTER than both dark surfaces
+     (39.8% against a 29.2% ground), so every rule glowed. forest-950 sits
+     ~9.5 below the ground instead, so a border reads as a seam cut into the
+     surface rather than a line drawn on top of it. */
+  --border: var(--color-forest-950);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.552 0.016 285.938);
   --chart-1: oklch(0.488 0.243 264.376);
@@ -169,11 +184,13 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-
   --font-*: initial;
-  --font-sans: Lexend, sans-serif;
-
-
+  /* var(), not a literal: `inline` substitutes this value into the utility, so
+     font-sans compiles to font-family: var(--font-body) and a theme class can
+     still change it further down the tree. A literal here would bake Lexend
+     into the class where nothing could override it. */
+  --font-sans: var(--font-body);
+  --font-display: var(--font-heading);
 }
 
 @layer base {
@@ -184,3 +201,56 @@
     @apply bg-background text-foreground;
   }
 }
+/* Message card treatment. Plain CSS rather than Tailwind utilities because
+   the texture is a repeating gradient referenced by class name, and Tailwind
+   only emits classes it can see in source.
+
+   The pattern lives on an offset block BEHIND the card, never on the card
+   itself, so the message always sits on plain surface at full contrast. A
+   texture behind body text lowers contrast at any alpha, which is why the
+   card keeps no background-image of its own.
+
+   The block has to be a sibling of the card rather than a ::before on it:
+   inside a stacking context, negative-z-index children paint after the
+   context element's own background, so a pseudo-element would land on top of
+   the card surface and put the pattern back under the text. */
+:root {
+  /* How far the block sits down and to the right. Down-right is not a
+     preference: the identity chip, the image thumbnail and the hover toolbar
+     all float above the card's top edge, so up-left is already occupied. */
+  --sma-card-offset: 8px;
+  /* Grid pitch. The visible band is only --sma-card-offset wide, so a pitch
+     at or above that shows roughly one line per axis. */
+  --sma-card-grid: 8px;
+  --sma-card-grid-ink: rgba(128, 128, 128, 0.1);
+}
+
+.sma-card-wrap {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.sma-card-block {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translate(var(--sma-card-offset), var(--sma-card-offset));
+  background-color: var(--muted);
+  /* One mid-grey serves both themes: it darkens sand and lightens forest, so
+     there is no theme swap and no second definition to keep in step. */
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      var(--sma-card-grid-ink) 0 1px,
+      transparent 1px var(--sma-card-grid)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--sma-card-grid-ink) 0 1px,
+      transparent 1px var(--sma-card-grid)
+    );
+  border: 1px solid var(--foreground);
+}
+
+

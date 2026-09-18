@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HeaderRow from '$lib/components/HeaderRow.svelte';
   import * as openpgp from 'openpgp';
   import { onDestroy, onMount } from 'svelte';
   import { slide } from 'svelte/transition';
@@ -384,21 +385,27 @@
   });
 </script>
 
-<div class="mt-6 w-full border border-black">
-  <div class="border-primary/20 flex items-center justify-between border-b p-3">
-    <h3 class="text-sm font-semibold tracking-wider uppercase">Sent by you</h3>
-    <span class="text-muted-foreground flex items-center gap-2 text-xs">
+<!-- A top rule only, no box and no margin. The four-sided border drew a
+     vertical hairline just inside the content column that nothing else on the
+     page has, and mt-6 left a band of dead space above the heading. Every
+     section down this page is separated by the rule it draws on its own top
+     edge, which is also what stops two adjacent bands stacking 2px of border
+     between them. -->
+<div class="border-border w-full border-t">
+  <HeaderRow>
+    Sent by you
+    {#snippet trailing()}
       {#if loading}
         <Spinner class="size-4 animate-spin" weight="duotone" />
       {:else}
         {entries.length}
         {entries.length === 1 ? 'message' : 'messages'}
       {/if}
-    </span>
-  </div>
+    {/snippet}
+  </HeaderRow>
 
   {#if loadError}
-    <span class="bg-destructive/10 text-destructive block p-3 text-sm">{loadError}</span>
+    <span class="bg-destructive/10 text-destructive block px-4 py-3 text-sm">{loadError}</span>
   {:else if !loading && !entries.length}
     <p class="text-muted-foreground p-4 text-sm">
       Nothing yet. Messages you send to this room show up here, only on this device, and only for
@@ -408,10 +415,21 @@
 
   <ul>
     {#each entries as entry (entry.id)}
-      <li class="border-primary/10 border-b p-3 last:border-b-0">
+      <!-- No padding on the row itself. Every child sets its own inset, which
+           is what lets the Edit control be a full-height cell running to the
+           column edge instead of a box floating inside a padded row, the same
+           way the header controls and the attach row work. border-border, not
+           border-primary/10: a themed room recolours the first and not the
+           second, so this list used to keep a tinted divider nothing else on
+           the page had. -->
+      <!-- Every row keeps its bottom rule, the last one included: the list is
+           the final thing on the page, so without it the messages trail off
+           into empty column instead of ending. The footer note below therefore
+           draws no top rule of its own, or the two would stack. -->
+      <li class="border-border border-b">
         {#if editingId === entry.id}
-          <div transition:slide={{ duration: 150 }} class="flex flex-col gap-2">
-            <Textarea bind:value={draft} maxlength={maxLen} class="w-full border border-black p-3" />
+          <div transition:slide={{ duration: 150 }} class="flex flex-col gap-2 px-4 py-3">
+            <Textarea bind:value={draft} maxlength={maxLen} class="w-full border border-border p-3" />
             {#if editError}
               <span class="bg-destructive/10 text-destructive p-2 text-sm">{editError}</span>
             {/if}
@@ -431,8 +449,8 @@
             </div>
           </div>
         {:else}
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex min-w-0 flex-col gap-1">
+          <div class="flex flex-row items-stretch">
+            <div class="flex min-w-0 flex-auto flex-col gap-1 px-4 py-3">
               {#if entry.locked}
                 <span
                   class="text-muted-foreground flex items-center gap-1.5 text-sm italic"
@@ -468,7 +486,7 @@
 
             {#if !entry.locked}
               <button
-                class="border-primary bg-background hover:bg-secondary/60 flex h-7 shrink-0 items-center gap-1.5 border px-2 text-xs transition-all disabled:opacity-40"
+                class="border-border hover:bg-secondary flex shrink-0 items-center gap-1.5 border-l px-4 text-sm transition-colors disabled:opacity-40"
                 onclick={() => startEdit(entry)}
                 disabled={!ownerPbKey}
                 title={ownerPbKey ? 'Edit this message' : "Recipient's key hasn't loaded yet"}
@@ -484,9 +502,9 @@
              wrote back shouldn't vanish while you're rewriting the message it
              answers. -->
         {#if entry.replies.length}
-          <div class="border-primary/30 mt-2 flex flex-col gap-1 border-l pl-3">
+          <div class="border-border flex flex-col border-t">
             {#each entry.replies as reply (reply.id)}
-              <div class="border-primary/20 bg-secondary/20 border p-2">
+              <div class="border-border bg-muted/40 border-b px-4 py-3 last:border-b-0">
                 <p class="text-sm break-words whitespace-pre-wrap">{reply.text}</p>
                 <span class="text-muted-foreground text-xs">
                   reply from this room · {formatTime(reply.timestamp)}
@@ -500,7 +518,7 @@
   </ul>
 
   {#if entries.some((e) => e.image || e.audio)}
-    <p class="text-muted-foreground border-primary/10 border-t p-3 text-xs">
+    <p class="text-muted-foreground border-border border-b px-4 py-3 text-xs">
       Editing replaces the text. An attached image or voice note stays as it was sent.
     </p>
   {/if}

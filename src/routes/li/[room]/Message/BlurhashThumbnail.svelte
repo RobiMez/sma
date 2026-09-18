@@ -48,7 +48,7 @@
     <Dialog.Overlay
       class=" bg-light-200/50  text-light-700 dark:bg-dark-800/50 dark:text-dark-600 
       fixed inset-0 z-50
-      border border-black
+      border border-border
       
       "
     />

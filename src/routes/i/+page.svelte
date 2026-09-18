@@ -1,4 +1,5 @@
 <script lang="ts">
+  import HeaderRow from '$lib/components/HeaderRow.svelte';
   import type { IKeyPairs } from '$lib/types';
 
   import { onMount } from 'svelte';
@@ -9,41 +10,46 @@
   import IdentityList from './IdentityList.svelte';
   import Spinner from 'phosphor-svelte/lib/Spinner';
   import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
-  import IdentityPill from './IdentityPill.svelte';
+  import IdentityChip from '$lib/components/IdentityChip.svelte';
   import { Button } from '$lib/components/ui/button';
   import UserPlus from 'phosphor-svelte/lib/UserPlus';
   import IdentityBackup from './IdentityBackup.svelte';
+  import { loadRoomSummaries, type RoomSummary } from '$lib/utils/roomSummaries';
 
   let keyPairs: IKeyPairs[] = $state([]);
   let loadedPair: IKeyPairs | undefined = $state(undefined);
   let loading = $state(false);
+  let summaries: Record<string, RoomSummary> = $state({});
+
+  // One batch read for every identity in the browser, so the list can say
+  // which rooms actually hold anything. Not awaited alongside the keypairs:
+  // localStorage is instant and the network is not, and the rooms must be
+  // listed either way.
+  const refreshSummaries = async () => {
+    summaries = await loadRoomSummaries(keyPairs.map((k) => k.uniqueString));
+  };
+
   onMount(async () => {
     keyPairs = await getAllFromLS();
     loadedPair = await getLoadedPairFromLS();
+    refreshSummaries();
   });
 </script>
 
 <div
-  class="container mx-auto flex min-h-screen w-full max-w-4xl grow flex-col items-center justify-start gap-4 p-2 pt-8"
+  class="container mx-auto flex w-full max-w-4xl grow flex-col items-center justify-start"
 >
-  <div
-    class="bg-light-200 dark:bg-dark-800 flex w-full flex-row items-center justify-between px-2 pr-12"
-  >
-    <span class="rounded-xs p-1 font-extralight">
-      <a href="/" class="flex items-center justify-center">
-        <CaretLeft weight="bold" size={32} />
-      </a>
-    </span>
-    <h1 class="text-md md:text-md relative w-full px-2 py-4 text-left font-light lg:text-xl">
-      Manage rooms & identities
-    </h1>
-    {#if loadedPair}
-      <span class="px-4 whitespace-nowrap">
-        <IdentityPill identity={loadedPair} />
-      </span>
-    {/if}
-
-    <span class=" rounded-xs p-1 font-extralight">
+  <HeaderRow variant="page">
+    <a href="/" class="flex shrink-0 items-center justify-center" aria-label="Home">
+      <CaretLeft weight="bold" size={24} />
+    </a>
+    <h1>Manage rooms &amp; identities</h1>
+    {#snippet trailing()}
+      {#if loadedPair}
+        <span class="whitespace-nowrap">
+          <IdentityChip rid={loadedPair.uniqueString} />
+        </span>
+      {/if}
       <Button
         class=" flex items-center justify-center gap-4 rounded-xs p-2 text-sm whitespace-nowrap"
         onclick={async () => {
@@ -66,6 +72,7 @@
             );
 
             keyPairs = await getAllFromLS();
+            refreshSummaries();
           } finally {
             loading = false;
           }
@@ -78,14 +85,22 @@
         {/if}
         New Identity
       </Button>
-    </span>
+    {/snippet}
+  </HeaderRow>
+
+  <!-- One band of cells, like the nav and the attach row: no padding on the
+       row, no gaps, each control carrying its own padding and a divider, and
+       left-aligned because that is where every other row on the site starts.
+       border-b only. HeaderRow above already draws a bottom rule, so adding a
+       top one here stacked 2px of hairline against it; the grid below draws
+       only right and bottom rules on its cells, so this row has to close
+       itself off underneath. -->
+  <div class="border-border flex w-full flex-row flex-wrap items-stretch border-b">
+    <IdentityBackup onImported={async () => {
+      keyPairs = await getAllFromLS();
+      refreshSummaries();
+    }} />
   </div>
 
-  <div class="flex w-full flex-row justify-end px-4">
-    <IdentityBackup onImported={async () => (keyPairs = await getAllFromLS())} />
-  </div>
-
-  <div class=" flex w-full flex-row flex-wrap gap-4 p-4">
-    <IdentityList bind:loadedPair bind:keyPairs />
-  </div>
+  <IdentityList bind:loadedPair bind:keyPairs {summaries} />
 </div>

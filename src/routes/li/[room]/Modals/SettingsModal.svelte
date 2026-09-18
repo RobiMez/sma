@@ -23,17 +23,33 @@
   let rid = page.params.room ?? '';
 </script>
 
-<Button onclick={() => (showModal = true)} class="h-auto p-0" variant="default">
-  <span class="flex aspect-square size-18 flex-col items-center justify-center">
+<Button onclick={() => (showModal = true)} variant="ghost" class="border-border h-full rounded-none border-l p-0">
+  <span class="flex h-full w-full flex-col items-center justify-center gap-0.5 px-5 py-2">
     <span>
       <GearSix size={20} weight="duotone" />
     </span>
-    <span class="hidden text-xs whitespace-nowrap md:text-sm lg:flex"> Settings </span>
+    <span class="flex text-xs whitespace-nowrap md:text-sm"> Settings </span>
   </span>
 </Button>
 
 <Dialog.Root bind:open={showModal}>
-  <Dialog.Content class="sm:max-w-[40vw]">
+  <!-- Bounded and scrollable: a settings modal grows over time, and a centred
+       dialog taller than the screen is cut off at BOTH ends, which puts the
+       last sections out of reach entirely.
+
+       A fixed 4xl rather than the 40vw it used to be, which matches the app's
+       own content column so the modal is the width of the page behind it. A
+       viewport-proportional width meant the same settings form was 400px on a
+       laptop and 1000px on a large monitor: cramped for most people, sprawling
+       for the rest, and impossible to lay out for. The primitive's own
+       max-w-[calc(100%-2rem)] still handles phones.
+
+       The min() is not decoration. The primitive clamps itself to the viewport
+       with a BASE max-w, and any sm: width here overrides that clamp rather
+       than cooperating with it: plain sm:max-w-4xl left a 900px-wide window
+       with 2px of margin either side. Carrying the clamp inside the same
+       declaration is the only way both rules survive. -->
+  <Dialog.Content class="sm:max-w-[min(56rem,calc(100vw-4rem))] max-h-[85vh] overflow-y-auto">
     <Dialog.Header>
       <Dialog.Title>Settings</Dialog.Title>
       <Dialog.Description class="flex flex-row items-center justify-between">
