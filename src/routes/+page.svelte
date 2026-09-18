@@ -45,11 +45,14 @@
   </span>
 
   {#if loadedPair}
+    <!-- items-start, not items-center: the messages button now carries a room
+         row under it, so centring would float the Identities button halfway
+         down the taller of the two. -->
     <div
-      class="flex flex-row items-center justify-center gap-4"
+      class="flex flex-row items-start justify-center gap-4"
       transition:scale={{ easing: expoInOut, duration: 500, start: 0.99 }}
     >
-      <Button href="/i" size="lg" class="text-md">
+      <Button href="/i" size="lg" class="text-base">
         <IdentificationCard class="size-5" weight="duotone" />
         Identities
       </Button>

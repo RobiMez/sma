@@ -1,42 +1,90 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+
   import type { IKeyPairs } from '$lib/types';
-  import { Button } from '$lib/components/ui/button';
-  import IdentityChip from '$lib/components/IdentityChip.svelte';
+  import { buttonVariants } from '$lib/components/ui/button';
+  import { cn } from '$lib/utils';
+  import { generateConsistentIndices } from '$lib/utils/colors';
+  import { loadRoomSummaries, type RoomSummary } from '$lib/utils/roomSummaries';
   import Mailbox from 'phosphor-svelte/lib/Mailbox';
-  import { scale } from 'svelte/transition';
-  import { quintInOut } from 'svelte/easing';
 
   interface Props {
     loadedPair: IKeyPairs;
   }
 
   let { loadedPair }: Props = $props();
+
+  const rid = $derived(loadedPair.uniqueString);
+  const color = $derived(generateConsistentIndices(rid));
+
+  let summary: RoomSummary | undefined = $state(undefined);
+
+  // The same batch read /i draws its list from, asked about one room. Nothing
+  // waits on it and it is allowed to come back empty: this says which inbox
+  // the button opens, it is not what makes the button work. Until it lands the
+  // row shows the rid alone, which is everything the old chip ever showed.
+  onMount(async () => {
+    const found = await loadRoomSummaries([rid]);
+    summary = found[rid];
+  });
 </script>
 
-<div class="relative">
-  <Button href="/li/{loadedPair?.uniqueString}" size="lg" class="text-md">
+<!-- The identity used to hang off the button as a tab chip: a 12-char hash in
+     a box whose width had no relation to the button's. It answers the same
+     question /i answers with a row, so it gets the same row. Title and message
+     count are what tell you whether this is the inbox you meant, and one batch
+     endpoint already fetches them for /i.
+
+     One anchor around both halves, not a button with a caption beneath it: a
+     cell sitting flush under a button is going to be clicked, and both halves
+     lead to the same inbox, so the honest shape is one link with one focus
+     ring and one hover state. That is what group-hover on the face is for. On
+     its own it would light up only over its own half.
+
+     The column stretches both halves to whichever is wider, which is what
+     makes them equal without either being told a number. max-w-64 bounds it so
+     an unusually long room title truncates instead of dragging the pair wide;
+     the button's text is nowrap, so it sets the floor. -->
+<a
+  href="/li/{rid}"
+  class="group focus-visible:ring-ring/50 flex max-w-64 flex-col outline-none focus-visible:ring-[3px]"
+>
+  <!-- text-base, matching the Identities button beside it. Both used to say
+       text-md, which is not a utility this project defines. It reached 16px
+       by accident: tailwind-merge reads `md` as a size and drops the base
+       class's text-sm for it, leaving the button with no font-size at all
+       and inheriting the root's. Same pixels, said on purpose. -->
+  <span class={cn(buttonVariants({ size: 'lg' }), 'text-base group-hover:bg-primary/90')}>
     <Mailbox class="size-5" weight="duotone" />
     Your Messages
-  </Button>
-
-  <!-- The chip hangs off the button's bottom edge like a tab, and both parts
-       of that are corrections. It used to be anchored at right-12, but the
-       tab variant's swatch and label are absolutely positioned off a
-       zero-width anchor and extend to the RIGHT of it, so a right-side anchor
-       pushed the chip most of its own width past the button. And the anchor
-       needs `flex`: without it the chip's own `relative inline-block` box is
-       an inline on a line box, so it lands on that line's baseline, 18px
-       below where it was placed. That silently ate the chip's -top-4 and left
-       it floating 2px under the button, reading as a collision rather than a
-       label. `flex` removes the baseline drop; translate-y-4 then cancels the
-       -top-4 on purpose, so the chip sits flush beneath the edge instead of
-       straddling it. The straddle is right on an inbox card, where chip and
-       card are the same muted surface. Here it would drop a dark block across
-       a filled button and over its label. -->
-  <span
-    in:scale={{ start: 1.02, duration: 800, easing: quintInOut }}
-    class="absolute top-full left-4 flex translate-y-4"
-  >
-    <IdentityChip rid={loadedPair.uniqueString} variant="tab" />
   </span>
-</div>
+
+  <!-- Same construction as IdentityPill: the swatch is a full-height edge
+       rather than a square sitting inside the cell, because the colour is the
+       part of an identity that is recognisable at a glance. -->
+  <span
+    class="border-border bg-muted group-hover:bg-secondary flex flex-row items-stretch border transition-colors"
+  >
+    <span class="w-10 shrink-0" style="background: {color};" aria-hidden="true"></span>
+    <span class="flex min-w-0 flex-1 flex-col justify-center gap-0.5 px-3 py-2 text-left">
+      <span class="truncate text-sm">{rid}</span>
+      {#if summary?.title}
+        <!-- The rid stays the headline, as on /i: it is what the share link
+             carries. A title is the room's own name for itself, which not
+             every room has. -->
+        <span class="text-muted-foreground truncate text-xs">{summary.title}</span>
+      {/if}
+      {#if summary}
+        <span class="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
+          {#if summary.theme}
+            <span>{summary.theme.name}</span>
+          {/if}
+          <span>
+            {summary.theme ? '· ' : ''}{summary.messages}
+            {summary.messages === 1 ? 'message' : 'messages'}
+          </span>
+        </span>
+      {/if}
+    </span>
+  </span>
+</a>
