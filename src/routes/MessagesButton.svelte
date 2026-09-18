@@ -19,17 +19,23 @@
     Your Messages
   </Button>
 
-  <!-- Anchored at the button's bottom-LEFT, not right-12: the tab variant's
-       parts are absolutely positioned off a zero-width anchor and extend to
-       the RIGHT of it, so a right-side anchor made the whole chip jut past
-       the button's edge by most of its own width. From the left corner the
-       chip lies along the bottom edge and stays inside the button's
-       footprint, which is what makes it read as a tag on the button rather
-       than a collision. top-full (plus the chip's own -top-4) keeps exactly
-       the straddle the inbox cards use. -->
+  <!-- The chip hangs off the button's bottom edge like a tab, and both parts
+       of that are corrections. It used to be anchored at right-12, but the
+       tab variant's swatch and label are absolutely positioned off a
+       zero-width anchor and extend to the RIGHT of it, so a right-side anchor
+       pushed the chip most of its own width past the button. And the anchor
+       needs `flex`: without it the chip's own `relative inline-block` box is
+       an inline on a line box, so it lands on that line's baseline, 18px
+       below where it was placed. That silently ate the chip's -top-4 and left
+       it floating 2px under the button, reading as a collision rather than a
+       label. `flex` removes the baseline drop; translate-y-4 then cancels the
+       -top-4 on purpose, so the chip sits flush beneath the edge instead of
+       straddling it. The straddle is right on an inbox card, where chip and
+       card are the same muted surface. Here it would drop a dark block across
+       a filled button and over its label. -->
   <span
     in:scale={{ start: 1.02, duration: 800, easing: quintInOut }}
-    class="absolute top-full left-4"
+    class="absolute top-full left-4 flex translate-y-4"
   >
     <IdentityChip rid={loadedPair.uniqueString} variant="tab" />
   </span>
