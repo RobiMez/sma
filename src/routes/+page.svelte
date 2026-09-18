@@ -22,8 +22,15 @@
   });
 </script>
 
+<!-- grow + justify-center is what centers this block in the column, but the
+     two only work with nothing capping the height. max-h-fit pinned the box
+     to its own content, so grow had nothing to grow into and justify-center
+     had nothing to distribute: the page sat at the top of a tall empty
+     column. -safe so a viewport shorter than the content aligns to the start
+     instead, rather than centering the overflow and putting the heading
+     above the scrollable area. -->
 <div
-  class="container mx-auto flex max-h-fit max-w-2xl grow flex-col items-center justify-center gap-8 p-8"
+  class="container mx-auto flex max-w-2xl grow flex-col items-center justify-center-safe gap-8 p-8"
 >
   <span class="flex flex-col items-center justify-center gap-2">
     <h1
