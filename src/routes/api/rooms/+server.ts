@@ -31,7 +31,11 @@ export async function GET({ url }) {
     // one ObjectId per message, so a plain projection would ship the entire
     // array of a busy room across the wire just to count it.
     const docs = await Listener.aggregate([
-      { $match: { rid: { $in: parsed.value } } },
+      // Deleted rooms are absent rather than reported, which is the same
+      // thing this endpoint already does with an rid it has never seen. A
+      // browser still holding a deleted identity (restored from a backup,
+      // say) draws it as a plain row instead of claiming it is still there.
+      { $match: { rid: { $in: parsed.value }, deletedAt: null } },
       {
         $project: {
           _id: 0,

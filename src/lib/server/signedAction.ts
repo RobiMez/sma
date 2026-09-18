@@ -1,4 +1,5 @@
 import * as openpgp from 'openpgp';
+import { isDeleted } from './identityDelete';
 import Listener from '../../models/listener.schema';
 
 // How long a signed mutation stays valid. The protected actions are all
@@ -34,6 +35,13 @@ export async function verifySignedAction(
 
   const listener = await Listener.findOne({ rid });
   if (!listener) return { ok: false, status: 404, message: 'Listener not found' };
+  // One check here rather than one per endpoint. A deleted identity keeps its
+  // public key so other people's inboxes can still verify what it sent them,
+  // which means its signatures still check out perfectly well: without this,
+  // a tombstone could go on renaming its room and setting webhooks forever.
+  if (isDeleted(listener)) {
+    return { ok: false, status: 410, message: 'This identity has been deleted' };
+  }
 
   let payloadText: string;
   try {

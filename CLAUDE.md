@@ -125,6 +125,26 @@ The whole gate runs before anything is written, which also fixed an older quirk:
 
 The send page (`/b/[room]`) reads `GET /api/limits` on mount and fails **open** (permissive defaults) — the mirror image of the voice flag's fail-closed — because every limit is re-enforced server-side, so a failed read degrades to a rejected send with a clear error rather than a wrongly locked composer. Paused rooms render a banner and a disabled composer; image-off rooms hide the attach tile and ignore image pastes. `/api/limits` non-GET is in the signed-mutation rate bucket in `hooks.server.ts`.
 
+### Deleting an identity
+
+`/i` → a room → **Delete identity**, which is `DELETE /api/pgp` (action `identity:delete`), signature-authorized like every other owner mutation. That is the whole authorization story: holding the private key IS owning the room, so the only party who can ask is the one whose room it is. There is no recovery path, because there is no password to reset.
+
+It deletes the room's messages (and their `Image`/`Audio` documents, read **before** the messages that point at them, or the ids are gone and the blobs are orphaned forever) and unsets every field the owner ever set. `removeFromLS` then drops the key from the browser — after the server call, never before, since a keypair dropped first could no longer authorize the deletion.
+
+**Two things deliberately survive, and they are the whole subtlety.**
+
+- **Messages this identity sent to other people's rooms stay where they are.** They belong to the inboxes that received them, and a delete button that reached into other people's rooms would be a retraction button wearing a different hat.
+- **`rid` and `pbKey` stay on the row**, which is why this is a tombstone (`deletedAt`) rather than a `deleteOne`. Those inboxes verify each message against the author's public key, fetched by rid; dropping the row would not leave those messages intact, it would make every one of them fail verification and be silently skipped as a spoof. `identityDelete.ts` explains it at the point of the decision.
+
+Everything else is `$unset` **built from the schema's own paths**, so a field added to `Listener` later is deleted by existing rather than surviving until somebody remembers to list it. That is safe because every read in the app already tolerates an absent field (`voiceEnabled !== true`, `imagesEnabled !== false`, `title !== rid`) — the same defensiveness that let each of those ship without migrating a single room. A test asserts every schema path is either kept or unset.
+
+How a tombstone reads afterwards:
+
+- `verifySignedAction` refuses it with a **410**, which closes every signed endpoint at once. Without that, a deleted identity's signatures would still verify perfectly well (its key is still there) and it could go on renaming its room and publishing payout details forever.
+- `GET /api/pgp` answers with **`{ rid, pbKey, deleted: true, messages: [] }`, not a 404**. This endpoint has two callers with opposite needs: the send page asks "can I write here", an inbox asks "whose key verifies this message I already hold". A 404 would answer the first and break the second. The send page fails closed on `deleted` (banner plus disabled composer, same conditions a paused room uses); `PATCH` refuses the send regardless.
+- Every other public per-room read (`/api/title`, `/api/limits`, `/api/voice`, `/api/profanity`) filters `deletedAt: null` in the query, so each endpoint's existing 404 path runs and every client's existing not-found handling applies. This was found by driving it: the title read otherwise returned a room with no title and the send page crashed on `.length` of undefined — the exact failure its own comment already documented for a 404.
+- `GET /api/rooms` omits tombstones, so a browser still holding the key (restored from a backup) draws a plain row rather than claiming the room is there.
+
 ### Authenticating owner-only mutations
 
 The `rid` is public (it is the share link), so it can never authorize anything by itself. Owner-only mutations — setting the room title, toggling the profanity flag, reading/writing the webhook — are authorized by a **PGP signature**, not by the rid:

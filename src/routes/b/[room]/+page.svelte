@@ -56,6 +56,11 @@
   // send path re-enforces each one server-side — so they default to the
   // permissive value: a failed read must not lock a working room's composer.
   let roomPaused = $state(false);
+  // A deleted room blocks the composer the same way a paused one does, and
+  // through the same conditions rather than a parallel set: the two differ in
+  // what the banner says and in whether it is ever coming back, not in what
+  // the page must refuse to do.
+  let roomDeleted = $state(false);
   let imagesAllowed = $state(true);
   let maxMessageLength = $state(0); // 0 = no owner cap
   // The composer's hard ceiling is 1000 either way; an owner cap lowers it.
@@ -66,7 +71,9 @@
   // show: an attached image (or its error), the attach tile, or the recorder.
   // A room with images off and voice off would otherwise render an empty box.
   let showAttachRow = $derived(
-    !roomPaused && (imageBase64.length > 0 || !!imageError || imagesAllowed || voiceAllowed)
+    !roomPaused &&
+      !roomDeleted &&
+      (imageBase64.length > 0 || !!imageError || imagesAllowed || voiceAllowed)
   );
   let voiceRecorder: VoiceRecorder | undefined = $state();
   let sentMessages: SentMessages | undefined = $state();
@@ -247,6 +254,14 @@
       console.error('Failed to fetch recipient key:', data.body);
       sendError = "This room doesn't exist (yet). Check the link, or the recipient's identity may not have finished registering.";
       disableSend = false;
+      return;
+    }
+    // A deleted room still answers with its public key, because inboxes
+    // elsewhere need it to verify messages this identity once sent them. It
+    // is not a place to write to, though, and saying so here is kinder than
+    // letting somebody compose a message the server will refuse.
+    if (data.body.deleted) {
+      roomDeleted = true;
       return;
     }
     api_pbKey = data.body.pbKey;
@@ -493,7 +508,11 @@
       {/if}
     </span>
   </HeaderRow>
-  {#if roomPaused}
+  {#if roomDeleted}
+    <span class="bg-destructive/10 text-destructive mt-2 block w-full px-4 py-3 text-sm">
+      This room has been deleted. Nothing can be sent to it any more.
+    </span>
+  {:else if roomPaused}
     <span class="bg-destructive/10 text-destructive mt-2 block w-full px-4 py-3 text-sm">
       This room is paused. The owner isn't accepting messages right now.
     </span>
@@ -518,7 +537,7 @@
         placeholder="Enter your message here, then press send. "
         class="placeholder:text-md h-full
         w-full border border-border p-8"
-        disabled={roomPaused}
+        disabled={roomPaused || roomDeleted}
         maxlength={effectiveMaxLength}
         onkeydown={(e) => {
           if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
@@ -539,7 +558,12 @@
         class=" border-light-900 dark:border-dark-600
 				relative h-fit border border-border p-7 transition-all
 				{!hasContent || sending ? 'cursor-not-allowed' : ' bg-primary text-primary-foreground'}"
-        disabled={!hasContent || sending || checkingProfanity || voiceRendering || roomPaused}
+        disabled={!hasContent ||
+          sending ||
+          checkingProfanity ||
+          voiceRendering ||
+          roomPaused ||
+          roomDeleted}
         onclick={signMessage}
       >
         {#if checkingProfanity}

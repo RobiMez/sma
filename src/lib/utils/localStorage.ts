@@ -63,6 +63,40 @@ export const saveToLS = (prKey: string, pbKey: string, RC: string, uniqueString:
   localStorage.setItem('keyPairs', JSON.stringify(keyPairs));
 };
 
+/**
+ * Forgets one identity. The browser half of deleting it: the server half is
+ * DELETE /api/pgp, and this runs only after that succeeds, because a keypair
+ * dropped here first could never authorize the deletion afterwards.
+ *
+ * Clears `loadedPair` too when it is the one going. Nothing picks a
+ * replacement here: getLoadedPairFromLS falls back to the first remaining
+ * identity, and getAllFromLS mints a fresh one if that was the last, so the
+ * app is never left without one.
+ */
+export const removeFromLS = (uniqueString: string) => {
+  if (typeof window === 'undefined') return;
+  const existingEntries = localStorage.getItem('keyPairs');
+  if (existingEntries) {
+    try {
+      const keyPairs = JSON.parse(existingEntries);
+      delete keyPairs[uniqueString];
+      localStorage.setItem('keyPairs', JSON.stringify(keyPairs));
+    } catch {
+      // Unparseable store: leave it rather than clobber whatever is in there.
+    }
+  }
+
+  const loadedPair = localStorage.getItem('loadedPair');
+  if (!loadedPair) return;
+  try {
+    if (JSON.parse(loadedPair)?.uniqueString === uniqueString) {
+      localStorage.removeItem('loadedPair');
+    }
+  } catch {
+    localStorage.removeItem('loadedPair');
+  }
+};
+
 export const getFromLS = async (uniqueString: string) => {
   if (typeof window === 'undefined') return;
   const existingEntries = localStorage.getItem('keyPairs');

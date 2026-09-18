@@ -7,6 +7,8 @@ import Audio from '../../../models/audio.schema';
 import { isSafeWebhookUrl } from '$lib/server/webhookGuard';
 import { checkSendGate, checkRoomRate } from '$lib/server/roomLimits';
 import { notifyRoom } from '$lib/server/wsRegistry.js';
+import { verifySignedAction } from '$lib/server/signedAction';
+import { deletionUpdate, isDeleted } from '$lib/server/identityDelete';
 
 interface Listener {
   pbKey: string;
@@ -159,11 +161,69 @@ export async function GET({ url }) {
       }
     ]
   });
+  // A tombstone answers with its public key and nothing else.
+  //
+  // Not a 404, and this is the one place that is worth spelling out. This
+  // endpoint has two callers with opposite needs: the send page asks "can I
+  // write to this room", and an inbox asks "whose key verifies this message I
+  // already have". 404ing a deleted rid would answer the first correctly and
+  // break the second, silently turning every message that identity ever sent
+  // into an unverifiable spoof in somebody else's inbox. So the key is
+  // served, the room is not, and `deleted` says which is which. The send page
+  // fails closed on that flag; PATCH refuses the send regardless.
+  if (user && isDeleted(user)) {
+    return json({
+      status: 200,
+      body: { rid: user.rid, pbKey: user.pbKey, deleted: true, messages: [] }
+    });
+  }
   if (user) {
     return json({ status: 200, body: user });
   }
 
   return json({ status: 404, body: 'Public key not found' });
+}
+
+// Delete an identity: the messages it holds, and every setting it ever had.
+//
+// Signature-authorized like every owner mutation, which here is the whole
+// authorization story: holding the private key IS owning the room, so the one
+// party who can ask for this is the one whose room it is.
+//
+// What it does NOT touch is the point worth keeping straight. Messages this
+// identity sent to other people's rooms stay where they are: those belong to
+// the inboxes that received them, and a delete button that reached into other
+// people's rooms would be a retraction button wearing a different hat. The
+// row itself survives as a tombstone for the same reason (see
+// identityDelete.ts) so those messages keep verifying.
+export async function DELETE({ request }) {
+  const verdict = await verifySignedAction(await request.json(), 'identity:delete');
+  if (!verdict.ok) return json({ status: verdict.status, body: verdict.message });
+
+  const { listener } = verdict;
+  const messageIds = (listener.messages ?? []).map((id: unknown) => id);
+
+  try {
+    if (messageIds.length) {
+      // Read the attachments before the messages that point at them, or the
+      // ids are gone and the blobs are orphaned in the database forever.
+      const docs = await Message.find({ _id: { $in: messageIds } }, { image: 1, audio: 1 });
+      const images = docs.map((d) => d.image).filter(Boolean);
+      const audio = docs.map((d) => d.audio).filter(Boolean);
+      if (images.length) await Image.deleteMany({ _id: { $in: images } });
+      if (audio.length) await Audio.deleteMany({ _id: { $in: audio } });
+      await Message.deleteMany({ _id: { $in: messageIds } });
+    }
+
+    await Listener.updateOne(
+      { rid: listener.rid },
+      deletionUpdate(Object.keys(Listener.schema.paths))
+    );
+    return json({ status: 200, body: { deleted: true, messages: messageIds.length } });
+  } catch (error) {
+    console.error('Failed to delete an identity', error);
+    return json({ status: 500, body: 'Could not delete that identity' });
+  }
 }
 
 export async function PATCH({ request }) {
@@ -234,10 +294,16 @@ export async function PATCH({ request }) {
         voiceEnabled: 1,
         maxMessageLength: 1,
         rateLimitCount: 1,
-        rateLimitPeriod: 1
+        rateLimitPeriod: 1,
+        deletedAt: 1
       }
     );
-    if (!recipient) return json({ status: 404, body: 'Listener not found' });
+    // A deleted room is gone as far as senders are concerned. Checked here
+    // with the rest of the gate, before anything is written, so a send to a
+    // tombstone cannot leave an orphan Message behind.
+    if (!recipient || isDeleted(recipient)) {
+      return json({ status: 404, body: 'Listener not found' });
+    }
 
     const gate = checkSendGate(recipient, {
       hasImage: sanitizedImage.dataURI.length > 0,

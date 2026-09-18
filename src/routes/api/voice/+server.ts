@@ -9,7 +9,9 @@ import { verifySignedAction } from '$lib/server/signedAction';
 export async function GET({ url }) {
   const rid = url.searchParams.get('rid') ?? '';
   try {
-    const room = await Listener.findOne({ rid }, { voiceEnabled: 1, _id: 0 });
+    // A tombstone is not a room: filtered here so the endpoint's own 404
+    // path runs, which every caller already handles.
+    const room = await Listener.findOne({ rid, deletedAt: null }, { voiceEnabled: 1, _id: 0 });
 
     if (room) {
       return json({ status: 200, body: room });

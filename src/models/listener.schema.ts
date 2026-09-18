@@ -32,7 +32,14 @@ const ListenerSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Message'
     }
-  ]
+  ],
+  // Set when the owner deletes this identity. The row stays because `rid` and
+  // `pbKey` have to: messages this identity sent to OTHER rooms are verified
+  // against this key, and dropping the row would make every one of them fail
+  // verification in somebody else's inbox rather than leaving them intact.
+  // Everything else is unset (see identityDelete.ts), and this field is what
+  // every read and every signed action checks to refuse a tombstone.
+  deletedAt: { type: Date, default: null }
 });
 
 export default mongoose.models.Listener || mongoose.model('Listener', ListenerSchema);

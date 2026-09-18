@@ -53,6 +53,12 @@ function ruleFor(method: string, pathname: string): Rule | null {
   if (pathname === '/api/pgp' && method === 'POST') {
     return { bucket: 'register', limit: 10, windowMs: MINUTE };
   }
+  // Deleting an identity: signed like the mutations below, and far more
+  // consequential than any of them, so it shares their budget rather than the
+  // broad backstop.
+  if (pathname === '/api/pgp' && method === 'DELETE') {
+    return { bucket: 'mutate', limit: 30, windowMs: MINUTE };
+  }
   // Signed owner mutations — each does a CPU-heavy PGP verify even when it
   // ultimately 403s, so cap them regardless of outcome.
   if (

@@ -22,8 +22,10 @@ const publicShape = (room: any) => ({
 export async function GET({ url }) {
   const rid = url.searchParams.get('rid') ?? '';
   try {
+    // A tombstone is not a room: filtered here so the endpoint's own 404
+    // path runs, which every caller already handles.
     const room = await Listener.findOne(
-      { rid },
+      { rid, deletedAt: null },
       { paused: 1, imagesEnabled: 1, maxMessageLength: 1, rateLimitCount: 1, rateLimitPeriod: 1, _id: 0 }
     );
 

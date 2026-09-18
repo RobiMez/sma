@@ -4,7 +4,13 @@
   import IdentityPill from './IdentityPill.svelte';
 
   import * as Dialog from '$lib/components/ui/dialog';
-  import { getAllFromLS, getLoadedPairFromLS, loadPair } from '$lib/utils/localStorage';
+  import {
+    getAllFromLS,
+    getLoadedPairFromLS,
+    loadPair,
+    removeFromLS
+  } from '$lib/utils/localStorage';
+  import { signedFetch } from '$lib/utils/signedRequest';
 
   import type { IKeyPairs } from '$lib/types';
   import type { RoomSummary } from '$lib/config/rooms';
@@ -12,6 +18,8 @@
 
   import UserCheck from 'phosphor-svelte/lib/UserCheck';
   import UserSwitch from 'phosphor-svelte/lib/UserSwitch';
+  import Trash from 'phosphor-svelte/lib/Trash';
+  import Spinner from 'phosphor-svelte/lib/Spinner';
   import { generateConsistentIndices } from '$lib/utils/colors';
 
   interface Props {
@@ -25,10 +33,48 @@
 
   let isOpen = $state(false);
   let selectedIdentity: IKeyPairs | null = $state(null);
+  // Two steps on purpose. This is the one irreversible thing in the app, and
+  // the private key it destroys is the only proof of ownership that exists:
+  // there is no password reset, because there was never a password.
+  let confirming = $state(false);
+  let deleting = $state(false);
+  let deleteError = $state('');
 
   const handleOpenModal = (identity: IKeyPairs) => {
     selectedIdentity = identity;
+    confirming = false;
+    deleteError = '';
     isOpen = true;
+  };
+
+  const handleDelete = async () => {
+    const target = selectedIdentity?.uniqueString;
+    if (!target) return;
+    deleting = true;
+    deleteError = '';
+    try {
+      const resp = await signedFetch('/api/pgp', 'DELETE', target, 'identity:delete');
+      // `{ status, body }` envelope, never `{ error }`.
+      if (resp.status !== 200 && resp.status !== 410 && resp.status !== 404) {
+        deleteError = typeof resp.body === 'string' ? resp.body : 'Could not delete that identity.';
+        return;
+      }
+      // 410 and 404 mean the server has no room to delete: already gone, or
+      // never registered (see ResetPgpIdentity). Dropping the key locally is
+      // still the right outcome, and refusing would strand an identity that
+      // cannot be used for anything.
+      removeFromLS(target);
+      const newKeyPairs = await getAllFromLS();
+      const newLoadedPair = await getLoadedPairFromLS();
+      handleLoadPairUpdate(newLoadedPair, newKeyPairs);
+      isOpen = false;
+    } catch (e) {
+      console.error('Failed to delete identity', e);
+      deleteError = 'Could not delete that identity.';
+    } finally {
+      deleting = false;
+      confirming = false;
+    }
   };
 
   const handleLoadPairUpdate = (
@@ -110,7 +156,55 @@
         </small>
       </span>
 
-      <Dialog.Footer>
+      <Dialog.Footer class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <!-- Kept on the opposite side from Load, and spelled out rather than
+             confirmed with a bare "are you sure": what goes and what stays
+             are different questions, and the second one is the surprising
+             half. -->
+        <span class="flex flex-col gap-2">
+          {#if confirming}
+            <span class="text-sm">
+              Delete this identity? Its room and every message in it are removed from the server
+              and the key is dropped from this browser. Messages you sent to other people's rooms
+              stay where they are. There is no way back: the key is the only proof this room was
+              ever yours.
+            </span>
+            <span class="flex flex-row gap-2">
+              <Button
+                variant="destructive"
+                class="rounded-xs p-2 text-sm"
+                disabled={deleting}
+                onclick={handleDelete}
+              >
+                {#if deleting}
+                  <Spinner class="animate-spin" size={16} />
+                {/if}
+                Delete permanently
+              </Button>
+              <Button
+                variant="outline"
+                class="rounded-xs p-2 text-sm"
+                disabled={deleting}
+                onclick={() => (confirming = false)}
+              >
+                Keep it
+              </Button>
+            </span>
+          {:else}
+            <Button
+              variant="outline"
+              class="text-destructive w-fit rounded-xs p-2 text-sm"
+              onclick={() => (confirming = true)}
+            >
+              <Trash size={16} />
+              Delete identity
+            </Button>
+          {/if}
+          {#if deleteError}
+            <span class="text-destructive text-sm">{deleteError}</span>
+          {/if}
+        </span>
+
         <Button
           class="button w-fit rounded-xs border border-[#00000000] p-2 text-sm whitespace-nowrap transition-all
       {loadedPair?.uniqueString !== selectedIdentity.uniqueString
