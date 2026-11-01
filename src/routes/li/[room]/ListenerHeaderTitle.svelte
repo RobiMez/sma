@@ -116,9 +116,12 @@
         </Button>
       </span>
     {:else}
+      <!-- min-w-0 and wrap-anywhere let a title with no spaces wrap. Without
+           them, 24 wide characters overran a phone, pushed the rename button
+           off the row and scrolled the whole page sideways. -->
       <span
         in:fly={{ x: 30 }}
-        class="font-display flex flex-1 items-center justify-center px-4 py-3 font-light"
+        class="font-display flex min-w-0 flex-1 items-center justify-center px-4 py-3 text-center font-light wrap-anywhere"
       >
         <!-- Falls back to the rid: a room whose title is empty (mid-rename, or
              never set) should read as itself, not as a blank row. -->

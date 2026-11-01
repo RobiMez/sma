@@ -491,8 +491,12 @@
           loading
         </span>
       {:else if roomTitle}
-        <h2 class="text-md whitespace-nowrap md:text-xl">
-          [ {roomTitle} ]
+        <!-- Wraps only when the title is wider than a whole line on its own:
+             the row wraps first, so a title that fits keeps one line. The
+             non-breaking spaces keep each bracket on the title's line; with
+             plain ones a wrapped title left "[" stranded on a line by itself. -->
+        <h2 class="text-md min-w-0 wrap-anywhere md:text-xl">
+          [&nbsp;{roomTitle}&nbsp;]
         </h2>
       {/if}
       {#if loadedPair}
