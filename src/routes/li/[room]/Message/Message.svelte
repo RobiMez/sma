@@ -62,11 +62,16 @@
 
   const replies = $derived((msg.replies ?? []) as { id: string; text: string; timestamp: string }[]);
 
-  // The picture fills the card's content column. An image with nothing under
-  // it leaves the corner timestamp nothing to sit beside, so it gets a strip
-  // of its own instead of landing on the picture.
+  // The picture fills the card's content column. When nothing follows it, the
+  // corner timestamp floats over the picture's own corner as a small tab, the
+  // same bordered chip as the identity tab and the toolbar buttons. A strip of
+  // its own under the photo left 41px below against 17px above, and the photo
+  // read as sitting high in the card.
   const hasImage = $derived(!!msg.image?.id);
   const imageOnly = $derived(hasImage && !msg.msg && !msg.audio?.id);
+  // right-6/bottom-6: the card's 16px padding plus 8px into the picture.
+  const metaPlacement = (overImage: boolean) =>
+    overImage ? 'right-6 bottom-6 border border-border bg-background px-1.5 py-0.5' : 'right-2 bottom-2';
 
   const submitReply = async () => {
     if (!sendReply || replySending || !replyDraft.trim()) return;
@@ -148,6 +153,13 @@
 
   const captureCard = async (el: HTMLElement) => {
     await waitForImagesToLoad(el);
+    // The dialog focuses the first focusable thing in it on open, which is
+    // the timestamp button inside this card, and its focus ring would be
+    // painted into the PNG. A tap on iOS does not move focus to the download
+    // button, so it can still be sitting there at capture time.
+    if (document.activeElement instanceof HTMLElement && el.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
     return domToBlob(el, {
       type: 'image/png',
       // Resolved, not 'var(--background)': this is painted onto a canvas,
@@ -253,7 +265,9 @@
 
       <div class="flex w-full min-w-0 flex-col gap-2">
         {#if hasImage}
-          <div class="mb-1"><MessageImage imageId={msg.image.id} /></div>
+          <div class={imageOnly ? '' : 'mb-1'}>
+            <MessageImage imageId={msg.image.id} />
+          </div>
         {/if}
         {#if msg.msg}
           <MessageText
@@ -264,9 +278,6 @@
             onWordClick={toggleWordRedaction}
           />
         {/if}
-        {#if imageOnly}
-          <div class="h-3" aria-hidden="true"></div>
-        {/if}
         {#if msg.audio?.id && decryptAudio}
           <VoiceMessage
             audioId={msg.audio.id}
@@ -276,7 +287,9 @@
           />
         {/if}
       </div>
-      <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
+      <div
+        class="absolute {metaPlacement(imageOnly)} flex flex-row items-center justify-center gap-1"
+      >
         {#if msg.editedAt}
           <!-- The sender can rewrite what they sent (see /api/sent); say so
                rather than silently swapping the text under the recipient. -->
@@ -438,18 +451,21 @@
 
             <div class="flex w-full min-w-0 flex-col gap-2">
               {#if hasImage}
-                <div class="mb-1"><MessageImage imageId={msg.image.id} interactive={false} /></div>
+                <div class={msg.msg ? 'mb-1' : ''}>
+                  <MessageImage imageId={msg.image.id} interactive={false} />
+                </div>
               {/if}
               {#if msg.msg}
                 <MessageText text={msg.msg} {redactedIndices} />
               {/if}
-              <!-- No voice player in the export, so a picture with only a
-                   voice note under it is image-only here. -->
-              {#if hasImage && !msg.msg}
-                <div class="h-3" aria-hidden="true"></div>
-              {/if}
             </div>
-            <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
+            <!-- No voice player in the export, so a picture with only a voice
+                 note under it is image-only here. -->
+            <div
+              class="absolute {metaPlacement(
+                hasImage && !msg.msg
+              )} flex flex-row items-center justify-center gap-1"
+            >
               {#if msg.editedAt}
                 <span class="text-muted-foreground text-xs italic">edited</span>
               {/if}
