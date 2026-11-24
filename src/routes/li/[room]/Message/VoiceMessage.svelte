@@ -5,7 +5,7 @@
 
   // Lazy: the list poll (`GET /api/pgp`) excludes the audio ciphertext (see
   // the `-dataURI` populate in that route) so it stays small, same reason
-  // full images are fetched on demand via BlurhashThumbnail. Decrypt +
+  // full images are fetched on demand via MessageImage. Decrypt +
   // signature verification only happen once the recipient taps play.
   interface Props {
     audioId: string;

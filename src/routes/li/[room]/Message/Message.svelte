@@ -2,8 +2,8 @@
   import prettyMilliseconds from 'pretty-ms';
   import { onMount } from 'svelte';
   import { slide } from 'svelte/transition';
-  import BlurhashThumbnail from './BlurhashThumbnail.svelte';
-  import { domToPng } from 'modern-screenshot';
+  import MessageImage from './MessageImage.svelte';
+  import { domToBlob } from 'modern-screenshot';
   import FileArrowDown from 'phosphor-svelte/lib/FileArrowDown';
   import Eraser from 'phosphor-svelte/lib/Eraser';
   import Copy from 'phosphor-svelte/lib/Copy';
@@ -61,6 +61,12 @@
   };
 
   const replies = $derived((msg.replies ?? []) as { id: string; text: string; timestamp: string }[]);
+
+  // The picture fills the card's content column. An image with nothing under
+  // it leaves the corner timestamp nothing to sit beside, so it gets a strip
+  // of its own instead of landing on the picture.
+  const hasImage = $derived(!!msg.image?.id);
+  const imageOnly = $derived(hasImage && !msg.msg && !msg.audio?.id);
 
   const submitReply = async () => {
     if (!sendReply || replySending || !replyDraft.trim()) return;
@@ -121,75 +127,54 @@
   });
   let messageElement: HTMLDivElement | undefined = $state(undefined);
   let preparingCapture = $state(false);
+  let downloadState = $state<'idle' | 'error'>('idle');
 
-  // The dialog below mounts its own BlurhashThumbnail instance (a second,
-  // independent one from the inline thumbnail in the message list), which
-  // kicks off its own /api/images fetch on mount. If domToPng captures before
-  // that resolves, the <img> it finds still has no data and the screenshot
-  // comes out with the image portion blank — domToPng snapshots whatever is in
-  // the DOM right now, it doesn't wait for async content on its own.
-  //
-  // The subtlety that made an earlier version of this not work: an <img> that
-  // is *waiting* on its data looks finished to the obvious check. With no src
-  // attribute the `src` **property** reads back as the document URL (truthy)
-  // and `complete` is `true` by spec, so `!complete || !src` was false and the
-  // thumbnail got filtered out of the wait list entirely. Poll the src
-  // *attribute* until the data URI is actually in place, and only then wait
-  // for decode.
+  // The dialog below draws its own MessageImage, and domToBlob snapshots
+  // whatever is in the DOM right now: it does not wait for async content. So
+  // wait for two things. First, no image may still be fetching: those render a
+  // placeholder marked data-image-pending and no <img> at all, so an
+  // img-only check would find nothing to wait for and export the spinner.
+  // Then every <img> has to finish decoding, or it paints blank.
   async function waitForImagesToLoad(el: HTMLElement, timeoutMs = 8000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
-    const images = () => Array.from(el.querySelectorAll('img'));
-    const filled = (img: HTMLImageElement) => (img.getAttribute('src') ?? '').length > 0;
-
-    while (Date.now() < deadline && images().some((img) => !filled(img))) {
+    while (Date.now() < deadline && el.querySelector('[data-image-pending]')) {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-
-    const pending = images().filter((img) => filled(img) && !img.complete);
-    if (!pending.length) return;
-
     await Promise.race([
-      Promise.all(
-        pending.map(
-          (img) =>
-            new Promise<void>((resolve) => {
-              img.addEventListener('load', () => resolve(), { once: true });
-              img.addEventListener('error', () => resolve(), { once: true });
-            })
-        )
-      ),
+      Promise.allSettled(Array.from(el.querySelectorAll('img')).map((img) => img.decode())),
       new Promise<void>((resolve) => setTimeout(resolve, Math.max(0, deadline - Date.now())))
     ]);
   }
 
+  const captureCard = async (el: HTMLElement) => {
+    await waitForImagesToLoad(el);
+    return domToBlob(el, {
+      type: 'image/png',
+      // Resolved, not 'var(--background)': this is painted onto a canvas,
+      // where a CSS variable is not a colour and silently yields nothing.
+      backgroundColor: getComputedStyle(el).backgroundColor,
+      scale: 4
+    });
+  };
+
   const downloadImage = async () => {
+    if (!messageElement) return;
+    preparingCapture = true;
     try {
-      if (!messageElement) {
-        console.error('No cardElement found');
-        return;
-      }
-
-      preparingCapture = true;
-      await waitForImagesToLoad(messageElement);
-
-      // Use domToPng directly on the cardElement
-      const dataUrl = await domToPng(messageElement, {
-        // Resolved, not 'var(--background)': this is painted onto a canvas,
-        // where a CSS variable is not a colour and silently yields nothing.
-        backgroundColor: getComputedStyle(messageElement).backgroundColor,
-        scale: 4 // Optional: Increase scale for higher resolution
-      });
-
-      // Create link and trigger download
+      const blob = await captureCard(messageElement);
+      // A Blob URL, not a data: URL. Chrome caps the URLs it will hand to a
+      // download, and a card with a photo filling it, exported at 4x, runs to
+      // megabytes where a text card stays in the hundreds of kilobytes.
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `message-${msg.r}-${new Date().toISOString()}.png`;
-      link.href = dataUrl;
+      link.href = url;
       link.click();
-
-      // Clean up link element (optional but good practice)
-      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (error) {
-      console.error('Failed to download image using dom-to-png:', error);
+      console.error('Failed to export message as image:', error);
+      downloadState = 'error';
+      setTimeout(() => (downloadState = 'idle'), 2000);
     } finally {
       preparingCapture = false;
     }
@@ -207,19 +192,7 @@
       }
 
       preparingCapture = true;
-      await waitForImagesToLoad(messageElement);
-
-      // Use domToPng to convert the element to an image
-      const dataUrl = await domToPng(messageElement, {
-        // Resolved, not 'var(--background)': this is painted onto a canvas,
-        // where a CSS variable is not a colour and silently yields nothing.
-        backgroundColor: getComputedStyle(messageElement).backgroundColor,
-        scale: 4
-      });
-
-      // Convert data URL to blob
-      const response = await fetch(dataUrl);
-      const blob = await response.blob();
+      const blob = await captureCard(messageElement);
 
       // Copy to clipboard using Clipboard API
       await navigator.clipboard.write([
@@ -278,20 +251,22 @@
         <IdentityChip rid={msg.r} bg="background" variant="tab" />
       </span>
 
-      {#if msg.image && msg.image.id && msg.image.blurhash}
-        <span class="border-border absolute -top-5 left-32 h-7 w-7 border text-sm">
-          <BlurhashThumbnail imageId={msg.image.id} />
-        </span>
-      {/if}
-
       <div class="flex w-full min-w-0 flex-col gap-2">
-        <MessageText
-          text={msg.msg}
-          {redactMode}
-          showHighlights={redactMode}
-          {redactedIndices}
-          onWordClick={toggleWordRedaction}
-        />
+        {#if hasImage}
+          <div class="mb-1"><MessageImage imageId={msg.image.id} /></div>
+        {/if}
+        {#if msg.msg}
+          <MessageText
+            text={msg.msg}
+            {redactMode}
+            showHighlights={redactMode}
+            {redactedIndices}
+            onWordClick={toggleWordRedaction}
+          />
+        {/if}
+        {#if imageOnly}
+          <div class="h-3" aria-hidden="true"></div>
+        {/if}
         {#if msg.audio?.id && decryptAudio}
           <VoiceMessage
             audioId={msg.audio.id}
@@ -423,16 +398,32 @@
 </div>
 
 <Dialog.Root bind:open={dialogOpen}>
-  <Dialog.Content>
+  <!-- Scrolls rather than running off a phone screen once a tall photo is in
+       the card. The capture is of the element, not the viewport, so a
+       scrolled-off part still lands in the PNG. -->
+  <Dialog.Content
+    class="max-h-[calc(100dvh-2rem)] overflow-y-auto [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]"
+  >
     <Dialog.Header>
       <Dialog.Title>Download image</Dialog.Title>
     </Dialog.Header>
+    <!-- A square at least, taller when the card is. The sizer shares the one
+         grid cell with the card, so the row is as tall as whichever is taller.
+         This used to be aspect-square plus overflow-hidden, which was fine for
+         a line of text and cut the bottom off a card with a photo in it.
+         grid-cols-1 is load-bearing: an implicit grid column sizes to its
+         content, and an <img> brings its natural width, so a 720px screenshot
+         pushed the card out past the dialog. And overflow-clip, not -hidden:
+         hidden makes this a scroll container, whose minimum height is 0, so
+         the dialog's height cap squeezed it and the PNG lost the card's
+         bottom 87px. clip cuts the same way without becoming a scroller. -->
     <div
-      class="bg-background m-auto mt-4 flex aspect-square w-full max-w-full min-w-0 items-center justify-center overflow-hidden border border-border"
+      class="bg-background mt-4 grid w-full max-w-full min-w-0 grid-cols-1 overflow-clip border border-border"
       bind:this={messageElement}
     >
+      <div class="col-start-1 row-start-1 aspect-square w-full" aria-hidden="true"></div>
       <div
-        class=" group m-auto flex w-full min-w-0 flex-row justify-between px-4 py-6 pr-4 pb-3"
+        class=" group col-start-1 row-start-1 flex w-full min-w-0 flex-row justify-between self-center px-4 pt-8 pb-3"
         id="message"
       >
         <div class="relative w-full min-w-0">
@@ -445,13 +436,19 @@
               <IdentityChip rid={msg.r} bg="background" variant="tab" />
             </span>
 
-            {#if msg.image && msg.image.id && msg.image.blurhash}
-              <span class="border-border absolute -top-5 left-32 h-7 w-7 border text-sm">
-                <BlurhashThumbnail imageId={msg.image.id} />
-              </span>
-            {/if}
-
-            <MessageText text={msg.msg} {redactedIndices} />
+            <div class="flex w-full min-w-0 flex-col gap-2">
+              {#if hasImage}
+                <div class="mb-1"><MessageImage imageId={msg.image.id} interactive={false} /></div>
+              {/if}
+              {#if msg.msg}
+                <MessageText text={msg.msg} {redactedIndices} />
+              {/if}
+              <!-- No voice player in the export, so a picture with only a
+                   voice note under it is image-only here. -->
+              {#if hasImage && !msg.msg}
+                <div class="h-3" aria-hidden="true"></div>
+              {/if}
+            </div>
             <div class="absolute right-2 bottom-2 flex flex-row items-center justify-center gap-1">
               {#if msg.editedAt}
                 <span class="text-muted-foreground text-xs italic">edited</span>
@@ -496,6 +493,8 @@
         >
           {#if preparingCapture}
             <Spinner class="animate-spin" size={20} />
+          {:else if downloadState === 'error'}
+            <XCircle size={20} />
           {:else}
             <FileArrowDown size={20} />
           {/if}
